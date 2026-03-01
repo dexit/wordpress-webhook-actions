@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { Card, Select, Alert, Input, Button, DateTimePicker } from '@/components/ui'
+import { ref, computed, onMounted, watch } from 'vue'
+import { Card, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Alert, Input, Button, DateTimePicker } from '@/components/ui'
 import { Loader2 } from 'lucide-vue-next'
 import LogsTable from '@/components/LogsTable.vue'
 import api from '@/lib/api'
@@ -15,13 +15,19 @@ const stats = ref(null)
 
 const statusFilter = ref('')
 const statusOptions = [
-  { value: '', label: 'All statuses' },
+  { value: 'all', label: 'All statuses' },
   { value: 'success', label: 'Success' },
   { value: 'error', label: 'Error' },
   { value: 'retry', label: 'Retry' },
   { value: 'pending', label: 'Pending' },
   { value: 'permanently_failed', label: 'Permanently Failed' },
 ]
+
+// Radix-vue Select requires non-empty string values; map '' <-> 'all'
+const statusFilterSelect = computed({
+  get: () => statusFilter.value || 'all',
+  set: (val) => { statusFilter.value = val === 'all' ? '' : val },
+})
 
 const eventUuidFilter = ref('')
 const targetUrlFilter = ref('')
@@ -174,11 +180,16 @@ onMounted(() => {
 
     <!-- Filters -->
     <div class="flex flex-wrap items-center gap-3 mb-4">
-      <Select
-        v-model="statusFilter"
-        :options="statusOptions"
-        class="w-full sm:w-48"
-      />
+      <Select v-model="statusFilterSelect">
+        <SelectTrigger class="w-full sm:w-48">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="option in statusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
       <Input
         v-model="eventUuidFilter"
         placeholder="Filter by event UUID..."

@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Download, Trash2, Archive, Copy, RefreshCw, Clock, Check } from 'lucide-vue-next'
-import { Button, Card, Label, Select, Switch, Alert, Dialog } from '@/components/ui'
+import { Button, Card, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Switch, Alert, Dialog } from '@/components/ui'
 import api from '@/lib/api'
 
 const settings = ref({
@@ -21,12 +21,18 @@ const regeneratingToken = ref(false)
 const copiedField = ref(null)
 
 const retentionOptions = [
-  { value: 7, label: '7 days' },
-  { value: 14, label: '14 days' },
-  { value: 30, label: '30 days' },
-  { value: 60, label: '60 days' },
-  { value: 90, label: '90 days' },
+  { value: '7', label: '7 days' },
+  { value: '14', label: '14 days' },
+  { value: '30', label: '30 days' },
+  { value: '60', label: '60 days' },
+  { value: '90', label: '90 days' },
 ]
+
+// Radix-vue Select requires string values; convert to/from number
+const retentionDays = computed({
+  get: () => String(settings.value.log_retention_days ?? 30),
+  set: (val) => { settings.value.log_retention_days = parseInt(val, 10) },
+})
 
 const loadData = async () => {
   loading.value = true
@@ -259,11 +265,16 @@ onMounted(loadData)
           <div class="space-y-4">
             <div class="space-y-2">
               <Label>Keep logs for</Label>
-              <Select
-                v-model="settings.log_retention_days"
-                :options="retentionOptions"
-                class="w-48"
-              />
+              <Select v-model="retentionDays">
+                <SelectTrigger class="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="option in retentionOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <p class="text-sm text-muted-foreground">
                 Logs older than this will be automatically deleted
               </p>
