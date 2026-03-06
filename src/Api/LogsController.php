@@ -306,10 +306,10 @@ class LogsController extends WP_REST_Controller {
       );
     }
 
-    if (!in_array($job['status'], ['failed', 'permanently_failed'], true)) {
+    if (!in_array($log['status'], ['error', 'permanently_failed'], true)) {
       return new WP_Error(
         'rest_job_not_retryable',
-        __('Only failed or permanently failed jobs can be retried.', 'flowsystems-webhook-actions'),
+        __('Only failed log entries can be retried.', 'flowsystems-webhook-actions'),
         ['status' => 409]
       );
     }
@@ -346,10 +346,10 @@ class LogsController extends WP_REST_Controller {
       );
     }
 
-    if (!in_array($log['status'], ['success', 'permanently_failed'], true)) {
+    if ($log['status'] !== 'success') {
       return new WP_Error(
         'rest_log_not_replayable',
-        __('Only success or permanently failed logs can be replayed.', 'flowsystems-webhook-actions'),
+        __('Only successful log entries can be replayed.', 'flowsystems-webhook-actions'),
         ['status' => 409]
       );
     }
@@ -394,7 +394,9 @@ class LogsController extends WP_REST_Controller {
       $logId = (int) $logId;
       $job = $this->queueRepository->findByLogId($logId);
 
-      if (!$job || !in_array($job['status'], ['failed', 'permanently_failed'], true)) {
+      $log = $this->repository->find($logId);
+
+      if (!$log || !in_array($log['status'], ['error', 'permanently_failed'], true) || !$job) {
         $skipped++;
         continue;
       }
