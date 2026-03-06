@@ -296,7 +296,7 @@ onMounted(() => {
           <div class="flex items-center gap-2 shrink-0">
             <!-- Execute button for pending/failed jobs -->
             <Button
-              v-if="item.status === 'pending' || item.status === 'permanently_failed'"
+              v-if="item.status === 'pending'"
               variant="outline"
               size="sm"
               @click="executeItem(item)"
