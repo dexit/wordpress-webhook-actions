@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { ChevronLeft, ChevronRight, Eye, Trash2, ArrowRight, RotateCcw, CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Eye, Trash2, ArrowRight, RotateCcw, Play, CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
 import { Badge, Button, Checkbox, Dialog } from '@/components/ui'
 
 const props = defineProps({
@@ -31,12 +31,14 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['page-change', 'delete', 'retry', 'update:selectedIds'])
+const emit = defineEmits(['page-change', 'delete', 'retry', 'replay', 'update:selectedIds'])
 
 const totalPages = computed(() => Math.ceil(props.total / props.perPage))
 
 const selectedLog = ref(null)
 const showDetails = ref(false)
+
+const pendingDeleteLog = ref(null)
 
 const statusVariant = (status) => {
   const variants = {
@@ -49,7 +51,8 @@ const statusVariant = (status) => {
   return variants[status] || 'default'
 }
 
-const isRetryable = (status) => status === 'error' || status === 'permanently_failed'
+const isRetryable  = (status) => status === 'error'
+const isReplayable = (status) => status === 'success' || status === 'permanently_failed'
 
 const formatDate = (date) => {
   return new Date(date).toLocaleString()
@@ -78,8 +81,13 @@ const closeDetails = () => {
 }
 
 const handleDelete = (log) => {
-  if (confirm('Are you sure you want to delete this log?')) {
-    emit('delete', log.id)
+  pendingDeleteLog.value = log
+}
+
+const confirmDelete = () => {
+  if (pendingDeleteLog.value) {
+    emit('delete', pendingDeleteLog.value.id)
+    pendingDeleteLog.value = null
   }
 }
 
@@ -220,6 +228,16 @@ const allOnPageSelected = computed(() => {
                 >
                   <RotateCcw class="h-4 w-4" />
                 </Button>
+                <Button
+                  v-if="isReplayable(log.status)"
+                  size="icon"
+                  variant="ghost"
+                  class="text-green-600 hover:text-green-700"
+                  title="Replay"
+                  @click="emit('replay', log)"
+                >
+                  <Play class="h-4 w-4" />
+                </Button>
                 <Button size="icon" variant="ghost" @click="openDetails(log)">
                   <Eye class="h-4 w-4" />
                 </Button>
@@ -258,6 +276,21 @@ const allOnPageSelected = computed(() => {
         </Button>
       </div>
     </div>
+
+    <!-- Delete Confirm Dialog -->
+    <Dialog
+      :open="!!pendingDeleteLog"
+      title="Delete log?"
+      description="This action cannot be undone."
+      @close="pendingDeleteLog = null"
+    >
+      <template #footer>
+        <div class="flex gap-2">
+          <Button variant="destructive" @click="confirmDelete">Delete</Button>
+          <Button variant="outline" @click="pendingDeleteLog = null">Cancel</Button>
+        </div>
+      </template>
+    </Dialog>
 
     <!-- Details Dialog -->
     <Dialog
@@ -378,6 +411,14 @@ const allOnPageSelected = computed(() => {
           >
             <RotateCcw class="h-4 w-4 mr-1.5" />
             Retry
+          </Button>
+          <Button
+            v-if="isReplayable(selectedLog?.status)"
+            variant="outline"
+            class="text-green-600 border-green-600 hover:bg-green-50"
+            @click="() => { emit('replay', selectedLog); closeDetails() }"
+          >
+            <Play class="h-4 w-4 mr-1.5" /> Replay
           </Button>
           <Button variant="outline" @click="closeDetails">Close</Button>
         </div>
