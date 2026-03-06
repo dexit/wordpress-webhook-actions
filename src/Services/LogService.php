@@ -196,12 +196,8 @@ class LogService {
     }
 
     $history = is_array($log['attempt_history']) ? $log['attempt_history'] : [];
+    $attemptData['attempt'] = empty($history) ? 0 : max(array_column($history, 'attempt')) + 1;
     $history[] = $attemptData;
-
-    $maxAttempts = (int) apply_filters('fswa_max_attempts', 5);
-    if (count($history) > $maxAttempts) {
-      $history = array_slice($history, -$maxAttempts);
-    }
 
     return $this->repository->update($logId, ['attempt_history' => $history]);
   }
