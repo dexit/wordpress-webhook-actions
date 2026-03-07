@@ -1,6 +1,6 @@
 === Flow Systems Webhook Actions ===
 Contributors: mateuszflowsystems
-Tags: webhook, woocommerce, automation, n8n, integration
+Tags: webhook, automation, integration, n8n, api
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 8.0
@@ -8,7 +8,7 @@ Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
-Production-safe WordPress webhooks with retries, event IDs, queue processing, and full delivery observability.
+Reliable WordPress webhooks for automation workflows with retries, delivery logs, event IDs, queue processing, and replayable webhook events.
 
 == Description ==
 
@@ -62,6 +62,21 @@ Smart retry routing:
 
 No silent failures.
 
+= Replay Webhook Events =
+
+Webhook debugging is difficult when events cannot be reproduced.
+
+Flow Systems Webhook Actions allows you to replay any webhook event directly from the delivery logs — including successful deliveries.
+
+This makes it easy to:
+
+- Re-run automation workflows
+- Debug external integrations
+- Recover from temporary endpoint failures
+- Test webhook consumers without recreating WordPress events
+
+Each replay uses the original payload and event metadata, ensuring consistent behavior across retries and debugging sessions.
+
 = Delivery Observability =
 
 Operational visibility built into the admin panel:
@@ -70,7 +85,9 @@ Status states: `pending`, `processing`, `success`, `failed` (retrying), `permane
 
 - Attempt timeline per event
 - HTTP status codes and response bodies
+- Inspect full request payloads
 - Manual retry (single or bulk)
+- Replay webhook events for debugging and testing integrations
 
 Filter by: event UUID, target URL, date range, status
 
@@ -112,6 +129,7 @@ Flow Systems Webhook Actions provides:
 
 - Persistent queue
 - Smart retry logic
+- Webhook replay for debugging integrations
 - Permanent failure state handling
 - Event UUIDs and timestamps
 - Full delivery logging and metrics
@@ -161,6 +179,11 @@ Yes. Any WooCommerce action can be used as a trigger, as long as the hook is ava
 
 Failed webhooks are automatically retried using exponential backoff. The delay increases with each attempt (e.g., 1 minute, 2 minutes, 4 minutes, 8 minutes), up to a maximum delay of 1 hour between retries. By default, 5 attempts are made before marking a job as failed. The retry behavior can be adjusted using available filters.
 
+= Can I replay webhook events? =
+
+Yes. Every webhook delivery is logged with its payload and attempt history.
+You can replay any event directly from the logs, which is useful for debugging integrations or re-running automation workflows.
+
 = What is Payload Mapping? =
 
 Payload Mapping allows you to transform the webhook payload before it is sent. You can rename fields, reorganize the structure, or exclude sensitive data. The plugin can store example payloads to help configure mappings.
@@ -179,7 +202,7 @@ Yes. The plugin is completely free and licensed under GPL.
 2. Webhook configuration screen
 3. Selecting WordPress action triggers
 4. Payload mapping configuration
-5. Webhook delivery logs
+5. Webhook delivery logs with replay and retry controls
 6. Queue status overview
 7. Settings configuration screen
 
