@@ -210,7 +210,7 @@ Yes. The plugin is completely free and licensed under GPL.
 
 = 1.2.0 — 2026-03-07 =
 - Added persistent delivery stats table (`fswa_stats`) for long-term aggregation
-- Added replay button for successful and permanently failed log entries
+- Added replay button for successful log entries
 - Added "Execute Now" button in replay dialog with auto-open log details
 - Added full attempt history with response body, accordion UI, and next attempt countdown
 - Replaced browser `confirm()` dialogs with modal confirmations
