@@ -4,7 +4,7 @@ Tags: webhook, woocommerce, automation, n8n, integration
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.1.1
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -185,10 +185,20 @@ Yes. The plugin is completely free and licensed under GPL.
 
 == Changelog ==
 
-= 1.1.1 =
+= 1.2.0 — 2026-03-07 =
+- Added persistent delivery stats table (`fswa_stats`) for long-term aggregation
+- Added replay button for successful and permanently failed log entries
+- Added "Execute Now" button in replay dialog with auto-open log details
+- Added full attempt history with response body, accordion UI, and next attempt countdown
+- Replaced browser `confirm()` dialogs with modal confirmations
+- Fixed queue stats — removed stale `failed` status, added `permanently_failed`
+- Fixed retry eligibility check to use log status instead of queue job status
+- Fixed "Execute Now" button visibility to only show for pending jobs
+
+= 1.1.1 — 2026-03-01 =
 - Fixed `permanently_failed` entries being excluded from total and error delivery statistics in `getStats()`, `getAllTimeStats()`, and `LogArchiver::aggregateStatsBeforeDeletion()`
 
-= 1.1.0 =
+= 1.1.0 — 2026-02-28 =
 - Added event identity: each trigger dispatch generates a shared UUID and timestamp sent as `X-Event-Id` / `X-Event-Timestamp` headers and embedded in the payload under `event.{id,timestamp,version}`
 - Added smart retry routing: 5xx and 429 responses trigger an automatic retry with exponential backoff; 4xx and 3xx responses are immediately marked as permanently failed
 - Added `permanently_failed` status for non-retryable delivery failures
@@ -201,14 +211,14 @@ Yes. The plugin is completely free and licensed under GPL.
 - Updated admin UI: permanently failed badge, attempt timeline, per-row retry button, bulk retry, observability warning banners, new filter inputs
 - Updated footer with a review prompt linking to WordPress.org
 
-= 1.0.1 =
+= 1.0.1 — 2026-02-18 =
 - Fixed preview freezing when mapping fields from objects with numeric string keys (e.g. WooCommerce line_items)
 - Fixed orphaned pending log entries caused by logPending() silently failing — queue jobs now carry mapping metadata and recover a proper log entry if the original ID was lost
 - Enhanced normalizeValue to handle Closure, DateTimeInterface, and Traversable types
 - Removed unnecessary WooCommerce hook patterns from trigger exclusions
 - Improved log details display with word break for long trigger names and dates
 
-= 1.0.0 =
+= 1.0.0 — 2026-02-16 =
 - Initial release
 - Webhook dispatching from WordPress actions
 - Background processing with retry mechanism
@@ -223,5 +233,5 @@ Fixes permanently_failed entries being undercounted in delivery statistics. No d
 = 1.1.0 =
 This release adds new database columns (`event_uuid`, `event_timestamp`, `attempt_history`, `next_attempt_at` on logs; `log_id` on queue). The migration runs automatically on plugin activation or update. No manual steps required.
 
-= 1.0.0 =
+= 1.0.0 — 2026-02-16 =
 Initial stable release.
