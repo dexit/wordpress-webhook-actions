@@ -112,6 +112,31 @@ Adapt outgoing JSON payloads to match any external API:
 
 Payloads always include stable event metadata for consistency.
 
+= REST API Access with Token Authentication =
+
+The plugin exposes a full REST API (`/wp-json/fswa/v1/`) that powers the admin interface and can be used directly by external tools and automation platforms.
+
+Every endpoint supports dual authentication:
+
+- WordPress admin session (cookie-based, used by the admin panel)
+- API token — for programmatic access without a browser session
+
+**API Tokens**
+
+Create tokens directly from the API Tokens screen in the admin panel. Each token is assigned one of three scopes:
+
+- `read` — GET access to webhooks, logs, queue, health, triggers, and schemas
+- `operational` — Read + toggle webhooks on/off, retry and replay log entries, execute queue jobs
+- `full` — Operational + create, update, and delete webhooks, schemas, and queue jobs
+
+Token authentication is accepted via:
+
+- `X-FSWA-Token: <token>` header (recommended)
+- `Authorization: Bearer <token>` header
+- `?api_token=<token>` query parameter
+
+Tokens can be set to expire and rotated at any time. Rotation issues a new secret immediately while preserving the token's name, scope, and settings. Token management always requires a WordPress admin login — tokens cannot be used to create or manage other tokens.
+
 = Developer Friendly =
 
 - Works with any WordPress or WooCommerce action
@@ -191,6 +216,10 @@ Payload Mapping allows you to transform the webhook payload before it is sent. Y
 = Can I include user data in webhook payloads? =
 
 Yes. For user-related triggers (such as `user_register`, `profile_update`, `wp_login`, `wp_logout`), you can enable "Include User Data" to automatically add user information (ID, email, display name, roles, etc.) to the payload.
+
+= Can I access the REST API without a WordPress login? =
+
+Yes. Create an API token from the API Tokens screen in the admin panel and use it in the `X-FSWA-Token` header (or `Authorization: Bearer`) with your requests. Tokens support three scopes — `read`, `operational`, and `full` — so you can grant only the access level each integration needs.
 
 = Is this plugin free? =
 
