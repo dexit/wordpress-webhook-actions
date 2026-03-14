@@ -33,6 +33,7 @@ Built for production environments where losing events is not acceptable.
 - Send event-driven data to internal APIs
 - Replace fragile custom `wp_remote_post()` integrations
 - Build idempotent WordPress automation pipelines
+- Query delivery logs, trigger retries, or manage webhooks programmatically from CI/CD pipelines or external dashboards using API tokens
 
 = Event Identity & Idempotency =
 
@@ -140,7 +141,8 @@ Tokens can be set to expire and rotated at any time. Rotation issues a new secre
 = Developer Friendly =
 
 - Works with any WordPress or WooCommerce action
-- Internal REST endpoints power the admin interface
+- Full REST API (`/wp-json/fswa/v1/`) usable from any HTTP client — not just the admin panel
+- API token authentication with scoped access (`read`, `operational`, `full`)
 - Fully extensible via filters and actions
 - Clean namespace and unique prefixes
 - Built according to WordPress.org standards
@@ -158,6 +160,7 @@ Flow Systems Webhook Actions provides:
 - Permanent failure state handling
 - Event UUIDs and timestamps
 - Full delivery logging and metrics
+- REST API with token authentication for programmatic access
 
 Built for developers who need production-grade automation reliability.
 
@@ -234,6 +237,7 @@ Yes. The plugin is completely free and licensed under GPL.
 5. Webhook delivery logs with replay and retry controls
 6. Queue status overview
 7. Settings configuration screen
+8. REST API Keys configuration screen
 
 == Changelog ==
 
