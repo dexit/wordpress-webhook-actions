@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { ChevronLeft, ChevronRight, ChevronDown, Eye, Trash2, ArrowRight, RotateCcw, Play, CheckCircle2, XCircle, Loader2 } from 'lucide-vue-next'
 import { Badge, Button, Checkbox, Dialog } from '@/components/ui'
+import { formatUtcDate } from '@/lib/dates'
 
 const props = defineProps({
   logs: {
@@ -54,9 +55,7 @@ const statusVariant = (status) => {
 const isRetryable  = (status) => status === 'error' || status === 'permanently_failed'
 const isReplayable = (status) => status === 'success'
 
-const formatDate = (date) => {
-  return new Date(date).toLocaleString()
-}
+const formatDate = formatUtcDate
 
 const formatJson = (data) => {
   if (!data) return 'null'
