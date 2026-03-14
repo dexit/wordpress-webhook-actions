@@ -209,28 +209,15 @@ Yes. The plugin is completely free and licensed under GPL.
 == Changelog ==
 
 = 1.3.0 — 2026-03-14 =
-
-**API Tokens — connect external tools without sharing your WordPress password**
-
-You can now create API tokens to give external systems (like n8n, Make, or your own scripts) controlled access to the plugin's REST API. No WordPress login required on the other end.
-
-Each token has a scope that limits what it can do:
-
-- *Read* — can view webhooks, logs, and queue status
-- *Operational* — can also toggle webhooks on/off, retry failed deliveries
-- *Full* — can also create, edit, and delete webhooks
-
-Tokens can optionally expire. You can rotate a token at any time to issue a new secret without losing any settings — and if a token has expired, rotating it lets you revive it and extend the expiry in one step.
-
-Token management (creating, rotating, deleting) always requires a WordPress admin login and cannot be done with a token itself.
-
-**All timestamps are now shown in your local timezone**
-
-Previously, dates in the delivery logs, queue, and schema panel were displayed in UTC regardless of where you are. They now correctly reflect your local time.
-
-**Improvements to the log details panel**
-
-When viewing the details of a delivery log, the error message, response body, HTTP status code, and duration now show the data from the most recent delivery attempt rather than the first one — which is more useful when diagnosing failures after multiple retries.
+- Added API token authentication for the REST API — create tokens with `read`, `operational`, or `full` scope; tokens are SHA-256 hashed at rest and accepted via `X-FSWA-Token` header, `Authorization: Bearer`, or `?api_token=` query param
+- Added token expiry support with optional `expires_at`; expired tokens are rejected at auth time and visually flagged in the admin panel
+- Added token rotation — issues a new secret while preserving all other token fields; optionally updates expiry in the same request; revived expired tokens auto-extend to +30 days by default
+- Added `PATCH /tokens/{id}` endpoint for updating `expires_at` independently of rotation
+- Added `fswa_api_tokens` database table (migration 1.3.0)
+- Applied scope-based dual auth (`manage_options` session OR valid token) to all existing REST controllers: `read` for GET endpoints, `operational` for toggle/retry/replay, `full` for create/update/delete
+- Fixed all admin UI date displays (logs, queue, schema panel) to show times in the user's local timezone instead of raw UTC
+- Fixed date range filters (logs, queue) to correctly convert local picker values to UTC before querying
+- Improved log details panel — error message, response body, HTTP code, and duration now reflect the most recent attempt history entry rather than the top-level log fields
 
 = 1.2.1 — 2026-03-07 =
 - Fixed retry returning 500 when a log has multiple queue jobs (replay + original) — `findByLogId` now returns the most recent job via `ORDER BY id DESC`
