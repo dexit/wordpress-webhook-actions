@@ -237,7 +237,7 @@ Yes. The plugin is completely free and licensed under GPL.
 5. Webhook delivery logs with replay and retry controls
 6. Queue status overview
 7. Settings configuration screen
-8. REST API Keys configuration screen
+8. REST API Tokens configuration screen
 
 == Changelog ==
 
