@@ -140,7 +140,7 @@ Token authentication is accepted via:
 
 Tokens can be set to expire and rotated at any time. Rotation issues a new secret immediately while preserving the token's name, scope, and settings. Token management always requires a WordPress admin login — tokens cannot be used to create or manage other tokens.
 
-Full REST API documentation: https://flowsystems.pl/webhook-wordpress-plugin-api/
+Full REST API documentation: [REST API Reference](https://flowsystems.pl/webhook-wordpress-plugin-api/)
 
 = AI Agents and Programmatic Automation =
 
