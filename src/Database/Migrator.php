@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '1.3.0';
+  private const CURRENT_VERSION = '1.4.0';
 
   /**
    * Run pending migrations
@@ -45,6 +45,8 @@ class Migrator {
       $wpdb->prefix . 'fswa_trigger_schemas',
       $wpdb->prefix . 'fswa_stats',
       $wpdb->prefix . 'fswa_api_tokens',
+      $wpdb->prefix . 'fswa_incoming_endpoints',
+      $wpdb->prefix . 'fswa_incoming_payloads',
     ];
 
     foreach ($requiredTables as $table) {
@@ -69,6 +71,7 @@ class Migrator {
       '1.1.0' => [self::class, 'migration_1_1_0'],
       '1.2.0' => [self::class, 'migration_1_2_0'],
       '1.3.0' => [self::class, 'migration_1_3_0'],
+      '1.4.0' => [self::class, 'migration_1_4_0'],
     ];
   }
 
@@ -292,6 +295,62 @@ class Migrator {
         ) {$charsetCollate};";
 
     dbDelta($sql);
+  }
+
+  /**
+   * Migration 1.4.0 - Add incoming endpoints and payloads tables
+   */
+  public static function migration_1_4_0(): void {
+    global $wpdb;
+
+    $charsetCollate = $wpdb->get_charset_collate();
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    // Incoming endpoints configuration table
+    $endpointsTable = $wpdb->prefix . 'fswa_incoming_endpoints';
+    $sqlEndpoints   = "CREATE TABLE {$endpointsTable} (
+            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name            VARCHAR(255) NOT NULL,
+            slug            VARCHAR(100) NOT NULL,
+            description     TEXT DEFAULT NULL,
+            secret_key      VARCHAR(255) DEFAULT NULL,
+            hmac_algorithm  VARCHAR(20) NOT NULL DEFAULT 'sha256',
+            hmac_header     VARCHAR(100) DEFAULT NULL,
+            is_enabled      TINYINT(1) NOT NULL DEFAULT 1,
+            response_code   SMALLINT UNSIGNED NOT NULL DEFAULT 200,
+            response_body   TEXT DEFAULT NULL,
+            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_slug (slug),
+            KEY idx_enabled (is_enabled)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlEndpoints);
+
+    // Incoming payloads storage table
+    $payloadsTable = $wpdb->prefix . 'fswa_incoming_payloads';
+    $sqlPayloads   = "CREATE TABLE {$payloadsTable} (
+            id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            endpoint_id       BIGINT UNSIGNED NOT NULL,
+            payload           LONGTEXT NOT NULL,
+            headers           LONGTEXT DEFAULT NULL,
+            method            VARCHAR(10) NOT NULL DEFAULT 'POST',
+            source_ip         VARCHAR(45) DEFAULT NULL,
+            content_type      VARCHAR(255) DEFAULT NULL,
+            status            VARCHAR(20) NOT NULL DEFAULT 'received',
+            processing_notes  TEXT DEFAULT NULL,
+            received_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            processed_at      DATETIME DEFAULT NULL,
+            PRIMARY KEY (id),
+            KEY idx_endpoint (endpoint_id),
+            KEY idx_status (status),
+            KEY idx_received (received_at),
+            KEY idx_endpoint_status (endpoint_id, status)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlPayloads);
   }
 
   /**
