@@ -44,6 +44,12 @@ const onSlugInput = () => {
   form.value.slug = autoSlug(form.value.slug)
 }
 
+// Radix-vue Select requires non-empty string values — store as string, cast on submit
+const responseCodeSelect = computed({
+  get: () => String(form.value.response_code),
+  set: (val) => { form.value.response_code = Number(val) },
+})
+
 const errors = ref({})
 
 const validate = () => {
@@ -224,15 +230,15 @@ onMounted(loadEndpoint)
           <!-- Response Code -->
           <div class="space-y-1.5">
             <Label>Response HTTP Code</Label>
-            <Select v-model="form.response_code">
+            <Select v-model="responseCodeSelect">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem :value="200">200 OK</SelectItem>
-                <SelectItem :value="201">201 Created</SelectItem>
-                <SelectItem :value="202">202 Accepted</SelectItem>
-                <SelectItem :value="204">204 No Content</SelectItem>
+                <SelectItem value="200">200 OK</SelectItem>
+                <SelectItem value="201">201 Created</SelectItem>
+                <SelectItem value="202">202 Accepted</SelectItem>
+                <SelectItem value="204">204 No Content</SelectItem>
               </SelectContent>
             </Select>
           </div>

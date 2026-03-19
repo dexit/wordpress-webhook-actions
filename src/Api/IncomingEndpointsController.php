@@ -140,6 +140,41 @@ class IncomingEndpointsController extends WP_REST_Controller {
       ]
     );
 
+    // Mark single payload failed
+    register_rest_route(
+      $this->namespace,
+      '/' . $this->rest_base . '/(?P<id>[\d]+)/payloads/(?P<payload_id>[\d]+)/mark-failed',
+      [
+        'methods'             => WP_REST_Server::CREATABLE,
+        'callback'            => [$this, 'markPayloadFailed'],
+        'permission_callback' => [$this, 'updateItemPermissionsCheck'],
+        'args'                => [
+          'id'         => ['type' => 'integer'],
+          'payload_id' => ['type' => 'integer'],
+          'notes'      => ['type' => 'string'],
+        ],
+      ]
+    );
+
+    // Purge payloads older than N days
+    register_rest_route(
+      $this->namespace,
+      '/' . $this->rest_base . '/(?P<id>[\d]+)/payloads/purge',
+      [
+        'methods'             => WP_REST_Server::DELETABLE,
+        'callback'            => [$this, 'purgePayloads'],
+        'permission_callback' => [$this, 'deleteItemPermissionsCheck'],
+        'args'                => [
+          'id'               => ['type' => 'integer'],
+          'older_than_days'  => [
+            'type'    => 'integer',
+            'default' => 30,
+            'minimum' => 1,
+          ],
+        ],
+      ]
+    );
+
     // Stats for an endpoint
     register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/stats', [
       'methods'             => WP_REST_Server::READABLE,
@@ -456,6 +491,43 @@ class IncomingEndpointsController extends WP_REST_Controller {
     $this->payloads->markProcessed($payloadId, $notes ?: null);
 
     return rest_ensure_response($this->payloads->find($payloadId));
+  }
+
+  /**
+   * Mark a payload as failed
+   */
+  public function markPayloadFailed(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    $endpoint = $this->resolveEndpoint($request);
+    if (is_wp_error($endpoint)) {
+      return $endpoint;
+    }
+
+    $payloadId = (int) $request->get_param('payload_id');
+    $payload   = $this->payloads->find($payloadId);
+
+    if (!$payload || $payload['endpoint_id'] !== $endpoint['id']) {
+      return new WP_Error('rest_payload_not_found', __('Payload not found.', 'flowsystems-webhook-actions'), ['status' => 404]);
+    }
+
+    $notes = sanitize_textarea_field($request->get_param('notes') ?? '');
+    $this->payloads->markFailed($payloadId, $notes ?: null);
+
+    return rest_ensure_response($this->payloads->find($payloadId));
+  }
+
+  /**
+   * Delete payloads older than N days for an endpoint
+   */
+  public function purgePayloads(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    $endpoint = $this->resolveEndpoint($request);
+    if (is_wp_error($endpoint)) {
+      return $endpoint;
+    }
+
+    $days    = max(1, (int) $request->get_param('older_than_days'));
+    $deleted = $this->payloads->deleteOlderThan($endpoint['id'], $days);
+
+    return rest_ensure_response(['deleted' => $deleted, 'older_than_days' => $days]);
   }
 
   /**

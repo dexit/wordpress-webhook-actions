@@ -193,6 +193,8 @@ export const api = {
     deletePayloads: (id) => del(`endpoints/${id}/payloads`),
     deletePayload: (id, payloadId) => del(`endpoints/${id}/payloads/${payloadId}`),
     markProcessed: (id, payloadId, notes) => post(`endpoints/${id}/payloads/${payloadId}/mark-processed`, { notes }),
+    markFailed: (id, payloadId, notes) => post(`endpoints/${id}/payloads/${payloadId}/mark-failed`, { notes }),
+    purge: (id, olderThanDays) => del(`endpoints/${id}/payloads/purge`, { older_than_days: olderThanDays }),
     stats: (id) => get(`endpoints/${id}/stats`),
   },
 }
