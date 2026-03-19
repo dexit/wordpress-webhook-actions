@@ -9,6 +9,7 @@ use WP_REST_Server;
 use WP_REST_Response;
 use WP_Error;
 use FlowSystems\WebhookActions\Api\AuthHelper;
+use FlowSystems\WebhookActions\Repositories\IncomingEndpointRepository;
 
 class TriggersController extends WP_REST_Controller {
   protected $namespace = 'fswa/v1';
@@ -46,6 +47,10 @@ class TriggersController extends WP_REST_Controller {
   private function getAvailableTriggers(): array {
     $suggested = $this->getSuggestedTriggers();
 
+    // Add incoming endpoint triggers (fswa_endpoint_{slug})
+    $endpointTriggers = $this->getEndpointTriggers();
+    $suggested        = array_merge($suggested, $endpointTriggers);
+
     $registered = $this->getRegisteredHooks();
 
     $suggestedNames = array_column($suggested, 'name');
@@ -79,6 +84,44 @@ class TriggersController extends WP_REST_Controller {
       'categories' => $this->getCategories(),
       'allowCustom' => true,
     ];
+  }
+
+  /**
+   * Build triggers for all enabled incoming endpoints.
+   *
+   * Each endpoint fires the action `fswa_endpoint_{slug}` when it receives a payload.
+   * Arg 0 of the action is the received context (body/query/headers/meta), making every
+   * field available for outgoing webhook field mapping as `received.body.*`, etc.
+   *
+   * @return array
+   */
+  private function getEndpointTriggers(): array {
+    $repo     = new IncomingEndpointRepository();
+    $all      = $repo->getAll();
+    $triggers = [];
+
+    foreach ($all as $endpoint) {
+      $slug     = $endpoint['slug'] ?? '';
+      $name     = $endpoint['name'] ?? $slug;
+      if (empty($slug)) {
+        continue;
+      }
+
+      $triggers[] = [
+        'name'              => 'fswa_endpoint_' . $slug,
+        'label'             => sprintf(__('Endpoint: %s', 'flowsystems-webhook-actions'), $name),
+        'category'          => 'endpoints',
+        'description'       => sprintf(
+          __('Fires when the "%s" incoming endpoint receives a payload. Use received.body.*, received.query.*, received.headers.* in field mapping.', 'flowsystems-webhook-actions'),
+          $name
+        ),
+        'isEndpointTrigger' => true,
+        'endpointId'        => (int) $endpoint['id'],
+        'endpointSlug'      => $slug,
+      ];
+    }
+
+    return $triggers;
   }
 
   /**
@@ -435,6 +478,7 @@ class TriggersController extends WP_REST_Controller {
    */
   private function getCategories(): array {
     return [
+      'endpoints' => __('Incoming Endpoints', 'flowsystems-webhook-actions'),
       'users' => __('Users', 'flowsystems-webhook-actions'),
       'posts' => __('Posts', 'flowsystems-webhook-actions'),
       'pages' => __('Pages', 'flowsystems-webhook-actions'),

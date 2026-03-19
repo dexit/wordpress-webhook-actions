@@ -184,6 +184,18 @@ class IncomingWebhookController extends WP_REST_Controller {
     // Fire generic received action
     do_action('fswa_incoming_payload_received', $payloadId, $endpoint, $rawBody, $context);
 
+    // Fire per-endpoint action — allows outgoing webhooks to subscribe to this endpoint as a trigger.
+    // Trigger name: fswa_endpoint_{slug}
+    // Args[0]: received context (body, query, headers, meta) — accessible in field mapping as received.*
+    // Args[1]: payload ID (int)
+    // Args[2]: endpoint info array (id, name, slug)
+    do_action(
+      'fswa_endpoint_' . $slug,
+      $context['received'] ?? [],
+      $payloadId,
+      ['id' => $endpoint['id'], 'name' => $endpoint['name'], 'slug' => $slug]
+    );
+
     // Write log
     $responseCode = (int) ($endpoint['response_code'] ?? 200);
     $this->writeLog($endpoint, $payloadId, $method, $request, $responseCode, $authResult, $startTime, null, $cptPostId, $functionExecuted, $functionOutput, $queryParams);
