@@ -47,6 +47,28 @@ const routes = [
     name: 'Settings',
     component: () => import('@/views/SettingsView.vue'),
   },
+  {
+    path: '/endpoints',
+    name: 'EndpointsList',
+    component: () => import('@/views/EndpointsList.vue'),
+  },
+  {
+    path: '/endpoints/new',
+    name: 'EndpointCreate',
+    component: () => import('@/views/EndpointEdit.vue'),
+  },
+  {
+    path: '/endpoints/:id',
+    name: 'EndpointEdit',
+    component: () => import('@/views/EndpointEdit.vue'),
+    props: true,
+  },
+  {
+    path: '/endpoints/:id/payloads',
+    name: 'EndpointPayloads',
+    component: () => import('@/views/EndpointPayloads.vue'),
+    props: true,
+  },
 ]
 
 const router = createRouter({

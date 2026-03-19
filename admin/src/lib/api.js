@@ -182,6 +182,19 @@ export const api = {
     resetCapture: (webhookId, triggerName) => post(`schemas/webhook/${webhookId}/trigger/${triggerName}/capture`),
     getUserTriggers: () => get('schemas/user-triggers'),
   },
+  endpoints: {
+    list: () => get('endpoints'),
+    get: (id) => get(`endpoints/${id}`),
+    create: (data) => post('endpoints', data),
+    update: (id, data) => put(`endpoints/${id}`, data),
+    delete: (id) => del(`endpoints/${id}`),
+    toggle: (id) => post(`endpoints/${id}/toggle`),
+    payloads: (id, params) => get(`endpoints/${id}/payloads`, params),
+    deletePayloads: (id) => del(`endpoints/${id}/payloads`),
+    deletePayload: (id, payloadId) => del(`endpoints/${id}/payloads/${payloadId}`),
+    markProcessed: (id, payloadId, notes) => post(`endpoints/${id}/payloads/${payloadId}/mark-processed`, { notes }),
+    stats: (id) => get(`endpoints/${id}/stats`),
+  },
 }
 
 export default api
