@@ -69,6 +69,12 @@ const routes = [
     component: () => import('@/views/EndpointPayloads.vue'),
     props: true,
   },
+  {
+    path: '/endpoints/:id/logs',
+    name: 'EndpointLogs',
+    component: () => import('@/views/EndpointLogs.vue'),
+    props: true,
+  },
 ]
 
 const router = createRouter({

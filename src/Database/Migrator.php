@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '1.4.0';
+  private const CURRENT_VERSION = '1.5.0';
 
   /**
    * Run pending migrations
@@ -47,6 +47,7 @@ class Migrator {
       $wpdb->prefix . 'fswa_api_tokens',
       $wpdb->prefix . 'fswa_incoming_endpoints',
       $wpdb->prefix . 'fswa_incoming_payloads',
+      $wpdb->prefix . 'fswa_endpoint_logs',
     ];
 
     foreach ($requiredTables as $table) {
@@ -72,6 +73,7 @@ class Migrator {
       '1.2.0' => [self::class, 'migration_1_2_0'],
       '1.3.0' => [self::class, 'migration_1_3_0'],
       '1.4.0' => [self::class, 'migration_1_4_0'],
+      '1.5.0' => [self::class, 'migration_1_5_0'],
     ];
   }
 
@@ -351,6 +353,67 @@ class Migrator {
         ) {$charsetCollate};";
 
     dbDelta($sqlPayloads);
+  }
+
+  /**
+   * Migration 1.5.0 – Endpoint logs table + auth/methods/CPT/function columns
+   */
+  public static function migration_1_5_0(): void {
+    global $wpdb;
+
+    $charsetCollate  = $wpdb->get_charset_collate();
+    $endpointsTable  = $wpdb->prefix . 'fswa_incoming_endpoints';
+    $logsTable       = $wpdb->prefix . 'fswa_endpoint_logs';
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    // ── New columns on wp_fswa_incoming_endpoints ─────────────────────────
+    $newColumns = [
+      'allowed_methods'    => "ALTER TABLE {$endpointsTable} ADD COLUMN allowed_methods VARCHAR(200) NOT NULL DEFAULT '[\"GET\",\"POST\",\"PUT\",\"PATCH\",\"DELETE\"]'",
+      'auth_mode'          => "ALTER TABLE {$endpointsTable} ADD COLUMN auth_mode VARCHAR(20) NOT NULL DEFAULT 'none'",
+      'auth_config'        => "ALTER TABLE {$endpointsTable} ADD COLUMN auth_config LONGTEXT DEFAULT NULL",
+      'cpt_enabled'        => "ALTER TABLE {$endpointsTable} ADD COLUMN cpt_enabled TINYINT(1) NOT NULL DEFAULT 0",
+      'cpt_config'         => "ALTER TABLE {$endpointsTable} ADD COLUMN cpt_config LONGTEXT DEFAULT NULL",
+      'function_enabled'   => "ALTER TABLE {$endpointsTable} ADD COLUMN function_enabled TINYINT(1) NOT NULL DEFAULT 0",
+      'function_code'      => "ALTER TABLE {$endpointsTable} ADD COLUMN function_code LONGTEXT DEFAULT NULL",
+      'hooks_to_fire'      => "ALTER TABLE {$endpointsTable} ADD COLUMN hooks_to_fire TEXT DEFAULT NULL",
+    ];
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    foreach ($newColumns as $column => $sql) {
+      $exists = $wpdb->get_var($wpdb->prepare(
+        "SHOW COLUMNS FROM {$endpointsTable} LIKE %s",
+        $column
+      ));
+      if (!$exists) {
+        $wpdb->query($sql);
+      }
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+    // ── New endpoint logs table ───────────────────────────────────────────
+    $sqlLogs = "CREATE TABLE {$logsTable} (
+            id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            endpoint_id       BIGINT UNSIGNED NOT NULL,
+            payload_id        BIGINT UNSIGNED DEFAULT NULL,
+            method            VARCHAR(10) NOT NULL DEFAULT 'POST',
+            query_params      TEXT DEFAULT NULL,
+            response_code     SMALLINT UNSIGNED NOT NULL DEFAULT 200,
+            auth_result       VARCHAR(20) NOT NULL DEFAULT 'skipped',
+            duration_ms       INT UNSIGNED DEFAULT NULL,
+            source_ip         VARCHAR(45) DEFAULT NULL,
+            error_message     TEXT DEFAULT NULL,
+            cpt_post_id       BIGINT UNSIGNED DEFAULT NULL,
+            function_executed TINYINT(1) NOT NULL DEFAULT 0,
+            function_output   TEXT DEFAULT NULL,
+            received_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_endpoint_id (endpoint_id),
+            KEY idx_received_at (received_at),
+            KEY idx_endpoint_received (endpoint_id, received_at)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlLogs);
   }
 
   /**

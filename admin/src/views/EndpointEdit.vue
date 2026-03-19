@@ -1,84 +1,148 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Copy, Check, Inbox } from 'lucide-vue-next'
-import { Button, Card, Alert, Input, Label, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui'
+import { ArrowLeft, Copy, Check, Inbox, ScrollText, Settings, ShieldCheck, Database, Code2 } from 'lucide-vue-next'
+import {
+  Button, Card, Alert, Input, Label, Switch, Tabs,
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui'
 import api from '@/lib/api'
 
 const router = useRouter()
-const route = useRoute()
+const route  = useRoute()
 
-const isEdit = computed(() => !!route.params.id)
+const isEdit    = computed(() => !!route.params.id)
 const pageTitle = computed(() => isEdit.value ? 'Edit Endpoint' : 'New Endpoint')
 
-const loading = ref(false)
-const saving = ref(false)
-const error = ref(null)
+const loading   = ref(false)
+const saving    = ref(false)
+const error     = ref(null)
 const copiedUrl = ref(false)
 
+// ---------------------------------------------------------------------------
+// Form state
+// ---------------------------------------------------------------------------
 const form = ref({
-  name: '',
-  slug: '',
-  description: '',
-  secret_key: '',
-  hmac_algorithm: 'sha256',
-  hmac_header: '',
-  is_enabled: true,
-  response_code: 200,
-  response_body: '',
+  // General
+  name:            '',
+  slug:            '',
+  description:     '',
+  is_enabled:      true,
+  allowed_methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  response_code:   200,
+  response_body:   '',
+
+  // Auth
+  auth_mode:   'none',
+  auth_config: { username: '', password: '', token: '', key: '', header: 'X-API-Key', param: 'api_key', secret: '', algorithm: 'sha256' },
+  // Legacy HMAC fields (still supported)
+  secret_key:      '',
+  hmac_algorithm:  'sha256',
+  hmac_header:     '',
+
+  // CPT mapping
+  cpt_enabled: false,
+  cpt_config: {
+    post_type:          'post',
+    operation:          'create',
+    post_status:        'publish',
+    title_template:     '',
+    content_template:   '',
+    lookup_meta_key:    '',
+    lookup_template:    '',
+    meta_mappings:      [],
+    flatten_meta:       false,
+    flatten_meta_prefix:'fswa_',
+  },
+
+  // Function / hooks
+  function_enabled: false,
+  function_code:    '',
+  hooks_to_fire:    '',
 })
 
 const receiverUrl = ref('')
-const slugDirty = ref(false)
+const slugDirty   = ref(false)
+const errors      = ref({})
 
-const autoSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+const allMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+
+// Radix-vue Select computed wrappers (must be non-empty strings)
+const responseCodeSelect = computed({
+  get: () => String(form.value.response_code),
+  set: (v) => { form.value.response_code = Number(v) },
+})
+
+// ---------------------------------------------------------------------------
+// Slug auto-derive
+// ---------------------------------------------------------------------------
+const autoSlug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
 const onNameInput = () => {
-  if (!slugDirty.value && !isEdit.value) {
-    form.value.slug = autoSlug(form.value.name)
-  }
+  if (!slugDirty.value && !isEdit.value) form.value.slug = autoSlug(form.value.name)
 }
-
 const onSlugInput = () => {
   slugDirty.value = true
   form.value.slug = autoSlug(form.value.slug)
 }
 
-// Radix-vue Select requires non-empty string values — store as string, cast on submit
-const responseCodeSelect = computed({
-  get: () => String(form.value.response_code),
-  set: (val) => { form.value.response_code = Number(val) },
-})
+// ---------------------------------------------------------------------------
+// Method toggles
+// ---------------------------------------------------------------------------
+const toggleMethod = (m) => {
+  const arr = form.value.allowed_methods
+  const idx = arr.indexOf(m)
+  if (idx === -1) arr.push(m)
+  else arr.splice(idx, 1)
+}
 
-const errors = ref({})
+// ---------------------------------------------------------------------------
+// CPT meta mappings
+// ---------------------------------------------------------------------------
+const addMetaMapping = () => form.value.cpt_config.meta_mappings.push({ meta_key: '', template: '' })
+const removeMetaMapping = (i) => form.value.cpt_config.meta_mappings.splice(i, 1)
 
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
 const validate = () => {
   errors.value = {}
   if (!form.value.name.trim()) errors.value.name = 'Name is required.'
   if (!form.value.slug.trim()) errors.value.slug = 'Slug is required.'
-  if (!/^[a-z0-9\-_]+$/.test(form.value.slug)) errors.value.slug = 'Slug may only contain lowercase letters, numbers, hyphens, and underscores.'
+  if (!/^[a-z0-9\-_]+$/.test(form.value.slug)) errors.value.slug = 'Slug may only contain lowercase letters, numbers, hyphens, underscores.'
   return Object.keys(errors.value).length === 0
 }
 
+// ---------------------------------------------------------------------------
+// Load / Save
+// ---------------------------------------------------------------------------
 const loadEndpoint = async () => {
   if (!isEdit.value) return
   loading.value = true
-  error.value = null
+  error.value   = null
   try {
     const ep = await api.endpoints.get(route.params.id)
     form.value = {
-      name: ep.name,
-      slug: ep.slug,
-      description: ep.description || '',
-      secret_key: ep.secret_key || '',
-      hmac_algorithm: ep.hmac_algorithm || 'sha256',
-      hmac_header: ep.hmac_header || '',
-      is_enabled: ep.is_enabled,
-      response_code: ep.response_code,
-      response_body: ep.response_body || '',
+      name:            ep.name,
+      slug:            ep.slug,
+      description:     ep.description      || '',
+      is_enabled:      ep.is_enabled,
+      allowed_methods: Array.isArray(ep.allowed_methods) ? ep.allowed_methods : ['GET','POST','PUT','PATCH','DELETE'],
+      response_code:   ep.response_code,
+      response_body:   ep.response_body    || '',
+      auth_mode:       ep.auth_mode        || 'none',
+      auth_config:     ep.auth_config      || { username:'', password:'', token:'', key:'', header:'X-API-Key', param:'api_key', secret:'', algorithm:'sha256' },
+      secret_key:      ep.secret_key       || '',
+      hmac_algorithm:  ep.hmac_algorithm   || 'sha256',
+      hmac_header:     ep.hmac_header      || '',
+      cpt_enabled:     ep.cpt_enabled,
+      cpt_config:      ep.cpt_config       || { post_type:'post', operation:'create', post_status:'publish', title_template:'', content_template:'', lookup_meta_key:'', lookup_template:'', meta_mappings:[], flatten_meta:false, flatten_meta_prefix:'fswa_' },
+      function_enabled:ep.function_enabled,
+      function_code:   ep.function_code    || '',
+      hooks_to_fire:   ep.hooks_to_fire    || '',
     }
     receiverUrl.value = ep.receiver_url || ''
-    slugDirty.value = true
+    slugDirty.value   = true
   } catch (e) {
     error.value = e.message
   } finally {
@@ -89,7 +153,7 @@ const loadEndpoint = async () => {
 const handleSubmit = async () => {
   if (!validate()) return
   saving.value = true
-  error.value = null
+  error.value  = null
   try {
     const payload = {
       ...form.value,
@@ -114,10 +178,18 @@ const copyUrl = async () => {
     await navigator.clipboard.writeText(receiverUrl.value)
     copiedUrl.value = true
     setTimeout(() => { copiedUrl.value = false }, 2000)
-  } catch (e) {
-    console.error('Failed to copy:', e)
-  }
+  } catch { /* */ }
 }
+
+// ---------------------------------------------------------------------------
+// Tabs config
+// ---------------------------------------------------------------------------
+const tabs = [
+  { key: 'general',  label: 'General',    icon: Settings },
+  { key: 'auth',     label: 'Auth',       icon: ShieldCheck },
+  { key: 'cpt',      label: 'CPT Mapping',icon: Database },
+  { key: 'function', label: 'Function',   icon: Code2 },
+]
 
 onMounted(loadEndpoint)
 </script>
@@ -127,184 +199,424 @@ onMounted(loadEndpoint)
     <!-- Header -->
     <div class="mb-6">
       <Button variant="ghost" size="sm" class="mb-2" @click="router.push('/endpoints')">
-        <ArrowLeft class="mr-2 h-4 w-4" />
-        Back to endpoints
+        <ArrowLeft class="mr-2 h-4 w-4" />Back to endpoints
       </Button>
-      <h2 class="text-xl font-semibold">{{ pageTitle }}</h2>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-xl font-semibold">{{ pageTitle }}</h2>
+        <div v-if="isEdit" class="flex gap-2">
+          <Button variant="outline" size="sm" @click="router.push(`/endpoints/${route.params.id}/payloads`)">
+            <Inbox class="mr-2 h-4 w-4" />Payloads
+          </Button>
+          <Button variant="outline" size="sm" @click="router.push(`/endpoints/${route.params.id}/logs`)">
+            <ScrollText class="mr-2 h-4 w-4" />Logs
+          </Button>
+        </div>
+      </div>
     </div>
 
     <div v-if="loading" class="text-center py-8 text-muted-foreground">Loading...</div>
-
     <Alert v-else-if="error && !form.name" variant="destructive" class="mb-4">{{ error }}</Alert>
 
-    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Form -->
-      <Card class="p-6">
-        <Alert v-if="error" variant="destructive" class="mb-4">{{ error }}</Alert>
+    <form v-else @submit.prevent="handleSubmit">
+      <Alert v-if="error" variant="destructive" class="mb-4">{{ error }}</Alert>
 
-        <form @submit.prevent="handleSubmit" class="space-y-4">
-          <!-- Name -->
-          <div class="space-y-1.5">
-            <Label for="ep-name">Name <span class="text-destructive">*</span></Label>
-            <Input
-              id="ep-name"
-              v-model="form.name"
-              placeholder="My Webhook Receiver"
-              @input="onNameInput"
-              :class="errors.name ? 'border-destructive' : ''"
-            />
-            <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
-          </div>
+      <!-- Receiver URL banner (edit mode) -->
+      <Card v-if="isEdit && receiverUrl" class="p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="text-xs text-muted-foreground">Receiver URL</span>
+          <code class="text-xs font-mono flex-1 truncate">{{ receiverUrl }}</code>
+          <button type="button" @click="copyUrl" class="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+            <Check v-if="copiedUrl" class="w-4 h-4 text-green-500" />
+            <Copy v-else class="w-4 h-4" />
+          </button>
+        </div>
+      </Card>
 
-          <!-- Slug -->
-          <div class="space-y-1.5">
-            <Label for="ep-slug">Slug <span class="text-destructive">*</span></Label>
-            <Input
-              id="ep-slug"
-              v-model="form.slug"
-              placeholder="my-webhook-receiver"
-              @input="onSlugInput"
-              :class="errors.slug ? 'border-destructive' : ''"
-            />
-            <p class="text-xs text-muted-foreground">Used in the receiver URL. Only lowercase letters, numbers, hyphens, underscores.</p>
-            <p v-if="errors.slug" class="text-xs text-destructive">{{ errors.slug }}</p>
-          </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Tabs panel -->
+        <Card class="p-6 lg:col-span-2">
+          <Tabs :tabs="tabs">
 
-          <!-- Description -->
-          <div class="space-y-1.5">
-            <Label for="ep-desc">Description</Label>
-            <Input id="ep-desc" v-model="form.description" placeholder="Optional description" />
-          </div>
+            <!-- ── GENERAL ─────────────────────────────────────────── -->
+            <template #general>
+              <div class="space-y-4">
+                <div class="space-y-1.5">
+                  <Label>Name <span class="text-destructive">*</span></Label>
+                  <Input v-model="form.name" placeholder="My Webhook Receiver" @input="onNameInput" :class="errors.name ? 'border-destructive':''"/>
+                  <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
+                </div>
 
-          <!-- Enabled toggle -->
-          <div class="flex items-center gap-3">
-            <Switch :model-value="form.is_enabled" @update:model-value="form.is_enabled = $event" />
-            <Label class="cursor-pointer select-none" @click="form.is_enabled = !form.is_enabled">
-              {{ form.is_enabled ? 'Enabled' : 'Disabled' }}
-            </Label>
-          </div>
+                <div class="space-y-1.5">
+                  <Label>Slug <span class="text-destructive">*</span></Label>
+                  <Input v-model="form.slug" placeholder="my-webhook-receiver" @input="onSlugInput" :class="errors.slug ? 'border-destructive':''"/>
+                  <p class="text-xs text-muted-foreground">Used in receiver URL. Lowercase, numbers, hyphens, underscores only.</p>
+                  <p v-if="errors.slug" class="text-xs text-destructive">{{ errors.slug }}</p>
+                </div>
 
-          <hr class="border-border" />
+                <div class="space-y-1.5">
+                  <Label>Description</Label>
+                  <Input v-model="form.description" placeholder="Optional" />
+                </div>
 
-          <!-- Secret Key -->
-          <div class="space-y-1.5">
-            <Label for="ep-secret">Secret Key (HMAC)</Label>
-            <Input
-              id="ep-secret"
-              v-model="form.secret_key"
-              type="password"
-              placeholder="Leave blank to skip signature verification"
-              autocomplete="new-password"
-            />
-            <p class="text-xs text-muted-foreground">When set, incoming requests must include a valid HMAC signature.</p>
-          </div>
+                <div class="flex items-center gap-3">
+                  <Switch :model-value="form.is_enabled" @update:model-value="form.is_enabled = $event" />
+                  <Label class="cursor-pointer select-none" @click="form.is_enabled = !form.is_enabled">
+                    {{ form.is_enabled ? 'Enabled' : 'Disabled' }}
+                  </Label>
+                </div>
 
-          <!-- HMAC Algorithm -->
-          <div v-if="form.secret_key" class="space-y-1.5">
-            <Label>HMAC Algorithm</Label>
-            <Select v-model="form.hmac_algorithm">
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sha256">SHA-256 (recommended)</SelectItem>
-                <SelectItem value="sha1">SHA-1</SelectItem>
-                <SelectItem value="sha512">SHA-512</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                <hr class="border-border" />
 
-          <!-- HMAC Header -->
-          <div v-if="form.secret_key" class="space-y-1.5">
-            <Label for="ep-hmac-header">Signature Header</Label>
-            <Input
-              id="ep-hmac-header"
-              v-model="form.hmac_header"
-              placeholder="e.g. X-Hub-Signature-256 (auto-detected if blank)"
-            />
-            <p class="text-xs text-muted-foreground">Header containing the HMAC signature. Leave blank to auto-detect GitHub/Stripe patterns.</p>
-          </div>
+                <!-- Allowed Methods -->
+                <div class="space-y-2">
+                  <Label>Allowed HTTP Methods</Label>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="m in allMethods"
+                      :key="m"
+                      type="button"
+                      @click="toggleMethod(m)"
+                      :class="[
+                        'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                        form.allowed_methods.includes(m)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'border-border text-muted-foreground hover:border-foreground',
+                      ]"
+                    >{{ m }}</button>
+                  </div>
+                </div>
 
-          <hr class="border-border" />
+                <hr class="border-border" />
 
-          <!-- Response Code -->
-          <div class="space-y-1.5">
-            <Label>Response HTTP Code</Label>
-            <Select v-model="responseCodeSelect">
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="200">200 OK</SelectItem>
-                <SelectItem value="201">201 Created</SelectItem>
-                <SelectItem value="202">202 Accepted</SelectItem>
-                <SelectItem value="204">204 No Content</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                <!-- Response -->
+                <div class="space-y-1.5">
+                  <Label>Response HTTP Code</Label>
+                  <Select v-model="responseCodeSelect">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="200">200 OK</SelectItem>
+                      <SelectItem value="201">201 Created</SelectItem>
+                      <SelectItem value="202">202 Accepted</SelectItem>
+                      <SelectItem value="204">204 No Content</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          <!-- Response Body -->
-          <div v-if="form.response_code !== 204" class="space-y-1.5">
-            <Label for="ep-response">Response Body (JSON)</Label>
-            <Input
-              id="ep-response"
-              v-model="form.response_body"
-              placeholder='{"received":true}'
-            />
-            <p class="text-xs text-muted-foreground">Optional. Defaults to <code class="font-mono">{"received":true}</code>.</p>
-          </div>
+                <div v-if="form.response_code !== 204" class="space-y-1.5">
+                  <Label>Response Body (JSON / merge tags)</Label>
+                  <Input v-model="form.response_body" placeholder='{"received":true}' />
+                  <p class="text-xs text-muted-foreground">Supports merge tags: <code class="font-mono">&#123;&#123;received.body.field&#125;&#125;</code></p>
+                </div>
+              </div>
+            </template>
 
-          <!-- Actions -->
-          <div class="flex gap-2 pt-2">
+            <!-- ── AUTH ───────────────────────────────────────────── -->
+            <template #auth>
+              <div class="space-y-4">
+                <div class="space-y-1.5">
+                  <Label>Authentication Mode</Label>
+                  <Select v-model="form.auth_mode">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None (open)</SelectItem>
+                      <SelectItem value="hmac">HMAC Signature</SelectItem>
+                      <SelectItem value="basic">HTTP Basic Auth</SelectItem>
+                      <SelectItem value="bearer">Bearer Token</SelectItem>
+                      <SelectItem value="api_key">API Key (header or query param)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <!-- HMAC -->
+                <template v-if="form.auth_mode === 'hmac'">
+                  <div class="space-y-1.5">
+                    <Label>Secret Key</Label>
+                    <Input v-model="form.secret_key" type="password" placeholder="Shared HMAC secret" autocomplete="new-password" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label>Algorithm</Label>
+                    <Select v-model="form.hmac_algorithm">
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sha256">SHA-256 (recommended)</SelectItem>
+                        <SelectItem value="sha1">SHA-1</SelectItem>
+                        <SelectItem value="sha512">SHA-512</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label>Signature Header</Label>
+                    <Input v-model="form.hmac_header" placeholder="X-Hub-Signature-256 (auto-detect if blank)" />
+                  </div>
+                </template>
+
+                <!-- Basic -->
+                <template v-if="form.auth_mode === 'basic'">
+                  <div class="space-y-1.5">
+                    <Label>Username</Label>
+                    <Input v-model="form.auth_config.username" autocomplete="off" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label>Password</Label>
+                    <Input v-model="form.auth_config.password" type="password" autocomplete="new-password" />
+                  </div>
+                </template>
+
+                <!-- Bearer -->
+                <template v-if="form.auth_mode === 'bearer'">
+                  <div class="space-y-1.5">
+                    <Label>Expected Token</Label>
+                    <Input v-model="form.auth_config.token" type="password" placeholder="Bearer token value" autocomplete="new-password" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label>Query Param Fallback</Label>
+                    <Input v-model="form.auth_config.param" placeholder="access_token" />
+                    <p class="text-xs text-muted-foreground">If Authorization header absent, read token from this query param.</p>
+                  </div>
+                </template>
+
+                <!-- API Key -->
+                <template v-if="form.auth_mode === 'api_key'">
+                  <div class="space-y-1.5">
+                    <Label>API Key Value</Label>
+                    <Input v-model="form.auth_config.key" type="password" autocomplete="new-password" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label>Accept via Header</Label>
+                      <Input v-model="form.auth_config.header" placeholder="X-API-Key" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Accept via Query Param</Label>
+                      <Input v-model="form.auth_config.param" placeholder="api_key" />
+                    </div>
+                  </div>
+                </template>
+
+                <div v-if="form.auth_mode === 'none'" class="p-3 rounded-md bg-muted text-sm text-muted-foreground">
+                  This endpoint accepts requests without authentication. Anyone with the URL can send data.
+                </div>
+              </div>
+            </template>
+
+            <!-- ── CPT MAPPING ────────────────────────────────────── -->
+            <template #cpt>
+              <div class="space-y-4">
+                <div class="flex items-center gap-3">
+                  <Switch :model-value="form.cpt_enabled" @update:model-value="form.cpt_enabled = $event" />
+                  <Label class="cursor-pointer select-none" @click="form.cpt_enabled = !form.cpt_enabled">
+                    {{ form.cpt_enabled ? 'CPT mapping enabled' : 'CPT mapping disabled' }}
+                  </Label>
+                </div>
+
+                <template v-if="form.cpt_enabled">
+                  <div class="p-3 text-xs text-muted-foreground rounded-md bg-muted space-y-1">
+                    <p><strong>Merge tag syntax:</strong> <code class="font-mono">&#123;&#123;received.body.field&#125;&#125;</code> — <code class="font-mono">&#123;&#123;received.query.param&#125;&#125;</code> — <code class="font-mono">&#123;&#123;received.headers.x-header&#125;&#125;</code></p>
+                    <p>Nested paths: <code class="font-mono">&#123;&#123;received.body.user.name&#125;&#125;</code> — Array index: <code class="font-mono">&#123;&#123;received.body.items.0&#125;&#125;</code></p>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label>Post Type</Label>
+                      <Input v-model="form.cpt_config.post_type" placeholder="post" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Post Status</Label>
+                      <Select v-model="form.cpt_config.post_status">
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="publish">Publish</SelectItem>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="private">Private</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div class="space-y-1.5">
+                    <Label>Operation</Label>
+                    <Select v-model="form.cpt_config.operation">
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="create">Create (always new)</SelectItem>
+                        <SelectItem value="upsert">Upsert (create or update by lookup)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <template v-if="form.cpt_config.operation === 'upsert'">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label>Lookup Meta Key</Label>
+                        <Input v-model="form.cpt_config.lookup_meta_key" placeholder="_external_id" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label>Lookup Value Template</Label>
+                        <Input v-model="form.cpt_config.lookup_template" placeholder="{{received.body.id}}" />
+                      </div>
+                    </div>
+                  </template>
+
+                  <div class="space-y-1.5">
+                    <Label>Post Title Template</Label>
+                    <Input v-model="form.cpt_config.title_template" placeholder="{{received.body.title}}" />
+                  </div>
+
+                  <div class="space-y-1.5">
+                    <Label>Post Content Template</Label>
+                    <textarea
+                      v-model="form.cpt_config.content_template"
+                      rows="3"
+                      placeholder="{{received.body.description}}"
+                      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y font-mono"
+                    />
+                  </div>
+
+                  <hr class="border-border" />
+
+                  <!-- Meta mappings -->
+                  <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                      <Label>Meta Mappings</Label>
+                      <Button type="button" variant="outline" size="sm" @click="addMetaMapping">+ Add</Button>
+                    </div>
+                    <p class="text-xs text-muted-foreground">Use <code class="font-mono">&#123;&#123;_flatten&#125;&#125;</code> as template to store the entire flattened body as JSON.</p>
+
+                    <div v-for="(mapping, i) in form.cpt_config.meta_mappings" :key="i" class="flex gap-2 items-start">
+                      <Input v-model="mapping.meta_key" placeholder="_meta_key" class="flex-1 font-mono text-xs" />
+                      <Input v-model="mapping.template" placeholder="{{received.body.field}}" class="flex-1 font-mono text-xs" />
+                      <Button type="button" variant="ghost" size="icon" class="h-9 w-9 shrink-0 text-destructive" @click="removeMetaMapping(i)">×</Button>
+                    </div>
+                  </div>
+
+                  <hr class="border-border" />
+
+                  <!-- Auto-flatten -->
+                  <div class="flex items-center gap-3">
+                    <Switch :model-value="form.cpt_config.flatten_meta" @update:model-value="form.cpt_config.flatten_meta = $event" />
+                    <Label class="cursor-pointer select-none" @click="form.cpt_config.flatten_meta = !form.cpt_config.flatten_meta">
+                      Auto-flatten entire body to meta keys
+                    </Label>
+                  </div>
+
+                  <div v-if="form.cpt_config.flatten_meta" class="space-y-1.5">
+                    <Label>Meta Key Prefix</Label>
+                    <Input v-model="form.cpt_config.flatten_meta_prefix" placeholder="fswa_" />
+                    <p class="text-xs text-muted-foreground">e.g. prefix <code class="font-mono">fswa_</code> → <code class="font-mono">fswa_user_name</code> for <code class="font-mono">body.user.name</code></p>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- ── FUNCTION / HOOKS ───────────────────────────────── -->
+            <template #function>
+              <div class="space-y-4">
+                <div class="flex items-center gap-3">
+                  <Switch :model-value="form.function_enabled" @update:model-value="form.function_enabled = $event" />
+                  <Label class="cursor-pointer select-none" @click="form.function_enabled = !form.function_enabled">
+                    {{ form.function_enabled ? 'Custom function enabled' : 'Custom function disabled' }}
+                  </Label>
+                </div>
+
+                <template v-if="form.function_enabled">
+                  <div class="p-3 text-xs rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300 space-y-1">
+                    <p><strong>Available variables:</strong> <code class="font-mono">$payload</code> (body array), <code class="font-mono">$query</code> (URL params), <code class="font-mono">$headers</code>, <code class="font-mono">$endpoint</code>, <code class="font-mono">$context</code></p>
+                    <p>Return a value to override the HTTP response body. Return an array for a JSON response.</p>
+                    <p>Merge tags are available via <code class="font-mono">$context['received']['body']['field']</code>.</p>
+                  </div>
+
+                  <div class="space-y-1.5">
+                    <Label>PHP Code</Label>
+                    <div class="relative">
+                      <div class="absolute top-2 right-2 text-xs text-muted-foreground bg-background px-1 rounded select-none">PHP</div>
+                      <textarea
+                        v-model="form.function_code"
+                        rows="18"
+                        spellcheck="false"
+                        autocomplete="off"
+                        placeholder="// $payload, $query, $headers, $endpoint, $context available&#10;// Return a value to override the response&#10;&#10;// Example: create a log entry&#10;// error_log('Received: ' . json_encode($payload));&#10;&#10;// Example: return custom JSON response&#10;// return ['ok' => true, 'id' => $payload['id'] ?? null];"
+                        class="w-full rounded-md border border-input bg-zinc-950 text-green-400 px-4 py-3 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y font-mono leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                </template>
+
+                <hr class="border-border" />
+
+                <!-- WP Hooks -->
+                <div class="space-y-1.5">
+                  <Label>WordPress Hooks to Fire</Label>
+                  <Input v-model="form.hooks_to_fire" placeholder="my_hook, another_hook" />
+                  <p class="text-xs text-muted-foreground">
+                    Comma-separated hook names. Fires <code class="font-mono">do_action('fswa_endpoint_{name}', $context, $endpoint)</code> and <code class="font-mono">do_action('{name}', $context, $endpoint)</code> for each.
+                  </p>
+                </div>
+              </div>
+            </template>
+
+          </Tabs>
+
+          <!-- Save / Cancel -->
+          <div class="flex gap-2 mt-6 pt-4 border-t border-border">
             <Button type="submit" :loading="saving">
               {{ isEdit ? 'Save Changes' : 'Create Endpoint' }}
             </Button>
             <Button type="button" variant="outline" @click="router.push('/endpoints')">Cancel</Button>
           </div>
-        </form>
-      </Card>
-
-      <!-- Receiver URL info (edit mode) -->
-      <div v-if="isEdit && receiverUrl" class="space-y-4">
-        <Card class="p-6">
-          <h3 class="font-medium mb-3">Receiver URL</h3>
-          <p class="text-sm text-muted-foreground mb-3">
-            Point your external service to POST to this URL. The payload will be stored for processing.
-          </p>
-          <div class="flex items-center gap-2 p-3 rounded-md bg-muted">
-            <code class="text-xs font-mono flex-1 break-all">{{ receiverUrl }}</code>
-            <button
-              @click="copyUrl"
-              class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-              title="Copy URL"
-            >
-              <Check v-if="copiedUrl" class="w-4 h-4 text-green-500" />
-              <Copy v-else class="w-4 h-4" />
-            </button>
-          </div>
-          <div class="mt-4 space-y-2">
-            <p class="text-xs text-muted-foreground font-semibold uppercase tracking-wide">Accepted methods</p>
-            <p class="text-xs text-muted-foreground">POST, PUT, PATCH, GET, DELETE</p>
-          </div>
-          <div v-if="form.secret_key" class="mt-4 p-3 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
-            <p class="text-xs text-yellow-800 dark:text-yellow-300">
-              <strong>Signature verification enabled.</strong>
-              Requests without a valid <code class="font-mono">{{ form.hmac_header || 'X-Hub-Signature-256' }}</code> header will be rejected.
-            </p>
-          </div>
         </Card>
 
-        <Card class="p-6">
-          <h3 class="font-medium mb-3">Received Payloads</h3>
-          <p class="text-sm text-muted-foreground mb-4">
-            Inspect and manage payloads received by this endpoint.
-          </p>
-          <Button variant="outline" @click="router.push(`/endpoints/${route.params.id}/payloads`)">
-            <Inbox class="mr-2 h-4 w-4" />
-            View Payloads
-          </Button>
-        </Card>
+        <!-- Info sidebar -->
+        <div class="space-y-4">
+          <!-- Receiver URL info -->
+          <Card v-if="isEdit && receiverUrl" class="p-5">
+            <h3 class="font-medium mb-3 text-sm">Receiver URL</h3>
+            <div class="flex items-center gap-2 p-3 rounded-md bg-muted">
+              <code class="text-xs font-mono flex-1 break-all">{{ receiverUrl }}</code>
+              <button type="button" @click="copyUrl" class="shrink-0 text-muted-foreground hover:text-foreground">
+                <Check v-if="copiedUrl" class="w-4 h-4 text-green-500" />
+                <Copy v-else class="w-4 h-4" />
+              </button>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-1">
+              <span
+                v-for="m in form.allowed_methods"
+                :key="m"
+                class="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded font-mono"
+              >{{ m }}</span>
+            </div>
+          </Card>
+
+          <!-- Merge tag reference -->
+          <Card class="p-5">
+            <h3 class="font-medium mb-3 text-sm">Merge Tag Reference</h3>
+            <div class="space-y-1 text-xs text-muted-foreground font-mono">
+              <p>&#123;&#123;received.body.<em>field</em>&#125;&#125;</p>
+              <p>&#123;&#123;received.body.user.name&#125;&#125;</p>
+              <p>&#123;&#123;received.body.items.0&#125;&#125;</p>
+              <p>&#123;&#123;received.query.<em>param</em>&#125;&#125;</p>
+              <p>&#123;&#123;received.headers.x-event-type&#125;&#125;</p>
+              <p>&#123;&#123;received.meta.method&#125;&#125;</p>
+              <p>&#123;&#123;received.meta.source_ip&#125;&#125;</p>
+              <p>&#123;&#123;received.meta.received_at&#125;&#125;</p>
+              <p>&#123;&#123;received.meta.endpoint_slug&#125;&#125;</p>
+            </div>
+          </Card>
+
+          <!-- Quick links (edit mode) -->
+          <Card v-if="isEdit" class="p-5">
+            <h3 class="font-medium mb-3 text-sm">Quick Links</h3>
+            <div class="space-y-2">
+              <Button variant="outline" size="sm" class="w-full justify-start" @click="router.push(`/endpoints/${route.params.id}/payloads`)">
+                <Inbox class="mr-2 h-4 w-4" />View Payloads
+              </Button>
+              <Button variant="outline" size="sm" class="w-full justify-start" @click="router.push(`/endpoints/${route.params.id}/logs`)">
+                <ScrollText class="mr-2 h-4 w-4" />View Request Logs
+              </Button>
+            </div>
+          </Card>
+        </div>
       </div>
-    </div>
+    </form>
   </div>
 </template>

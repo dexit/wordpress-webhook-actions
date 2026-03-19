@@ -11,6 +11,7 @@ use WP_REST_Response;
 use WP_Error;
 use FlowSystems\WebhookActions\Repositories\IncomingEndpointRepository;
 use FlowSystems\WebhookActions\Repositories\IncomingPayloadRepository;
+use FlowSystems\WebhookActions\Repositories\EndpointLogRepository;
 use FlowSystems\WebhookActions\Api\AuthHelper;
 
 /**
@@ -28,6 +29,7 @@ class IncomingEndpointsController extends WP_REST_Controller {
 
   private IncomingEndpointRepository $endpoints;
   private IncomingPayloadRepository  $payloads;
+  private EndpointLogRepository      $endpointLogs;
 
   /** Valid HMAC algorithms for signature verification */
   private const VALID_ALGORITHMS = ['sha256', 'sha1', 'sha512'];
@@ -35,9 +37,13 @@ class IncomingEndpointsController extends WP_REST_Controller {
   /** Valid HTTP status codes we allow as custom response codes */
   private const VALID_RESPONSE_CODES = [200, 201, 202, 204];
 
+  /** Valid auth modes */
+  private const VALID_AUTH_MODES = ['none', 'hmac', 'basic', 'bearer', 'api_key'];
+
   public function __construct() {
-    $this->endpoints = new IncomingEndpointRepository();
-    $this->payloads  = new IncomingPayloadRepository();
+    $this->endpoints    = new IncomingEndpointRepository();
+    $this->payloads     = new IncomingPayloadRepository();
+    $this->endpointLogs = new EndpointLogRepository();
   }
 
   /**
@@ -182,6 +188,41 @@ class IncomingEndpointsController extends WP_REST_Controller {
       'permission_callback' => [$this, 'getItemPermissionsCheck'],
       'args'                => ['id' => ['type' => 'integer']],
     ]);
+
+    // Request logs for an endpoint
+    register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/logs', [
+      [
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => [$this, 'getLogs'],
+        'permission_callback' => [$this, 'getItemPermissionsCheck'],
+        'args'                => [
+          'id'          => ['type' => 'integer'],
+          'auth_result' => ['type' => 'string'],
+          'method'      => ['type' => 'string'],
+          'date_from'   => ['type' => 'string'],
+          'date_to'     => ['type' => 'string'],
+          'page'        => ['type' => 'integer', 'default' => 1, 'minimum' => 1],
+          'per_page'    => ['type' => 'integer', 'default' => 25, 'minimum' => 1, 'maximum' => 100],
+        ],
+      ],
+      [
+        'methods'             => WP_REST_Server::DELETABLE,
+        'callback'            => [$this, 'deleteLogs'],
+        'permission_callback' => [$this, 'deleteItemPermissionsCheck'],
+        'args'                => ['id' => ['type' => 'integer']],
+      ],
+    ]);
+
+    // Delete single log
+    register_rest_route($this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)/logs/(?P<log_id>[\d]+)', [
+      'methods'             => WP_REST_Server::DELETABLE,
+      'callback'            => [$this, 'deleteLog'],
+      'permission_callback' => [$this, 'deleteItemPermissionsCheck'],
+      'args'                => [
+        'id'     => ['type' => 'integer'],
+        'log_id' => ['type' => 'integer'],
+      ],
+    ]);
   }
 
   // ---------------------------------------------------------------------------
@@ -266,20 +307,39 @@ class IncomingEndpointsController extends WP_REST_Controller {
       return new WP_Error('rest_invalid_response_code', __('Invalid response code. Use 200, 201, 202, or 204.', 'flowsystems-webhook-actions'), ['status' => 400]);
     }
 
+    $authMode = sanitize_text_field($request->get_param('auth_mode') ?? 'none');
+    if (!in_array($authMode, self::VALID_AUTH_MODES, true)) {
+      $authMode = 'none';
+    }
+
+    $allowedMethods = $request->get_param('allowed_methods');
+    if (!is_array($allowedMethods)) {
+      $allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+    }
+    $allowedMethods = array_values(array_filter(array_map('strtoupper', $allowedMethods)));
+
     $data = [
-      'name'           => $name,
-      'slug'           => $slug,
-      'description'    => sanitize_textarea_field($request->get_param('description') ?? ''),
-      'secret_key'     => sanitize_text_field($request->get_param('secret_key') ?? ''),
-      'hmac_algorithm' => $algorithm,
-      'hmac_header'    => sanitize_text_field($request->get_param('hmac_header') ?? ''),
-      'is_enabled'     => (bool) ($request->get_param('is_enabled') ?? true),
-      'response_code'  => $responseCode,
-      'response_body'  => sanitize_textarea_field($request->get_param('response_body') ?? ''),
+      'name'             => $name,
+      'slug'             => $slug,
+      'description'      => sanitize_textarea_field($request->get_param('description') ?? ''),
+      'secret_key'       => sanitize_text_field($request->get_param('secret_key') ?? ''),
+      'hmac_algorithm'   => $algorithm,
+      'hmac_header'      => sanitize_text_field($request->get_param('hmac_header') ?? ''),
+      'is_enabled'       => (bool) ($request->get_param('is_enabled') ?? true),
+      'response_code'    => $responseCode,
+      'response_body'    => sanitize_textarea_field($request->get_param('response_body') ?? ''),
+      'allowed_methods'  => $allowedMethods,
+      'auth_mode'        => $authMode,
+      'auth_config'      => $request->get_param('auth_config') ?? [],
+      'cpt_enabled'      => (bool) $request->get_param('cpt_enabled'),
+      'cpt_config'       => $request->get_param('cpt_config') ?? [],
+      'function_enabled' => (bool) $request->get_param('function_enabled'),
+      'function_code'    => $request->get_param('function_code') ?? '',
+      'hooks_to_fire'    => sanitize_text_field($request->get_param('hooks_to_fire') ?? ''),
     ];
 
     // Normalize empty strings to null for nullable fields
-    foreach (['description', 'secret_key', 'hmac_header', 'response_body'] as $field) {
+    foreach (['description', 'secret_key', 'hmac_header', 'response_body', 'function_code', 'hooks_to_fire'] as $field) {
       if ($data[$field] === '') {
         $data[$field] = null;
       }
@@ -361,6 +421,40 @@ class IncomingEndpointsController extends WP_REST_Controller {
       $data['response_body'] = sanitize_textarea_field($request->get_param('response_body')) ?: null;
     }
 
+    if ($request->has_param('allowed_methods')) {
+      $methods = (array) $request->get_param('allowed_methods');
+      $data['allowed_methods'] = array_values(array_filter(array_map('strtoupper', $methods)));
+    }
+
+    if ($request->has_param('auth_mode')) {
+      $mode = sanitize_text_field($request->get_param('auth_mode'));
+      $data['auth_mode'] = in_array($mode, self::VALID_AUTH_MODES, true) ? $mode : 'none';
+    }
+
+    if ($request->has_param('auth_config')) {
+      $data['auth_config'] = $request->get_param('auth_config') ?? [];
+    }
+
+    if ($request->has_param('cpt_enabled')) {
+      $data['cpt_enabled'] = (bool) $request->get_param('cpt_enabled');
+    }
+
+    if ($request->has_param('cpt_config')) {
+      $data['cpt_config'] = $request->get_param('cpt_config') ?? [];
+    }
+
+    if ($request->has_param('function_enabled')) {
+      $data['function_enabled'] = (bool) $request->get_param('function_enabled');
+    }
+
+    if ($request->has_param('function_code')) {
+      $data['function_code'] = $request->get_param('function_code') ?: null;
+    }
+
+    if ($request->has_param('hooks_to_fire')) {
+      $data['hooks_to_fire'] = sanitize_text_field($request->get_param('hooks_to_fire')) ?: null;
+    }
+
     if (!$this->endpoints->update($id, $data)) {
       return new WP_Error('rest_update_failed', __('Failed to update endpoint.', 'flowsystems-webhook-actions'), ['status' => 500]);
     }
@@ -379,8 +473,9 @@ class IncomingEndpointsController extends WP_REST_Controller {
 
     $id = $endpoint['id'];
 
-    // Purge associated payloads first
+    // Purge associated payloads and logs first
     $this->payloads->deleteForEndpoint($id);
+    $this->endpointLogs->deleteForEndpoint($id);
 
     if (!$this->endpoints->delete($id)) {
       return new WP_Error('rest_delete_failed', __('Failed to delete endpoint.', 'flowsystems-webhook-actions'), ['status' => 500]);
@@ -540,6 +635,63 @@ class IncomingEndpointsController extends WP_REST_Controller {
     }
 
     return rest_ensure_response($this->payloads->getStats($endpoint['id']));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Log management
+  // ---------------------------------------------------------------------------
+
+  /**
+   * List request logs for an endpoint
+   */
+  public function getLogs(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    $endpoint = $this->resolveEndpoint($request);
+    if (is_wp_error($endpoint)) {
+      return $endpoint;
+    }
+
+    $filters = [
+      'auth_result' => $request->get_param('auth_result'),
+      'method'      => $request->get_param('method'),
+      'date_from'   => $request->get_param('date_from'),
+      'date_to'     => $request->get_param('date_to'),
+      'page'        => $request->get_param('page'),
+      'per_page'    => $request->get_param('per_page'),
+    ];
+
+    return rest_ensure_response($this->endpointLogs->getForEndpoint($endpoint['id'], $filters));
+  }
+
+  /**
+   * Delete all logs for an endpoint
+   */
+  public function deleteLogs(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    $endpoint = $this->resolveEndpoint($request);
+    if (is_wp_error($endpoint)) {
+      return $endpoint;
+    }
+
+    $deleted = $this->endpointLogs->deleteForEndpoint($endpoint['id']);
+
+    return rest_ensure_response(['deleted' => $deleted]);
+  }
+
+  /**
+   * Delete a single log entry
+   */
+  public function deleteLog(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    $endpoint = $this->resolveEndpoint($request);
+    if (is_wp_error($endpoint)) {
+      return $endpoint;
+    }
+
+    $logId = (int) $request->get_param('log_id');
+
+    if (!$this->endpointLogs->delete($logId)) {
+      return new WP_Error('rest_delete_failed', __('Failed to delete log.', 'flowsystems-webhook-actions'), ['status' => 500]);
+    }
+
+    return rest_ensure_response(['deleted' => true, 'id' => $logId]);
   }
 
   // ---------------------------------------------------------------------------

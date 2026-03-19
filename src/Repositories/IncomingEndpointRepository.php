@@ -75,18 +75,26 @@ class IncomingEndpointRepository {
     global $wpdb;
 
     $insert = [
-      'name'           => $data['name'],
-      'slug'           => $data['slug'],
-      'description'    => $data['description'] ?? null,
-      'secret_key'     => $data['secret_key'] ?? null,
-      'hmac_algorithm' => $data['hmac_algorithm'] ?? 'sha256',
-      'hmac_header'    => $data['hmac_header'] ?? null,
-      'is_enabled'     => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
-      'response_code'  => isset($data['response_code']) ? (int) $data['response_code'] : 200,
-      'response_body'  => $data['response_body'] ?? null,
+      'name'             => $data['name'],
+      'slug'             => $data['slug'],
+      'description'      => $data['description'] ?? null,
+      'secret_key'       => $data['secret_key'] ?? null,
+      'hmac_algorithm'   => $data['hmac_algorithm'] ?? 'sha256',
+      'hmac_header'      => $data['hmac_header'] ?? null,
+      'is_enabled'       => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
+      'response_code'    => isset($data['response_code']) ? (int) $data['response_code'] : 200,
+      'response_body'    => $data['response_body'] ?? null,
+      'allowed_methods'  => isset($data['allowed_methods']) ? wp_json_encode($data['allowed_methods']) : '["GET","POST","PUT","PATCH","DELETE"]',
+      'auth_mode'        => $data['auth_mode'] ?? 'none',
+      'auth_config'      => isset($data['auth_config']) ? wp_json_encode($data['auth_config']) : null,
+      'cpt_enabled'      => (int) ($data['cpt_enabled'] ?? 0),
+      'cpt_config'       => isset($data['cpt_config']) ? wp_json_encode($data['cpt_config']) : null,
+      'function_enabled' => (int) ($data['function_enabled'] ?? 0),
+      'function_code'    => $data['function_code'] ?? null,
+      'hooks_to_fire'    => $data['hooks_to_fire'] ?? null,
     ];
 
-    $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s'];
+    $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s'];
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
     $result = $wpdb->insert($this->table, $insert, $formats);
@@ -104,7 +112,15 @@ class IncomingEndpointRepository {
   public function update(int $id, array $data): bool {
     global $wpdb;
 
-    $allowed = ['name', 'slug', 'description', 'secret_key', 'hmac_algorithm', 'hmac_header', 'is_enabled', 'response_code', 'response_body'];
+    $intFields = ['is_enabled', 'response_code', 'cpt_enabled', 'function_enabled'];
+    $jsonFields = ['allowed_methods', 'auth_config', 'cpt_config'];
+    $allowed = [
+      'name', 'slug', 'description', 'secret_key', 'hmac_algorithm', 'hmac_header',
+      'is_enabled', 'response_code', 'response_body',
+      'allowed_methods', 'auth_mode', 'auth_config',
+      'cpt_enabled', 'cpt_config',
+      'function_enabled', 'function_code', 'hooks_to_fire',
+    ];
     $update  = [];
     $formats = [];
 
@@ -112,8 +128,16 @@ class IncomingEndpointRepository {
       if (!array_key_exists($field, $data)) {
         continue;
       }
-      $update[$field] = $data[$field];
-      $formats[]      = in_array($field, ['is_enabled', 'response_code']) ? '%d' : '%s';
+      if (in_array($field, $jsonFields, true)) {
+        $update[$field] = is_array($data[$field]) ? wp_json_encode($data[$field]) : $data[$field];
+        $formats[]      = '%s';
+      } elseif (in_array($field, $intFields, true)) {
+        $update[$field] = (int) $data[$field];
+        $formats[]      = '%d';
+      } else {
+        $update[$field] = $data[$field];
+        $formats[]      = '%s';
+      }
     }
 
     if (empty($update)) {
@@ -199,9 +223,24 @@ class IncomingEndpointRepository {
    * @return array<string, mixed>
    */
   private function castRow(array $row): array {
-    $row['id']            = (int) $row['id'];
-    $row['is_enabled']    = (bool) $row['is_enabled'];
-    $row['response_code'] = (int) $row['response_code'];
+    $row['id']               = (int) $row['id'];
+    $row['is_enabled']       = (bool) $row['is_enabled'];
+    $row['response_code']    = (int) $row['response_code'];
+    $row['cpt_enabled']      = (bool) ($row['cpt_enabled'] ?? false);
+    $row['function_enabled'] = (bool) ($row['function_enabled'] ?? false);
+
+    // Decode JSON fields
+    if (isset($row['allowed_methods']) && is_string($row['allowed_methods'])) {
+      $decoded = json_decode($row['allowed_methods'], true);
+      $row['allowed_methods'] = is_array($decoded) ? $decoded : ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+    } else {
+      $row['allowed_methods'] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+    }
+
+    if (isset($row['cpt_config']) && is_string($row['cpt_config'])) {
+      $decoded = json_decode($row['cpt_config'], true);
+      $row['cpt_config'] = is_array($decoded) ? $decoded : null;
+    }
 
     return $row;
   }
