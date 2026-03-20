@@ -35,6 +35,8 @@ const retentionDays = computed({
   set: (val) => { settings.value.log_retention_days = parseInt(val, 10) },
 })
 
+const savedMenuUnderTools = ref(false)
+
 const loadData = async () => {
   loading.value = true
   error.value = null
@@ -48,6 +50,7 @@ const loadData = async () => {
     ])
 
     settings.value = settingsData
+    savedMenuUnderTools.value = settingsData.menu_under_tools
     info.value = infoData
     archive.value = archiveData
     cronInfo.value = cronData
@@ -64,8 +67,14 @@ const saveSettings = async () => {
   error.value = null
   success.value = null
 
+  const menuPositionChanged = settings.value.menu_under_tools !== savedMenuUnderTools.value
+
   try {
     await api.settings.update(settings.value)
+    if (menuPositionChanged) {
+      window.location.reload()
+      return
+    }
     success.value = 'Settings saved successfully'
     setTimeout(() => {
       success.value = null
@@ -308,7 +317,6 @@ onMounted(loadData)
             </div>
             <p class="text-sm text-muted-foreground">
               Move the admin menu item under Tools instead of the top-level sidebar.
-              Takes effect after saving and reloading the page.
             </p>
           </div>
 
