@@ -48,6 +48,22 @@ const routes = [
     component: () => import('@/views/SettingsView.vue'),
   },
   {
+    path: '/dto',
+    name: 'DtoList',
+    component: () => import('@/views/DtoList.vue'),
+  },
+  {
+    path: '/dto/new',
+    name: 'DtoCreate',
+    component: () => import('@/views/DtoEdit.vue'),
+  },
+  {
+    path: '/dto/:id',
+    name: 'DtoEdit',
+    component: () => import('@/views/DtoEdit.vue'),
+    props: true,
+  },
+  {
     path: '/endpoints',
     name: 'EndpointsList',
     component: () => import('@/views/EndpointsList.vue'),

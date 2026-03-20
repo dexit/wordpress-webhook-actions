@@ -92,9 +92,10 @@ class IncomingEndpointRepository {
       'function_enabled' => (int) ($data['function_enabled'] ?? 0),
       'function_code'    => $data['function_code'] ?? null,
       'hooks_to_fire'    => $data['hooks_to_fire'] ?? null,
+      'dto_pipeline_id'  => isset($data['dto_pipeline_id']) ? (int) $data['dto_pipeline_id'] : null,
     ];
 
-    $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s'];
+    $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%d'];
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
     $result = $wpdb->insert($this->table, $insert, $formats);
@@ -112,7 +113,7 @@ class IncomingEndpointRepository {
   public function update(int $id, array $data): bool {
     global $wpdb;
 
-    $intFields = ['is_enabled', 'response_code', 'cpt_enabled', 'function_enabled'];
+    $intFields = ['is_enabled', 'response_code', 'cpt_enabled', 'function_enabled', 'dto_pipeline_id'];
     $jsonFields = ['allowed_methods', 'auth_config', 'cpt_config'];
     $allowed = [
       'name', 'slug', 'description', 'secret_key', 'hmac_algorithm', 'hmac_header',
@@ -120,6 +121,7 @@ class IncomingEndpointRepository {
       'allowed_methods', 'auth_mode', 'auth_config',
       'cpt_enabled', 'cpt_config',
       'function_enabled', 'function_code', 'hooks_to_fire',
+      'dto_pipeline_id',
     ];
     $update  = [];
     $formats = [];
@@ -228,6 +230,9 @@ class IncomingEndpointRepository {
     $row['response_code']    = (int) $row['response_code'];
     $row['cpt_enabled']      = (bool) ($row['cpt_enabled'] ?? false);
     $row['function_enabled'] = (bool) ($row['function_enabled'] ?? false);
+    $row['dto_pipeline_id']  = isset($row['dto_pipeline_id']) && $row['dto_pipeline_id'] !== null
+      ? (int) $row['dto_pipeline_id']
+      : null;
 
     // Decode JSON fields
     if (isset($row['allowed_methods']) && is_string($row['allowed_methods'])) {

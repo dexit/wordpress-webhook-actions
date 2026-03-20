@@ -182,6 +182,14 @@ export const api = {
     resetCapture: (webhookId, triggerName) => post(`schemas/webhook/${webhookId}/trigger/${triggerName}/capture`),
     getUserTriggers: () => get('schemas/user-triggers'),
   },
+  dto: {
+    list: () => get('dto'),
+    get: (id) => get(`dto/${id}`),
+    create: (data) => post('dto', data),
+    update: (id, data) => put(`dto/${id}`, data),
+    delete: (id) => del(`dto/${id}`),
+    test: (id, data) => post(`dto/${id}/test`, data),
+  },
   endpoints: {
     list: () => get('endpoints'),
     get: (id) => get(`endpoints/${id}`),

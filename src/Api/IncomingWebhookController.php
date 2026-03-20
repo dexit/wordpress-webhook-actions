@@ -12,6 +12,8 @@ use WP_Error;
 use FlowSystems\WebhookActions\Repositories\IncomingEndpointRepository;
 use FlowSystems\WebhookActions\Repositories\IncomingPayloadRepository;
 use FlowSystems\WebhookActions\Repositories\EndpointLogRepository;
+use FlowSystems\WebhookActions\Repositories\DtoPipelineRepository;
+use FlowSystems\WebhookActions\Services\DtoPipelineProcessor;
 use FlowSystems\WebhookActions\Services\EndpointAuthenticator;
 use FlowSystems\WebhookActions\Services\TemplateRenderer;
 use FlowSystems\WebhookActions\Services\CptMapper;
@@ -53,6 +55,7 @@ class IncomingWebhookController extends WP_REST_Controller {
   private IncomingEndpointRepository $endpoints;
   private IncomingPayloadRepository  $payloads;
   private EndpointLogRepository      $logs;
+  private DtoPipelineRepository      $dtoPipelines;
   private CptMapper                  $cptMapper;
   private EndpointFunctionRunner     $functionRunner;
 
@@ -60,6 +63,7 @@ class IncomingWebhookController extends WP_REST_Controller {
     $this->endpoints      = new IncomingEndpointRepository();
     $this->payloads       = new IncomingPayloadRepository();
     $this->logs           = new EndpointLogRepository();
+    $this->dtoPipelines   = new DtoPipelineRepository();
     $this->cptMapper      = new CptMapper();
     $this->functionRunner = new EndpointFunctionRunner();
   }
@@ -158,6 +162,19 @@ class IncomingWebhookController extends WP_REST_Controller {
         'received_at'   => current_time('c'),
       ]
     );
+
+    // DTO/ETL pipeline — runs before CPT mapper and function runner so $dto is
+    // available as {{dto.field}} in templates and as $dto in custom PHP code.
+    if (!empty($endpoint['dto_pipeline_id'])) {
+      $pipeline = $this->dtoPipelines->find((int) $endpoint['dto_pipeline_id']);
+      if ($pipeline && $pipeline['is_enabled'] && !empty($pipeline['pipeline_config'])) {
+        $dto = DtoPipelineProcessor::process($pipeline['pipeline_config'], $context);
+        // Merge DTO into context under 'dto' key so templates can use {{dto.field}}
+        $context['dto'] = $dto;
+        // Also expose on received.dto for dot-path access
+        $context['received']['dto'] = $dto;
+      }
+    }
 
     // CPT mapping
     $cptPostId = null;

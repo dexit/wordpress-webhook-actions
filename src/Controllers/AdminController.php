@@ -15,6 +15,7 @@ use FlowSystems\WebhookActions\Api\SchemasController;
 use FlowSystems\WebhookActions\Api\ApiTokensController;
 use FlowSystems\WebhookActions\Api\IncomingEndpointsController;
 use FlowSystems\WebhookActions\Api\IncomingWebhookController;
+use FlowSystems\WebhookActions\Api\DtoPipelinesController;
 
 class AdminController {
   public function __construct() {
@@ -173,6 +174,7 @@ class AdminController {
     (new ApiTokensController())->registerRoutes();
     (new IncomingEndpointsController())->registerRoutes();
     (new IncomingWebhookController())->registerRoutes();
+    (new DtoPipelinesController())->registerRoutes();
   }
 
   /**

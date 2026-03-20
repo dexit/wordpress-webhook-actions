@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '1.5.0';
+  private const CURRENT_VERSION = '1.6.0';
 
   /**
    * Run pending migrations
@@ -48,6 +48,7 @@ class Migrator {
       $wpdb->prefix . 'fswa_incoming_endpoints',
       $wpdb->prefix . 'fswa_incoming_payloads',
       $wpdb->prefix . 'fswa_endpoint_logs',
+      $wpdb->prefix . 'fswa_dto_pipelines',
     ];
 
     foreach ($requiredTables as $table) {
@@ -74,6 +75,7 @@ class Migrator {
       '1.3.0' => [self::class, 'migration_1_3_0'],
       '1.4.0' => [self::class, 'migration_1_4_0'],
       '1.5.0' => [self::class, 'migration_1_5_0'],
+      '1.6.0' => [self::class, 'migration_1_6_0'],
     ];
   }
 
@@ -414,6 +416,48 @@ class Migrator {
         ) {$charsetCollate};";
 
     dbDelta($sqlLogs);
+  }
+
+  /**
+   * Migration 1.6.0 – DTO pipelines table + dto_pipeline_id on endpoints
+   */
+  public static function migration_1_6_0(): void {
+    global $wpdb;
+
+    $charsetCollate = $wpdb->get_charset_collate();
+    $dtoTable       = $wpdb->prefix . 'fswa_dto_pipelines';
+    $endpointsTable = $wpdb->prefix . 'fswa_incoming_endpoints';
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    // ── DTO pipelines table ───────────────────────────────────────────────
+    $sqlDto = "CREATE TABLE {$dtoTable} (
+            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name            VARCHAR(255) NOT NULL,
+            slug            VARCHAR(100) NOT NULL,
+            description     TEXT DEFAULT NULL,
+            pipeline_config LONGTEXT DEFAULT NULL,
+            is_enabled      TINYINT(1) NOT NULL DEFAULT 1,
+            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_slug (slug),
+            KEY idx_enabled (is_enabled)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlDto);
+
+    // ── Add dto_pipeline_id to incoming endpoints ─────────────────────────
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$endpointsTable} LIKE %s",
+      'dto_pipeline_id'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$endpointsTable} ADD COLUMN dto_pipeline_id BIGINT UNSIGNED DEFAULT NULL");
+      $wpdb->query("ALTER TABLE {$endpointsTable} ADD KEY idx_dto_pipeline (dto_pipeline_id)");
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
   }
 
   /**

@@ -11,8 +11,9 @@ defined('ABSPATH') || exit;
  *   $payload   – array  – decoded request body
  *   $query     – array  – URL query parameters
  *   $headers   – array  – captured request headers (lowercase keys)
+ *   $dto       – array  – resolved DTO/ETL fields (empty array if no pipeline attached)
  *   $endpoint  – array  – endpoint configuration row
- *   $context   – array  – full TemplateRenderer context (received.body / query / headers / meta)
+ *   $context   – array  – full TemplateRenderer context (received.body / query / headers / meta / dto)
  *
  * The snippet may return any value; a non-null return replaces the default response body.
  *
@@ -41,6 +42,7 @@ class EndpointFunctionRunner {
     $payload  = $context['received']['body']    ?? [];
     $query    = $context['received']['query']   ?? [];
     $headers  = $context['received']['headers'] ?? [];
+    $dto      = $context['dto']                 ?? [];
 
     $result = ['output' => '', 'return' => null, 'error' => null];
 

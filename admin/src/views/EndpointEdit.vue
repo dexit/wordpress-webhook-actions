@@ -1,10 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Copy, Check, Inbox, ScrollText, Settings, ShieldCheck, Database, Code2, ChevronDown, ChevronRight } from 'lucide-vue-next'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
+import { ArrowLeft, Copy, Check, Inbox, ScrollText, Settings, ShieldCheck, Database, Code2, ChevronDown, ChevronRight, GitMerge } from 'lucide-vue-next'
 import {
   Button, Card, Alert, Input, Label, Switch, Tabs,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  CodeEditor,
 } from '@/components/ui'
 import api from '@/lib/api'
 
@@ -59,11 +60,21 @@ const form = ref({
   function_enabled: false,
   function_code:    '',
   hooks_to_fire:    '',
+
+  // DTO/ETL pipeline
+  dto_pipeline_id: null,
 })
 
-const receiverUrl = ref('')
-const slugDirty   = ref(false)
-const errors      = ref({})
+const receiverUrl  = ref('')
+const slugDirty    = ref(false)
+const errors       = ref({})
+const dtoPipelines = ref([])
+
+// Radix Select wrapper: null → 'none', number → string
+const dtoPipelineSelect = computed({
+  get: () => form.value.dto_pipeline_id ? String(form.value.dto_pipeline_id) : 'none',
+  set: (v) => { form.value.dto_pipeline_id = (v && v !== 'none') ? Number(v) : null },
+})
 
 const allMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 
@@ -140,6 +151,7 @@ const loadEndpoint = async () => {
       function_enabled:ep.function_enabled,
       function_code:   ep.function_code    || '',
       hooks_to_fire:   ep.hooks_to_fire    || '',
+      dto_pipeline_id: ep.dto_pipeline_id  || null,
     }
     receiverUrl.value = ep.receiver_url || ''
     slugDirty.value   = true
@@ -331,6 +343,381 @@ set_transient('fswa_last_payload_' . ($endpoint['slug'] ?? 'unknown'), $payload,
 
 return ['received' => true, 'logged' => true];`,
   },
+  {
+    id: 'use_dto',
+    name: 'Use DTO/ETL pipeline fields',
+    code: `// $dto contains the resolved output of the attached DTO pipeline.
+// Configure a pipeline in Pipelines → attach it to this endpoint.
+$email  = $dto['user_email'] ?? '';
+$amount = $dto['order_total'] ?? 0;
+$status = $dto['status']      ?? 'pending';
+
+if (empty($email)) {
+    return ['success' => false, 'error' => 'user_email missing from DTO'];
+}
+
+// Use the clean, type-cast values in your logic
+update_user_meta(
+    get_user_by('email', $email)?->ID ?? 0,
+    '_last_order_total',
+    $amount
+);
+
+return ['success' => true, 'dto' => $dto];`,
+  },
+  {
+    id: 'woo_order_sync',
+    name: 'WooCommerce — update order status',
+    code: `// Requires WooCommerce active
+$order_id = (int) ($payload['order_id'] ?? 0);
+$status   = sanitize_text_field($payload['status'] ?? '');
+
+$allowed_statuses = ['pending','processing','on-hold','completed','cancelled','refunded','failed'];
+if (!$order_id || !in_array($status, $allowed_statuses, true)) {
+    return ['success' => false, 'error' => 'Invalid order_id or status'];
+}
+
+$order = wc_get_order($order_id);
+if (!$order) {
+    return ['success' => false, 'error' => 'Order not found'];
+}
+
+$order->update_status($status, '[FSWA] Status updated via webhook');
+
+return [
+    'success'   => true,
+    'order_id'  => $order_id,
+    'status'    => $order->get_status(),
+];`,
+  },
+  {
+    id: 'woo_product_update',
+    name: 'WooCommerce — update product stock',
+    code: `// Update product stock by SKU
+$sku      = sanitize_text_field($payload['sku'] ?? '');
+$quantity = (int) ($payload['quantity'] ?? 0);
+
+if (empty($sku)) {
+    return ['success' => false, 'error' => 'SKU required'];
+}
+
+$product_id = wc_get_product_id_by_sku($sku);
+if (!$product_id) {
+    return ['success' => false, 'error' => 'Product not found for SKU: ' . $sku];
+}
+
+$product = wc_get_product($product_id);
+$product->set_stock_quantity($quantity);
+$product->set_stock_status($quantity > 0 ? 'instock' : 'outofstock');
+$product->save();
+
+return [
+    'success'    => true,
+    'product_id' => $product_id,
+    'sku'        => $sku,
+    'quantity'   => $quantity,
+];`,
+  },
+  {
+    id: 'acf_update',
+    name: 'ACF — update custom fields',
+    code: `// Update ACF fields on a post or user
+// Requires Advanced Custom Fields (free or Pro)
+$post_id = (int) ($payload['post_id'] ?? 0);
+$fields  = $payload['fields'] ?? [];
+
+if (!$post_id || empty($fields) || !function_exists('update_field')) {
+    return ['success' => false, 'error' => 'post_id + fields required, ACF must be active'];
+}
+
+$updated = [];
+foreach ($fields as $key => $value) {
+    $k = sanitize_key($key);
+    update_field($k, $value, $post_id);
+    $updated[] = $k;
+}
+
+return ['success' => true, 'post_id' => $post_id, 'updated_fields' => $updated];`,
+  },
+  {
+    id: 'slack_notification',
+    name: 'Send Slack notification',
+    code: `// Send a message to a Slack channel via Incoming Webhook
+$slack_url = 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK';
+$text      = $payload['message'] ?? ('New webhook received: ' . json_encode($payload));
+$channel   = $payload['channel'] ?? '#general';
+
+$response = wp_remote_post($slack_url, [
+    'headers' => ['Content-Type' => 'application/json'],
+    'body'    => wp_json_encode([
+        'text'    => $text,
+        'channel' => $channel,
+    ]),
+    'timeout' => 15,
+]);
+
+if (is_wp_error($response)) {
+    return ['success' => false, 'error' => $response->get_error_message()];
+}
+
+return ['success' => true, 'slack_status' => wp_remote_retrieve_response_code($response)];`,
+  },
+  {
+    id: 'taxonomy_sync',
+    name: 'Sync taxonomy terms',
+    code: `// Create / set taxonomy terms on a post from incoming data
+$post_id  = (int) ($payload['post_id'] ?? 0);
+$taxonomy = sanitize_key($payload['taxonomy'] ?? 'category');
+$terms    = (array) ($payload['terms'] ?? []);  // array of term names or slugs
+
+if (!$post_id || empty($terms)) {
+    return ['success' => false, 'error' => 'post_id and terms required'];
+}
+
+// Ensure terms exist, create if missing
+$term_ids = [];
+foreach ($terms as $term_name) {
+    $term = term_exists($term_name, $taxonomy);
+    if (!$term) {
+        $term = wp_insert_term($term_name, $taxonomy);
+    }
+    if (!is_wp_error($term)) {
+        $term_ids[] = (int) ($term['term_id'] ?? $term);
+    }
+}
+
+wp_set_object_terms($post_id, $term_ids, $taxonomy);
+
+return ['success' => true, 'post_id' => $post_id, 'taxonomy' => $taxonomy, 'term_ids' => $term_ids];`,
+  },
+  {
+    id: 'transient_cache',
+    name: 'Store / retrieve transient cache',
+    code: `$action = $payload['action'] ?? 'set';  // 'set' | 'get' | 'delete'
+$key    = sanitize_key($payload['key'] ?? 'fswa_cache');
+$value  = $payload['value'] ?? null;
+$expiry = (int) ($payload['expiry'] ?? HOUR_IN_SECONDS);
+
+switch ($action) {
+    case 'set':
+        set_transient($key, $value, $expiry);
+        return ['success' => true, 'action' => 'set', 'key' => $key];
+
+    case 'get':
+        $stored = get_transient($key);
+        return ['success' => true, 'action' => 'get', 'key' => $key, 'value' => $stored];
+
+    case 'delete':
+        delete_transient($key);
+        return ['success' => true, 'action' => 'delete', 'key' => $key];
+
+    default:
+        return ['success' => false, 'error' => 'Unknown action'];
+}`,
+  },
+  {
+    id: 'role_assignment',
+    name: 'Role-based user assignment',
+    code: `$email = sanitize_email($payload['email'] ?? '');
+$role  = sanitize_key($payload['role'] ?? 'subscriber');
+
+// Validate role
+$wp_roles = wp_roles();
+if (!isset($wp_roles->roles[$role])) {
+    return ['success' => false, 'error' => 'Invalid role: ' . $role];
+}
+
+$user = get_user_by('email', $email);
+if (!$user) {
+    return ['success' => false, 'error' => 'User not found: ' . $email];
+}
+
+$user->set_role($role);
+
+return [
+    'success' => true,
+    'user_id' => $user->ID,
+    'email'   => $email,
+    'role'    => $role,
+];`,
+  },
+  {
+    id: 'schedule_cron',
+    name: 'Schedule a WP-Cron event',
+    code: `$hook      = sanitize_key($payload['hook'] ?? 'my_scheduled_task');
+$timestamp = isset($payload['run_at']) ? strtotime($payload['run_at']) : (time() + 60);
+$args      = $payload['args'] ?? [];
+
+if (!$timestamp) {
+    return ['success' => false, 'error' => 'Invalid run_at date'];
+}
+
+// Avoid duplicate scheduling
+if (!wp_next_scheduled($hook, $args)) {
+    wp_schedule_single_event($timestamp, $hook, $args);
+    return ['success' => true, 'hook' => $hook, 'scheduled_at' => wp_date('Y-m-d H:i:s', $timestamp)];
+}
+
+return ['success' => true, 'hook' => $hook, 'already_scheduled' => true];`,
+  },
+  {
+    id: 'external_api_retry',
+    name: 'External API call with retry',
+    code: `$api_url  = 'https://api.example.com/sync';
+$max_attempts = 3;
+$last_error   = null;
+
+for ($attempt = 1; $attempt <= $max_attempts; $attempt++) {
+    $response = wp_remote_post($api_url, [
+        'headers' => [
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'Bearer ' . get_option('my_api_token'),
+        ],
+        'body'    => wp_json_encode($payload),
+        'timeout' => 20,
+    ]);
+
+    if (!is_wp_error($response)) {
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code >= 200 && $code < 300) {
+            return [
+                'success'  => true,
+                'attempts' => $attempt,
+                'code'     => $code,
+                'body'     => json_decode(wp_remote_retrieve_body($response), true),
+            ];
+        }
+        $last_error = 'HTTP ' . $code;
+    } else {
+        $last_error = $response->get_error_message();
+    }
+
+    if ($attempt < $max_attempts) {
+        sleep(2 * $attempt); // exponential back-off
+    }
+}
+
+return ['success' => false, 'attempts' => $max_attempts, 'error' => $last_error];`,
+  },
+  {
+    id: 'conditional_branch',
+    name: 'Conditional multi-step branching',
+    code: `$event_type = sanitize_text_field($payload['event'] ?? '');
+$data       = $payload['data'] ?? [];
+
+switch ($event_type) {
+    case 'user.created':
+        // Send welcome email
+        wp_mail($data['email'] ?? '', 'Welcome!', 'Your account is ready.');
+        return ['handled' => 'user.created', 'email' => $data['email'] ?? ''];
+
+    case 'order.paid':
+        // Update order meta + notify
+        $order_id = (int) ($data['order_id'] ?? 0);
+        if ($order_id && function_exists('wc_get_order')) {
+            wc_get_order($order_id)?->update_status('processing');
+        }
+        return ['handled' => 'order.paid', 'order_id' => $order_id];
+
+    case 'subscription.cancelled':
+        $user = get_user_by('email', $data['email'] ?? '');
+        if ($user) {
+            update_user_meta($user->ID, '_subscription_status', 'cancelled');
+        }
+        return ['handled' => 'subscription.cancelled'];
+
+    default:
+        // Log unknown events to transient
+        set_transient('fswa_unknown_event_' . time(), $payload, DAY_IN_SECONDS);
+        return ['handled' => 'unknown', 'event' => $event_type];
+}`,
+  },
+  {
+    id: 'custom_db_query',
+    name: 'Custom database query',
+    code: `global $wpdb;
+
+// Example: log incoming events to a custom table
+// (creates it if it does not exist)
+$table = $wpdb->prefix . 'my_events';
+
+// Auto-create table on first run
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange
+$wpdb->query("CREATE TABLE IF NOT EXISTS {$table} (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    event_type VARCHAR(100),
+    payload LONGTEXT,
+    received_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) " . $wpdb->get_charset_collate());
+
+// Insert event
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+$inserted = $wpdb->insert($table, [
+    'event_type' => sanitize_text_field($payload['event'] ?? 'unknown'),
+    'payload'    => wp_json_encode($payload),
+], ['%s', '%s']);
+
+return [
+    'success'  => $inserted !== false,
+    'row_id'   => $wpdb->insert_id,
+];`,
+  },
+  {
+    id: 'jwt_validate',
+    name: 'Validate & decode JWT (manual)',
+    code: `// Simple HS256 JWT validation without a library.
+// For production, install firebase/php-jwt via Composer.
+$token  = $headers['authorization'] ?? '';
+$token  = str_ireplace('Bearer ', '', $token);
+$secret = get_option('my_jwt_secret', 'change_me');
+
+if (empty($token)) {
+    return ['success' => false, 'error' => 'No token provided'];
+}
+
+$parts = explode('.', $token);
+if (count($parts) !== 3) {
+    return ['success' => false, 'error' => 'Malformed JWT'];
+}
+
+[$header_b64, $payload_b64, $sig_b64] = $parts;
+
+$expected_sig = rtrim(strtr(base64_encode(hash_hmac(
+    'sha256',
+    $header_b64 . '.' . $payload_b64,
+    $secret,
+    true
+)), '+/', '-_'), '=');
+
+if (!hash_equals($expected_sig, $sig_b64)) {
+    return ['success' => false, 'error' => 'Invalid signature'];
+}
+
+$claims = json_decode(base64_decode(str_pad(strtr($payload_b64, '-_', '+/'), strlen($payload_b64) % 4, '=', STR_PAD_RIGHT)), true);
+
+if (isset($claims['exp']) && $claims['exp'] < time()) {
+    return ['success' => false, 'error' => 'Token expired'];
+}
+
+return ['success' => true, 'claims' => $claims];`,
+  },
+  {
+    id: 'fire_outgoing_webhook',
+    name: 'Fire outgoing webhook trigger',
+    code: `// Trigger an outgoing webhook that listens to a WP action.
+// Configure an outgoing webhook with trigger = 'my_incoming_event'.
+$event_data = [
+    'source'    => $endpoint['slug'] ?? 'endpoint',
+    'event'     => $payload['event'] ?? 'received',
+    'data'      => $payload,
+    'timestamp' => time(),
+];
+
+// Fire the action — any outgoing webhook watching this hook will send.
+do_action('my_incoming_event', $event_data);
+
+return ['success' => true, 'fired' => 'my_incoming_event'];`,
+  },
 ]
 
 const insertSnippet = () => {
@@ -342,7 +729,13 @@ const insertSnippet = () => {
   selectedSnippet.value = ''
 }
 
-onMounted(loadEndpoint)
+const loadDtoPipelines = async () => {
+  try {
+    dtoPipelines.value = await api.dto.list()
+  } catch { /* non-critical */ }
+}
+
+onMounted(() => { loadEndpoint(); loadDtoPipelines() })
 </script>
 
 <template>
@@ -455,8 +848,40 @@ onMounted(loadEndpoint)
 
                 <div v-if="form.response_code !== 204" class="space-y-1.5">
                   <Label>Response Body (JSON / merge tags)</Label>
-                  <Input v-model="form.response_body" placeholder='{"received":true}' />
+                  <CodeEditor
+                    v-model="form.response_body"
+                    language="json"
+                    :min-height="80"
+                    :max-height="200"
+                    placeholder='{"received":true,"message":"{{received.body.id}}"}'
+                  />
                   <p class="text-xs text-muted-foreground">Supports merge tags: <code class="font-mono">&#123;&#123;received.body.field&#125;&#125;</code></p>
+                </div>
+
+                <hr class="border-border" />
+
+                <!-- DTO/ETL Pipeline -->
+                <div class="space-y-1.5">
+                  <Label class="flex items-center gap-1.5">
+                    <GitMerge class="h-3.5 w-3.5 text-muted-foreground" />
+                    DTO / ETL Pipeline
+                  </Label>
+                  <Select v-model="dtoPipelineSelect">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None (no transformation) —</SelectItem>
+                      <SelectItem
+                        v-for="p in dtoPipelines"
+                        :key="p.id"
+                        :value="String(p.id)"
+                      >{{ p.name }} <span class="text-muted-foreground text-xs">({{ p.pipeline_config?.length ?? 0 }} fields)</span></SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p class="text-xs text-muted-foreground">
+                    Run a pipeline before CPT mapping &amp; custom function.
+                    Access results via <code class="font-mono">$dto</code> in PHP or <code class="font-mono">&#123;&#123;dto.field&#125;&#125;</code> in templates.
+                    <RouterLink to="/dto/new" class="underline hover:text-foreground ml-1">Create pipeline →</RouterLink>
+                  </p>
                 </div>
               </div>
             </template>
@@ -616,11 +1041,12 @@ onMounted(loadEndpoint)
 
                   <div class="space-y-1.5">
                     <Label>Post Content Template</Label>
-                    <textarea
+                    <CodeEditor
                       v-model="form.cpt_config.content_template"
-                      rows="3"
+                      language="template"
+                      :min-height="80"
+                      :max-height="200"
                       placeholder="{{received.body.description}}"
-                      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y font-mono"
                     />
                   </div>
 
@@ -672,9 +1098,9 @@ onMounted(loadEndpoint)
 
                 <template v-if="form.function_enabled">
                   <div class="p-3 text-xs rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300 space-y-1">
-                    <p><strong>Available variables:</strong> <code class="font-mono">$payload</code> (body array), <code class="font-mono">$query</code> (URL params), <code class="font-mono">$headers</code>, <code class="font-mono">$endpoint</code>, <code class="font-mono">$context</code></p>
+                    <p><strong>Available variables:</strong> <code class="font-mono">$payload</code> (body array), <code class="font-mono">$query</code>, <code class="font-mono">$headers</code>, <code class="font-mono">$endpoint</code>, <code class="font-mono">$context</code></p>
+                    <p v-if="form.dto_pipeline_id"><code class="font-mono">$dto</code> — resolved DTO/ETL fields from the attached pipeline (e.g. <code class="font-mono">$dto['user_email']</code>)</p>
                     <p>Return an array for a JSON response. Return <code class="font-mono">null</code> to use the default response body template.</p>
-                    <p>Also available: <code class="font-mono">$context['received']['body']['field']</code> for nested access.</p>
                   </div>
 
                   <!-- Snippets selector -->
@@ -694,17 +1120,12 @@ onMounted(loadEndpoint)
 
                   <div class="space-y-1.5">
                     <Label>PHP Code</Label>
-                    <div class="relative">
-                      <div class="absolute top-2 right-2 text-xs text-muted-foreground bg-zinc-900 px-1.5 py-0.5 rounded select-none">PHP</div>
-                      <textarea
-                        v-model="form.function_code"
-                        rows="20"
-                        spellcheck="false"
-                        autocomplete="off"
-                        placeholder="// $payload, $query, $headers, $endpoint, $context available&#10;// Return a value to override the response&#10;&#10;return ['received' => true];"
-                        class="w-full rounded-md border border-input bg-zinc-950 text-green-400 px-4 py-3 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y font-mono leading-relaxed"
-                      />
-                    </div>
+                    <CodeEditor
+                      v-model="form.function_code"
+                      language="php"
+                      :min-height="320"
+                      placeholder="// $payload, $query, $headers, $dto, $endpoint, $context available"
+                    />
                   </div>
                 </template>
 
@@ -803,6 +1224,19 @@ onMounted(loadEndpoint)
                   <p>&#123;&#123;uuid&#125;&#125;</p>
                   <p>&#123;&#123;site_url&#125;&#125; &#123;&#123;home_url&#125;&#125;</p>
                   <p>&#123;&#123;admin_email&#125;&#125; &#123;&#123;blog_name&#125;&#125;</p>
+                </div>
+              </div>
+
+              <!-- DTO -->
+              <div v-if="form.dto_pipeline_id">
+                <button type="button" class="flex items-center gap-1 w-full text-left font-medium text-muted-foreground hover:text-foreground" @click="openTagGroup = openTagGroup === 'dto' ? '' : 'dto'">
+                  <component :is="openTagGroup === 'dto' ? ChevronDown : ChevronRight" class="h-3 w-3 shrink-0" />
+                  DTO pipeline fields
+                </button>
+                <div v-if="openTagGroup === 'dto'" class="mt-1.5 space-y-0.5 pl-4 font-mono text-muted-foreground">
+                  <p>&#123;&#123;dto.<em>output_key</em>&#125;&#125;</p>
+                  <p>&#123;&#123;received.dto.<em>output_key</em>&#125;&#125;</p>
+                  <p class="text-muted-foreground/60 text-[10px] not-italic pt-1">PHP: <code class="font-mono">$dto['output_key']</code></p>
                 </div>
               </div>
 
