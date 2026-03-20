@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '1.6.0';
+  private const CURRENT_VERSION = '1.7.0';
 
   /**
    * Run pending migrations
@@ -76,6 +76,7 @@ class Migrator {
       '1.4.0' => [self::class, 'migration_1_4_0'],
       '1.5.0' => [self::class, 'migration_1_5_0'],
       '1.6.0' => [self::class, 'migration_1_6_0'],
+      '1.7.0' => [self::class, 'migration_1_7_0'],
     ];
   }
 
@@ -456,6 +457,34 @@ class Migrator {
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$endpointsTable} ADD COLUMN dto_pipeline_id BIGINT UNSIGNED DEFAULT NULL");
       $wpdb->query("ALTER TABLE {$endpointsTable} ADD KEY idx_dto_pipeline (dto_pipeline_id)");
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+  }
+
+  /**
+   * Migration 1.7.0 – Add actions_config to endpoints and webhooks tables
+   */
+  public static function migration_1_7_0(): void {
+    global $wpdb;
+
+    $endpointsTable = $wpdb->prefix . 'fswa_incoming_endpoints';
+    $webhooksTable  = $wpdb->prefix . 'fswa_webhooks';
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$endpointsTable} LIKE %s",
+      'actions_config'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$endpointsTable} ADD COLUMN actions_config LONGTEXT DEFAULT NULL");
+    }
+
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
+      'actions_config'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN actions_config LONGTEXT DEFAULT NULL");
     }
     // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
   }

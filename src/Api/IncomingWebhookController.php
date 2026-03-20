@@ -18,6 +18,7 @@ use FlowSystems\WebhookActions\Services\EndpointAuthenticator;
 use FlowSystems\WebhookActions\Services\TemplateRenderer;
 use FlowSystems\WebhookActions\Services\CptMapper;
 use FlowSystems\WebhookActions\Services\EndpointFunctionRunner;
+use FlowSystems\WebhookActions\Services\ActionRunner;
 
 /**
  * Public receiver for custom incoming webhook endpoints.
@@ -196,6 +197,11 @@ class IncomingWebhookController extends WP_REST_Controller {
     // Fire configured hooks
     if (!empty($endpoint['hooks_to_fire'])) {
       $this->functionRunner->fireHooks($endpoint['hooks_to_fire'], $context, $endpoint);
+    }
+
+    // Run configured actions for 'received' trigger
+    if (!empty($endpoint['actions_config'])) {
+      ActionRunner::run((array) $endpoint['actions_config'], 'received', $context);
     }
 
     // Fire generic received action

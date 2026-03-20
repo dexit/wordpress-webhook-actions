@@ -72,6 +72,20 @@ class SettingsController extends WP_REST_Controller {
       'callback' => [$this, 'getInfo'],
       'permission_callback' => [$this, 'permissionsCheck'],
     ]);
+
+    // WordPress post statuses (used by CPT mapper UI)
+    register_rest_route($this->namespace, '/' . $this->rest_base . '/post-statuses', [
+      'methods'             => WP_REST_Server::READABLE,
+      'callback'            => [$this, 'getPostStatuses'],
+      'permission_callback' => [$this, 'permissionsCheck'],
+    ]);
+
+    // WordPress post types (used by CPT mapper UI)
+    register_rest_route($this->namespace, '/' . $this->rest_base . '/post-types', [
+      'methods'             => WP_REST_Server::READABLE,
+      'callback'            => [$this, 'getPostTypes'],
+      'permission_callback' => [$this, 'permissionsCheck'],
+    ]);
   }
 
   /**
@@ -161,6 +175,55 @@ class SettingsController extends WP_REST_Controller {
       'success' => true,
       'message' => __('All logs have been cleared.', 'flowsystems-webhook-actions'),
     ]);
+  }
+
+  /**
+   * Get registered WordPress post statuses
+   */
+  public function getPostStatuses($request): WP_REST_Response {
+    $statuses = get_post_statuses();
+    $result   = [];
+
+    foreach ($statuses as $slug => $label) {
+      $result[] = ['value' => $slug, 'label' => $label];
+    }
+
+    // Add common statuses that get_post_statuses() may miss
+    $extra = ['pending' => 'Pending', 'private' => 'Private'];
+    foreach ($extra as $slug => $label) {
+      if (!array_key_exists($slug, $statuses)) {
+        $result[] = ['value' => $slug, 'label' => $label];
+      }
+    }
+
+    // Also include any registered custom statuses
+    $registered = get_post_stati(['show_in_admin_status_list' => true], 'objects');
+    foreach ($registered as $slug => $obj) {
+      $exists = array_filter($result, fn($r) => $r['value'] === $slug);
+      if (empty($exists)) {
+        $result[] = ['value' => $slug, 'label' => $obj->label];
+      }
+    }
+
+    return rest_ensure_response($result);
+  }
+
+  /**
+   * Get registered WordPress post types
+   */
+  public function getPostTypes($request): WP_REST_Response {
+    $types  = get_post_types(['show_ui' => true], 'objects');
+    $result = [];
+
+    foreach ($types as $slug => $obj) {
+      $result[] = [
+        'value'  => $slug,
+        'label'  => $obj->labels->singular_name ?? $obj->label,
+        'plural' => $obj->label,
+      ];
+    }
+
+    return rest_ensure_response($result);
   }
 
   /**

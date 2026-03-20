@@ -337,6 +337,7 @@ class IncomingEndpointsController extends WP_REST_Controller {
       'function_code'    => $request->get_param('function_code') ?? '',
       'hooks_to_fire'    => sanitize_text_field($request->get_param('hooks_to_fire') ?? ''),
       'dto_pipeline_id'  => $request->get_param('dto_pipeline_id') ? (int) $request->get_param('dto_pipeline_id') : null,
+      'actions_config'   => is_array($request->get_param('actions_config')) ? $request->get_param('actions_config') : [],
     ];
 
     // Normalize empty strings to null for nullable fields
@@ -459,6 +460,10 @@ class IncomingEndpointsController extends WP_REST_Controller {
     if ($request->has_param('dto_pipeline_id')) {
       $pipelineId = $request->get_param('dto_pipeline_id');
       $data['dto_pipeline_id'] = ($pipelineId !== null && $pipelineId !== '' && $pipelineId !== 0) ? (int) $pipelineId : null;
+    }
+
+    if ($request->has_param('actions_config')) {
+      $data['actions_config'] = is_array($request->get_param('actions_config')) ? $request->get_param('actions_config') : [];
     }
 
     if (!$this->endpoints->update($id, $data)) {

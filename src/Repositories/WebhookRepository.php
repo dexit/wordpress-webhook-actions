@@ -60,6 +60,7 @@ class WebhookRepository {
     foreach ($webhooks as &$webhook) {
       $webhook['triggers'] = $triggersByWebhook[$webhook['id']] ?? [];
       $webhook['is_enabled'] = (bool) $webhook['is_enabled'];
+      $webhook = $this->castRow($webhook);
     }
 
     return $webhooks;
@@ -101,7 +102,7 @@ class WebhookRepository {
     $webhook['triggers'] = $triggers ?: [];
     $webhook['is_enabled'] = (bool) $webhook['is_enabled'];
 
-    return $webhook;
+    return $this->castRow($webhook);
   }
 
   /**
@@ -141,6 +142,7 @@ class WebhookRepository {
       // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
       $webhook['triggers'] = $triggers ?: [];
       $webhook['is_enabled'] = (bool) $webhook['is_enabled'];
+      $webhook = $this->castRow($webhook);
     }
 
     return $webhooks;
@@ -159,12 +161,13 @@ class WebhookRepository {
     $result = $wpdb->insert(
       $this->webhooksTable,
       [
-        'name' => $data['name'],
-        'endpoint_url' => $data['endpoint_url'],
-        'auth_header' => $data['auth_header'] ?? null,
-        'is_enabled' => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
+        'name'           => $data['name'],
+        'endpoint_url'   => $data['endpoint_url'],
+        'auth_header'    => $data['auth_header'] ?? null,
+        'is_enabled'     => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
+        'actions_config' => isset($data['actions_config']) ? wp_json_encode($data['actions_config']) : null,
       ],
-      ['%s', '%s', '%s', '%d']
+      ['%s', '%s', '%s', '%d', '%s']
     );
 
     if (!$result) {
@@ -212,6 +215,13 @@ class WebhookRepository {
     if (isset($data['is_enabled'])) {
       $updateData['is_enabled'] = (int) $data['is_enabled'];
       $format[] = '%d';
+    }
+
+    if (array_key_exists('actions_config', $data)) {
+      $updateData['actions_config'] = ($data['actions_config'] !== null)
+        ? (is_array($data['actions_config']) ? wp_json_encode($data['actions_config']) : $data['actions_config'])
+        : null;
+      $format[] = '%s';
     }
 
     if (!empty($updateData)) {
@@ -352,5 +362,21 @@ class WebhookRepository {
    */
   public function getWebhooks(): array {
     return $this->getAll(true);
+  }
+
+  /**
+   * Cast raw DB row types, including JSON decode for actions_config.
+   *
+   * @param array<string, mixed> $row
+   * @return array<string, mixed>
+   */
+  private function castRow(array $row): array {
+    if (isset($row['actions_config']) && is_string($row['actions_config'])) {
+      $decoded = json_decode($row['actions_config'], true);
+      $row['actions_config'] = is_array($decoded) ? $decoded : [];
+    } else {
+      $row['actions_config'] = [];
+    }
+    return $row;
   }
 }

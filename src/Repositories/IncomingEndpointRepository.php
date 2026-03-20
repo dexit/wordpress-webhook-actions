@@ -93,9 +93,10 @@ class IncomingEndpointRepository {
       'function_code'    => $data['function_code'] ?? null,
       'hooks_to_fire'    => $data['hooks_to_fire'] ?? null,
       'dto_pipeline_id'  => isset($data['dto_pipeline_id']) ? (int) $data['dto_pipeline_id'] : null,
+      'actions_config'   => isset($data['actions_config']) ? wp_json_encode($data['actions_config']) : null,
     ];
 
-    $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%d'];
+    $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%d', '%s'];
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
     $result = $wpdb->insert($this->table, $insert, $formats);
@@ -114,14 +115,14 @@ class IncomingEndpointRepository {
     global $wpdb;
 
     $intFields = ['is_enabled', 'response_code', 'cpt_enabled', 'function_enabled', 'dto_pipeline_id'];
-    $jsonFields = ['allowed_methods', 'auth_config', 'cpt_config'];
+    $jsonFields = ['allowed_methods', 'auth_config', 'cpt_config', 'actions_config'];
     $allowed = [
       'name', 'slug', 'description', 'secret_key', 'hmac_algorithm', 'hmac_header',
       'is_enabled', 'response_code', 'response_body',
       'allowed_methods', 'auth_mode', 'auth_config',
       'cpt_enabled', 'cpt_config',
       'function_enabled', 'function_code', 'hooks_to_fire',
-      'dto_pipeline_id',
+      'dto_pipeline_id', 'actions_config',
     ];
     $update  = [];
     $formats = [];
@@ -245,6 +246,13 @@ class IncomingEndpointRepository {
     if (isset($row['cpt_config']) && is_string($row['cpt_config'])) {
       $decoded = json_decode($row['cpt_config'], true);
       $row['cpt_config'] = is_array($decoded) ? $decoded : null;
+    }
+
+    if (isset($row['actions_config']) && is_string($row['actions_config'])) {
+      $decoded = json_decode($row['actions_config'], true);
+      $row['actions_config'] = is_array($decoded) ? $decoded : [];
+    } else {
+      $row['actions_config'] = [];
     }
 
     return $row;

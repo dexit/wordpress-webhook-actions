@@ -149,6 +149,8 @@ export const api = {
     archive: () => get('settings/archive'),
     downloadArchive: () => get('settings/archive/download'),
     clearLogs: () => post('settings/clear-logs'),
+    postStatuses: () => get('settings/post-statuses'),
+    postTypes: () => get('settings/post-types'),
   },
   queue: {
     list: (params) => get('queue', params),
