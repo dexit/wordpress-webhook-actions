@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Copy, Check, Inbox, ScrollText, Settings, ShieldCheck, Database, Code2 } from 'lucide-vue-next'
+import { ArrowLeft, Copy, Check, Inbox, ScrollText, Settings, ShieldCheck, Database, Code2, ChevronDown, ChevronRight } from 'lucide-vue-next'
 import {
   Button, Card, Alert, Input, Label, Switch, Tabs,
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
@@ -190,6 +190,157 @@ const tabs = [
   { key: 'cpt',      label: 'CPT Mapping',icon: Database },
   { key: 'function', label: 'Function',   icon: Code2 },
 ]
+
+// ---------------------------------------------------------------------------
+// Tag reference accordion
+// ---------------------------------------------------------------------------
+const openTagGroup = ref('body')
+
+// ---------------------------------------------------------------------------
+// Code snippets
+// ---------------------------------------------------------------------------
+const selectedSnippet = ref('')
+
+const snippets = [
+  {
+    id: 'simple_ack',
+    name: 'Simple acknowledgment',
+    code: `// Available: $payload, $query, $headers, $endpoint, $context
+return [
+    'success'   => true,
+    'message'   => 'Webhook received',
+    'timestamp' => current_time('mysql'),
+];`,
+  },
+  {
+    id: 'create_post',
+    name: 'Create post from payload',
+    code: `$title   = $payload['title']   ?? 'Untitled';
+$content = $payload['content'] ?? '';
+$status  = in_array($payload['status'] ?? '', ['publish','draft','pending']) ? $payload['status'] : 'draft';
+
+$post_id = wp_insert_post([
+    'post_title'   => sanitize_text_field($title),
+    'post_content' => wp_kses_post($content),
+    'post_status'  => $status,
+    'post_type'    => 'post',
+]);
+
+if (is_wp_error($post_id)) {
+    return ['success' => false, 'error' => $post_id->get_error_message()];
+}
+
+return ['success' => true, 'post_id' => $post_id, 'url' => get_permalink($post_id)];`,
+  },
+  {
+    id: 'create_user',
+    name: 'Create / update user',
+    code: `$email = sanitize_email($payload['email'] ?? '');
+$name  = sanitize_text_field($payload['name'] ?? '');
+
+if (empty($email)) {
+    return ['success' => false, 'error' => 'Email required'];
+}
+
+$user_id = email_exists($email);
+
+if (!$user_id) {
+    $user_id = wp_insert_user([
+        'user_login'   => $email,
+        'user_email'   => $email,
+        'display_name' => $name,
+        'role'         => 'subscriber',
+        'user_pass'    => wp_generate_password(),
+    ]);
+} else {
+    wp_update_user(['ID' => $user_id, 'display_name' => $name]);
+}
+
+if (is_wp_error($user_id)) {
+    return ['success' => false, 'error' => $user_id->get_error_message()];
+}
+
+return ['success' => true, 'user_id' => $user_id];`,
+  },
+  {
+    id: 'update_meta',
+    name: 'Update post / user meta',
+    code: `$type = $payload['type'] ?? 'post'; // 'post' or 'user'
+$id   = (int) ($payload['id'] ?? 0);
+$meta = $payload['meta'] ?? [];
+
+if (!$id || empty($meta)) {
+    return ['success' => false, 'error' => 'id and meta required'];
+}
+
+$updated = [];
+foreach ($meta as $key => $value) {
+    $k = sanitize_key($key);
+    if ($type === 'user') {
+        update_user_meta($id, $k, $value);
+    } else {
+        update_post_meta($id, $k, $value);
+    }
+    $updated[] = $k;
+}
+
+return ['success' => true, 'updated' => $updated];`,
+  },
+  {
+    id: 'send_email',
+    name: 'Send email notification',
+    code: `$to      = sanitize_email($payload['to'] ?? get_option('admin_email'));
+$subject = sanitize_text_field($payload['subject'] ?? 'Webhook notification');
+$message = wp_kses_post($payload['message'] ?? wp_json_encode($payload));
+
+$sent = wp_mail($to, $subject, $message);
+
+return ['success' => $sent, 'to' => $to];`,
+  },
+  {
+    id: 'forward_webhook',
+    name: 'Forward to another URL',
+    code: `$forward_url = 'https://api.example.com/webhook';
+
+$response = wp_remote_post($forward_url, [
+    'headers' => ['Content-Type' => 'application/json'],
+    'body'    => wp_json_encode($payload),
+    'timeout' => 30,
+]);
+
+if (is_wp_error($response)) {
+    return ['success' => false, 'error' => $response->get_error_message()];
+}
+
+return [
+    'success'     => true,
+    'status_code' => wp_remote_retrieve_response_code($response),
+    'response'    => json_decode(wp_remote_retrieve_body($response), true),
+];`,
+  },
+  {
+    id: 'log_and_store',
+    name: 'Log payload to error log',
+    code: `// Log incoming payload for debugging
+error_log('[FSWA] Endpoint: ' . ($endpoint['name'] ?? '?'));
+error_log('[FSWA] Method: ' . ($context['received']['meta']['method'] ?? '?'));
+error_log('[FSWA] Payload: ' . json_encode($payload));
+
+// Store a transient for quick inspection
+set_transient('fswa_last_payload_' . ($endpoint['slug'] ?? 'unknown'), $payload, HOUR_IN_SECONDS);
+
+return ['received' => true, 'logged' => true];`,
+  },
+]
+
+const insertSnippet = () => {
+  const s = snippets.find((x) => x.id === selectedSnippet.value)
+  if (s) {
+    form.value.function_code = s.code
+    form.value.function_enabled = true
+  }
+  selectedSnippet.value = ''
+}
 
 onMounted(loadEndpoint)
 </script>
@@ -522,20 +673,35 @@ onMounted(loadEndpoint)
                 <template v-if="form.function_enabled">
                   <div class="p-3 text-xs rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300 space-y-1">
                     <p><strong>Available variables:</strong> <code class="font-mono">$payload</code> (body array), <code class="font-mono">$query</code> (URL params), <code class="font-mono">$headers</code>, <code class="font-mono">$endpoint</code>, <code class="font-mono">$context</code></p>
-                    <p>Return a value to override the HTTP response body. Return an array for a JSON response.</p>
-                    <p>Merge tags are available via <code class="font-mono">$context['received']['body']['field']</code>.</p>
+                    <p>Return an array for a JSON response. Return <code class="font-mono">null</code> to use the default response body template.</p>
+                    <p>Also available: <code class="font-mono">$context['received']['body']['field']</code> for nested access.</p>
+                  </div>
+
+                  <!-- Snippets selector -->
+                  <div class="flex gap-2 items-center">
+                    <Select v-model="selectedSnippet">
+                      <SelectTrigger class="flex-1 text-sm">
+                        <SelectValue placeholder="Insert a code snippet…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem v-for="s in snippets" :key="s.id" :value="s.id">{{ s.name }}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="outline" size="sm" :disabled="!selectedSnippet" @click="insertSnippet">
+                      Insert
+                    </Button>
                   </div>
 
                   <div class="space-y-1.5">
                     <Label>PHP Code</Label>
                     <div class="relative">
-                      <div class="absolute top-2 right-2 text-xs text-muted-foreground bg-background px-1 rounded select-none">PHP</div>
+                      <div class="absolute top-2 right-2 text-xs text-muted-foreground bg-zinc-900 px-1.5 py-0.5 rounded select-none">PHP</div>
                       <textarea
                         v-model="form.function_code"
-                        rows="18"
+                        rows="20"
                         spellcheck="false"
                         autocomplete="off"
-                        placeholder="// $payload, $query, $headers, $endpoint, $context available&#10;// Return a value to override the response&#10;&#10;// Example: create a log entry&#10;// error_log('Received: ' . json_encode($payload));&#10;&#10;// Example: return custom JSON response&#10;// return ['ok' => true, 'id' => $payload['id'] ?? null];"
+                        placeholder="// $payload, $query, $headers, $endpoint, $context available&#10;// Return a value to override the response&#10;&#10;return ['received' => true];"
                         class="w-full rounded-md border border-input bg-zinc-950 text-green-400 px-4 py-3 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y font-mono leading-relaxed"
                       />
                     </div>
@@ -587,19 +753,81 @@ onMounted(loadEndpoint)
             </div>
           </Card>
 
-          <!-- Merge tag reference -->
+          <!-- Merge tag reference (accordion) -->
           <Card class="p-5">
             <h3 class="font-medium mb-3 text-sm">Merge Tag Reference</h3>
-            <div class="space-y-1 text-xs text-muted-foreground font-mono">
-              <p>&#123;&#123;received.body.<em>field</em>&#125;&#125;</p>
-              <p>&#123;&#123;received.body.user.name&#125;&#125;</p>
-              <p>&#123;&#123;received.body.items.0&#125;&#125;</p>
-              <p>&#123;&#123;received.query.<em>param</em>&#125;&#125;</p>
-              <p>&#123;&#123;received.headers.x-event-type&#125;&#125;</p>
-              <p>&#123;&#123;received.meta.method&#125;&#125;</p>
-              <p>&#123;&#123;received.meta.source_ip&#125;&#125;</p>
-              <p>&#123;&#123;received.meta.received_at&#125;&#125;</p>
-              <p>&#123;&#123;received.meta.endpoint_slug&#125;&#125;</p>
+            <div class="text-xs space-y-2">
+
+              <!-- Payload -->
+              <div>
+                <button type="button" class="flex items-center gap-1 w-full text-left font-medium text-muted-foreground hover:text-foreground" @click="openTagGroup = openTagGroup === 'body' ? '' : 'body'">
+                  <component :is="openTagGroup === 'body' ? ChevronDown : ChevronRight" class="h-3 w-3 shrink-0" />
+                  Payload body
+                </button>
+                <div v-if="openTagGroup === 'body'" class="mt-1.5 space-y-0.5 pl-4 font-mono text-muted-foreground">
+                  <p>&#123;&#123;received.body.<em>field</em>&#125;&#125;</p>
+                  <p>&#123;&#123;received.body.user.name&#125;&#125;</p>
+                  <p>&#123;&#123;received.body.items.0&#125;&#125;</p>
+                  <p>&#123;&#123;received.body.items[0]&#125;&#125;</p>
+                  <p class="text-muted-foreground/60 text-[10px] not-italic pt-1">Short alias: &#123;&#123;payload.<em>field</em>&#125;&#125;</p>
+                </div>
+              </div>
+
+              <!-- Query / Headers / Meta -->
+              <div>
+                <button type="button" class="flex items-center gap-1 w-full text-left font-medium text-muted-foreground hover:text-foreground" @click="openTagGroup = openTagGroup === 'meta' ? '' : 'meta'">
+                  <component :is="openTagGroup === 'meta' ? ChevronDown : ChevronRight" class="h-3 w-3 shrink-0" />
+                  Query, headers &amp; meta
+                </button>
+                <div v-if="openTagGroup === 'meta'" class="mt-1.5 space-y-0.5 pl-4 font-mono text-muted-foreground">
+                  <p>&#123;&#123;received.query.<em>param</em>&#125;&#125;</p>
+                  <p>&#123;&#123;received.headers.x-event-type&#125;&#125;</p>
+                  <p>&#123;&#123;received.meta.method&#125;&#125;</p>
+                  <p>&#123;&#123;received.meta.source_ip&#125;&#125;</p>
+                  <p>&#123;&#123;received.meta.received_at&#125;&#125;</p>
+                  <p>&#123;&#123;received.meta.endpoint_slug&#125;&#125;</p>
+                  <p class="text-muted-foreground/60 text-[10px] not-italic pt-1">Aliases: &#123;&#123;query.*&#125;&#125; &#123;&#123;headers.*&#125;&#125;</p>
+                </div>
+              </div>
+
+              <!-- System vars -->
+              <div>
+                <button type="button" class="flex items-center gap-1 w-full text-left font-medium text-muted-foreground hover:text-foreground" @click="openTagGroup = openTagGroup === 'sys' ? '' : 'sys'">
+                  <component :is="openTagGroup === 'sys' ? ChevronDown : ChevronRight" class="h-3 w-3 shrink-0" />
+                  System variables
+                </button>
+                <div v-if="openTagGroup === 'sys'" class="mt-1.5 space-y-0.5 pl-4 font-mono text-muted-foreground">
+                  <p>&#123;&#123;timestamp&#125;&#125; — unix</p>
+                  <p>&#123;&#123;datetime&#125;&#125; — Y-m-d H:i:s</p>
+                  <p>&#123;&#123;date&#125;&#125; &#123;&#123;time&#125;&#125;</p>
+                  <p>&#123;&#123;uuid&#125;&#125;</p>
+                  <p>&#123;&#123;site_url&#125;&#125; &#123;&#123;home_url&#125;&#125;</p>
+                  <p>&#123;&#123;admin_email&#125;&#125; &#123;&#123;blog_name&#125;&#125;</p>
+                </div>
+              </div>
+
+              <!-- Modifiers -->
+              <div>
+                <button type="button" class="flex items-center gap-1 w-full text-left font-medium text-muted-foreground hover:text-foreground" @click="openTagGroup = openTagGroup === 'mod' ? '' : 'mod'">
+                  <component :is="openTagGroup === 'mod' ? ChevronDown : ChevronRight" class="h-3 w-3 shrink-0" />
+                  Modifiers
+                </button>
+                <div v-if="openTagGroup === 'mod'" class="mt-1.5 space-y-0.5 pl-4 font-mono text-muted-foreground">
+                  <p class="text-[10px] not-italic mb-1">Syntax: &#123;&#123;path|modifier&#125;&#125;</p>
+                  <p>|lower &nbsp;|upper &nbsp;|trim</p>
+                  <p>|slug &nbsp;|urlencode</p>
+                  <p>|base64 &nbsp;|md5 &nbsp;|sha256</p>
+                  <p>|json &nbsp;|json_pretty</p>
+                  <p>|int &nbsp;|float &nbsp;|round:2</p>
+                  <p>|date:Y-m-d</p>
+                  <p>|substr:0:10</p>
+                  <p>|default:N/A</p>
+                  <p>|first &nbsp;|last &nbsp;|count</p>
+                  <p>|join:, &nbsp;|reverse</p>
+                  <p class="text-[10px] not-italic pt-1 break-all">e.g. &#123;&#123;received.body.email|lower|trim&#125;&#125;</p>
+                </div>
+              </div>
+
             </div>
           </Card>
 
