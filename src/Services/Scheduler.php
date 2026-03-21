@@ -22,6 +22,8 @@ class Scheduler {
     int $timestamp = 0
   ): void {
     if (self::hasActionScheduler()) {
+      // Migrate away from WP-Cron if AS just became available.
+      wp_unschedule_hook($hook);
       if (!as_has_scheduled_action($hook, [], self::GROUP)) {
         as_schedule_recurring_action(time(), $intervalSeconds, $hook, [], self::GROUP);
       }

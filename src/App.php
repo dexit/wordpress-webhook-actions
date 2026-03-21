@@ -63,8 +63,9 @@ class App {
     // Register cleanup cron
     add_action('fswa_cleanup_logs', [$this, 'runLogCleanup']);
 
-    // Schedule queue processor and cleanup if not already scheduled
-    $this->ensureScheduled();
+    // Schedule queue processor and cleanup if not already scheduled.
+    // Deferred to `init` so Action Scheduler is fully initialized before we call as_* functions.
+    add_action('init', [$this, 'ensureScheduled'], 1);
   }
 
   /**
@@ -83,7 +84,7 @@ class App {
   /**
    * Ensure recurring actions are scheduled (self-healing on every request)
    */
-  private function ensureScheduled(): void {
+  public function ensureScheduled(): void {
     Scheduler::scheduleRecurring('fswa_process_queue', MINUTE_IN_SECONDS, 'every_minute');
     Scheduler::scheduleRecurring('fswa_cleanup_logs', DAY_IN_SECONDS, 'daily', strtotime('tomorrow 3:00am'));
   }
