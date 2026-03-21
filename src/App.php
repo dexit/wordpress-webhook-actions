@@ -9,6 +9,7 @@ use FlowSystems\WebhookActions\Controllers\AdminController;
 use FlowSystems\WebhookActions\Database\Migrator;
 use FlowSystems\WebhookActions\Services\LogArchiver;
 use FlowSystems\WebhookActions\Services\QueueService;
+use FlowSystems\WebhookActions\Services\HookDiscoveryService;
 use FlowSystems\WebhookActions\Services\Scheduler;
 
 class App {
@@ -62,6 +63,11 @@ class App {
 
     // Register cleanup cron
     add_action('fswa_cleanup_logs', [$this, 'runLogCleanup']);
+
+    // Bust hook discovery cache when plugins or theme change.
+    add_action('activated_plugin', [HookDiscoveryService::class, 'clearCache']);
+    add_action('deactivated_plugin', [HookDiscoveryService::class, 'clearCache']);
+    add_action('switch_theme', [HookDiscoveryService::class, 'clearCache']);
 
     // Schedule queue processor and cleanup if not already scheduled.
     // Deferred to `init` so Action Scheduler is fully initialized before we call as_* functions.
