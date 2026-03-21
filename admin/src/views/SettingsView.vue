@@ -299,7 +299,7 @@ onMounted(loadData)
                 </SelectContent>
               </Select>
               <p class="text-sm text-muted-foreground">
-                Logs older than this will be automatically deleted
+                Logs older than this will be automatically deleted.
               </p>
             </div>
 
@@ -308,7 +308,7 @@ onMounted(loadData)
               <Label>Archive logs before deletion</Label>
             </div>
             <p class="text-sm text-muted-foreground">
-              When enabled, logs are exported to JSON files before being deleted
+              When enabled, logs are exported to JSON files before being deleted.
             </p>
 
             <div class="flex items-center space-x-2 pt-2">
@@ -400,7 +400,7 @@ onMounted(loadData)
                 Clear All Logs
               </Button>
               <p class="mt-2 text-sm text-muted-foreground">
-                This will permanently delete all logs from the database
+                This will permanently delete all logs from the database.
               </p>
             </div>
           </div>
