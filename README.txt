@@ -4,7 +4,7 @@ Tags: webhooks, automation, integration, n8n, api
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.3.2
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -175,7 +175,7 @@ This allows WordPress automation pipelines to be controlled entirely through HTT
 - Fully extensible via filters and actions
 - Clean namespace and unique prefixes
 - Built according to WordPress.org standards
-- Supports system cron for improved reliability
+- Supports system cron and Action Scheduler for improved reliability
 
 = Why Choose Flow Systems Webhook Actions? =
 
@@ -270,6 +270,13 @@ Yes. The plugin is completely free and licensed under GPL.
 
 == Changelog ==
 
+= 1.4.0 — 2026-03-22 =
+- Added Action Scheduler support — when Action Scheduler is available (e.g. via WooCommerce), queue processing runs through it for more reliable background job execution
+- Added automatic migration from WP-Cron to Action Scheduler on plugin load — no reactivation required when Action Scheduler becomes available
+- Added "Move admin menu under Tools" setting — repositions the plugin menu item; page reloads immediately to apply the change
+- Added dynamic trigger discovery — available WordPress action hooks are now detected via a static PHP source scan, reducing triggers API response size
+- Fixed input focus styles in admin forms
+
 = 1.3.2 — 2026-03-15 =
 - Fixed `auth_header` field being exposed to API tokens without `full` scope — read and operational tokens now receive a permission notice instead
 
@@ -333,6 +340,9 @@ Yes. The plugin is completely free and licensed under GPL.
 - Logging of webhook deliveries
 
 == Upgrade Notice ==
+
+= 1.4.0 =
+Adds Action Scheduler support for queue processing. When Action Scheduler is available, the plugin automatically migrates from WP-Cron on plugin load — no reactivation required.
 
 = 1.3.0 =
 Adds a new database table for API tokens. The table is created automatically on update — no manual steps needed.
