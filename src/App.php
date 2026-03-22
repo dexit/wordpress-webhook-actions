@@ -9,6 +9,8 @@ use FlowSystems\WebhookActions\Controllers\AdminController;
 use FlowSystems\WebhookActions\Database\Migrator;
 use FlowSystems\WebhookActions\Services\LogArchiver;
 use FlowSystems\WebhookActions\Services\QueueService;
+use FlowSystems\WebhookActions\Services\HookDiscoveryService;
+use FlowSystems\WebhookActions\Services\Scheduler;
 
 class App {
   const VERSION = '1.1.0';
@@ -45,8 +47,10 @@ class App {
    * @return void
    */
   public function init(): void {
-    // Register custom cron schedules
-    add_filter('cron_schedules', [$this, 'registerCronSchedules']);
+    // Register custom cron schedules (only needed when Action Scheduler is not active)
+    if (!Scheduler::hasActionScheduler()) {
+      add_filter('cron_schedules', [$this, 'registerCronSchedules']);
+    }
 
     // Run migrations if needed
     if (Migrator::needsMigration()) {
@@ -60,8 +64,14 @@ class App {
     // Register cleanup cron
     add_action('fswa_cleanup_logs', [$this, 'runLogCleanup']);
 
-    // Schedule queue processor if not already scheduled
-    $this->ensureQueueProcessorScheduled();
+    // Bust hook discovery cache when plugins or theme change.
+    add_action('activated_plugin', [HookDiscoveryService::class, 'clearCache']);
+    add_action('deactivated_plugin', [HookDiscoveryService::class, 'clearCache']);
+    add_action('switch_theme', [HookDiscoveryService::class, 'clearCache']);
+
+    // Schedule queue processor and cleanup if not already scheduled.
+    // Deferred to `init` so Action Scheduler is fully initialized before we call as_* functions.
+    add_action('init', [$this, 'ensureScheduled'], 1);
   }
 
   /**
@@ -78,12 +88,11 @@ class App {
   }
 
   /**
-   * Ensure the queue processor cron is scheduled
+   * Ensure recurring actions are scheduled (self-healing on every request)
    */
-  private function ensureQueueProcessorScheduled(): void {
-    if (!wp_next_scheduled('fswa_process_queue')) {
-      wp_schedule_event(time(), 'every_minute', 'fswa_process_queue');
-    }
+  public function ensureScheduled(): void {
+    Scheduler::scheduleRecurring('fswa_process_queue', MINUTE_IN_SECONDS, 'every_minute');
+    Scheduler::scheduleRecurring('fswa_cleanup_logs', DAY_IN_SECONDS, 'daily', strtotime('tomorrow 3:00am'));
   }
 
   /**
