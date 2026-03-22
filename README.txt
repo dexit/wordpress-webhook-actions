@@ -8,13 +8,15 @@ Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
-Reliable WordPress webhooks for automation workflows with retries, delivery logs, event IDs, queue processing, and replayable webhook events.
+Reliable WordPress webhooks with retries, queue, Action Scheduler support, delivery logs, and replayable events for automation workflows (n8n, APIs, integrations).
 
 == Description ==
 
 Flow Systems Webhook Actions is a developer-focused WordPress webhook delivery layer designed for reliable automation workflows.
 
-Trigger HTTP webhooks from any WordPress or WooCommerce action (`do_action`) and dispatch them asynchronously through a persistent queue with smart retries, event identity, and full delivery visibility.
+It adds a persistent queue, automatic retries, and Action Scheduler support for production-grade background processing — so your webhooks don’t get lost when external APIs fail.
+
+Works great with WooCommerce, n8n, Zapier alternatives, and custom APIs.
 
 Unlike basic “fire-and-forget” webhook implementations, this plugin ensures:
 
@@ -27,6 +29,7 @@ Built for production environments where losing events is not acceptable.
 
 = Typical Use Cases =
 
+- Process high-volume WooCommerce webhooks using Action Scheduler
 - Send WooCommerce orders to n8n with retry protection
 - Sync WordPress users to external CRMs safely
 - Trigger backend microservices from WP hooks
@@ -167,6 +170,21 @@ Example scenarios:
 
 This allows WordPress automation pipelines to be controlled entirely through HTTP APIs, enabling advanced integration with AI-driven development workflows.
 
+= Action Scheduler Support (NEW in 1.4.0) =
+
+Flow Systems Webhook Actions now supports Action Scheduler — the same background job system used by WooCommerce.
+
+When available, webhook queue processing automatically switches from WP-Cron to Action Scheduler for improved reliability and scalability.
+
+Benefits:
+
+- More reliable background execution than WP-Cron
+- Better handling of high-volume webhook traffic
+- Persistent job tracking and recovery
+- No configuration required — automatic detection and migration
+
+This makes the plugin suitable for production WooCommerce stores and high-throughput automation pipelines.
+
 = Developer Friendly =
 
 - Works with any WordPress or WooCommerce action
@@ -175,7 +193,7 @@ This allows WordPress automation pipelines to be controlled entirely through HTT
 - Fully extensible via filters and actions
 - Clean namespace and unique prefixes
 - Built according to WordPress.org standards
-- Supports system cron and Action Scheduler for improved reliability
+- Supports system cron, WP-Cron, and Action Scheduler (auto-detected)
 
 = Why Choose Flow Systems Webhook Actions? =
 
@@ -190,6 +208,7 @@ Flow Systems Webhook Actions provides:
 - Event UUIDs and timestamps
 - Full delivery logging and metrics
 - REST API with token authentication for programmatic access
+- Action Scheduler support for reliable background processing (when available)
 
 Built for developers who need production-grade automation reliability.
 
@@ -211,6 +230,11 @@ Built for developers who need production-grade automation reliability.
 - `fswa_success` – Fired after successful webhook delivery
 - `fswa_error` – Fired after webhook delivery failure
 
+= Admin UX Improvements =
+
+- Option to move the plugin menu under "Tools" for a cleaner admin sidebar
+- Instant UI refresh when changing menu location
+
 == Installation ==
 
 1. Upload the plugin files to the `/wp-content/plugins/flowsystems-webhook-actions` directory, or install the plugin through the WordPress plugins screen.
@@ -219,6 +243,20 @@ Built for developers who need production-grade automation reliability.
 4. Add your webhook endpoint URL and select the desired WordPress action triggers.
 
 == Frequently Asked Questions ==
+
+= Can this handle high webhook volume? =
+
+Yes. The plugin uses a persistent queue with batch processing and supports Action Scheduler for scalable background execution, making it suitable for high-traffic WordPress and WooCommerce sites.
+
+= Does this plugin support Action Scheduler? =
+
+Yes. If Action Scheduler is available (for example via WooCommerce), the plugin will automatically use it for queue processing instead of WP-Cron. No configuration or reactivation is required.
+
+= What is the difference between WP-Cron and Action Scheduler? =
+
+WP-Cron depends on site traffic and can be unreliable on low-traffic sites. Action Scheduler is a dedicated background job system used by WooCommerce that provides more consistent and reliable execution of queued jobs.
+
+Flow Systems Webhook Actions automatically uses Action Scheduler when available.
 
 = What is a WordPress action? =
 
@@ -271,10 +309,11 @@ Yes. The plugin is completely free and licensed under GPL.
 == Changelog ==
 
 = 1.4.0 — 2026-03-22 =
-- Added Action Scheduler support — when Action Scheduler is available (e.g. via WooCommerce), queue processing runs through it for more reliable background job execution
-- Added automatic migration from WP-Cron to Action Scheduler on plugin load — no reactivation required when Action Scheduler becomes available
-- Added "Move admin menu under Tools" setting — repositions the plugin menu item; page reloads immediately to apply the change
-- Added dynamic trigger discovery — available WordPress action hooks are now detected via a static PHP source scan, reducing triggers API response size
+- Added Action Scheduler support for queue processing (auto-detected, no configuration required)
+- Automatic migration from WP-Cron to Action Scheduler when available
+- Added option to move admin menu under Tools for cleaner dashboard navigation
+- Added dynamic trigger discovery via static PHP source scan
+- Reduced triggers API responses size
 - Fixed input focus styles in admin forms
 
 = 1.3.2 — 2026-03-15 =
@@ -342,7 +381,8 @@ Yes. The plugin is completely free and licensed under GPL.
 == Upgrade Notice ==
 
 = 1.4.0 =
-Adds Action Scheduler support for queue processing. When Action Scheduler is available, the plugin automatically migrates from WP-Cron on plugin load — no reactivation required.
+Adds Action Scheduler support for significantly more reliable and scalable webhook processing.
+If Action Scheduler is available (e.g. via WooCommerce), the plugin automatically switches from WP-Cron — no reactivation or setup required.
 
 = 1.3.0 =
 Adds a new database table for API tokens. The table is created automatically on update — no manual steps needed.
