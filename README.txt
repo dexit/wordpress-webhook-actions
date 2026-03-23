@@ -4,7 +4,7 @@ Tags: webhooks, automation, integration, n8n, api
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -18,6 +18,9 @@ It adds a persistent queue, automatic retries, and Action Scheduler support for 
 
 Works great with WooCommerce, n8n, Zapier alternatives, and custom APIs.
 
+Includes built-in Contact Form 7 integration — send CF7 form submissions to webhooks instantly with clean, structured payloads. Replace fragile CF7 email workflows with reliable webhook-based automation.
+
+
 Unlike basic “fire-and-forget” webhook implementations, this plugin ensures:
 
 - Delivery attempts are tracked
@@ -27,8 +30,12 @@ Unlike basic “fire-and-forget” webhook implementations, this plugin ensures:
 
 Built for production environments where losing events is not acceptable.
 
+👉 Example: [Send Contact Form 7 submissions to a webhook (n8n demo)](https://flowsystems.pl/examples/cf7-to-webhook/)
+
 = Typical Use Cases =
 
+- Send Contact Form 7 submissions to n8n or external APIs
+- Build reliable form-to-CRM integrations with retry protection
 - Process high-volume WooCommerce webhooks using Action Scheduler
 - Send WooCommerce orders to n8n with retry protection
 - Sync WordPress users to external CRMs safely
@@ -170,6 +177,29 @@ Example scenarios:
 
 This allows WordPress automation pipelines to be controlled entirely through HTTP APIs, enabling advanced integration with AI-driven development workflows.
 
+= Contact Form 7 Webhooks (NEW in 1.5.0) =
+
+Flow Systems Webhook Actions includes built-in integration with Contact Form 7.
+
+When Contact Form 7 is active, form submissions are automatically converted into structured webhook payloads — no custom code required.
+
+Included in each payload:
+
+- Form ID and title
+- Submission data (all fields)
+- Normalized field structure (no raw CF7 format)
+- Request metadata
+- Uploaded files (where applicable)
+
+Benefits:
+
+- Send CF7 submissions to n8n, APIs, CRMs, or automation tools
+- No need for custom hooks or additional plugins
+- Clean JSON payloads ready for external processing
+- Works with existing webhook retry, queue, and replay system
+
+This allows you to build reliable form-to-automation pipelines directly from WordPress.
+
 = Action Scheduler Support (NEW in 1.4.0) =
 
 Flow Systems Webhook Actions now supports Action Scheduler — the same background job system used by WooCommerce.
@@ -209,6 +239,7 @@ Flow Systems Webhook Actions provides:
 - Full delivery logging and metrics
 - REST API with token authentication for programmatic access
 - Action Scheduler support for reliable background processing (when available)
+- Built-in CF7 to webhook support (no extra plugins needed)
 
 Built for developers who need production-grade automation reliability.
 
@@ -243,6 +274,18 @@ Built for developers who need production-grade automation reliability.
 4. Add your webhook endpoint URL and select the desired WordPress action triggers.
 
 == Frequently Asked Questions ==
+
+= Can I send Contact Form 7 submissions to a webhook? =
+
+Yes. When Contact Form 7 is active, form submissions are automatically available as webhook triggers. You can send them to any external API, automation tool (like n8n), or CRM.
+
+= Do I need an extra plugin for CF7 to webhook? =
+
+No. Contact Form 7 integration is built in. No additional plugins or custom code are required.
+
+= What does the Contact Form 7 webhook payload look like? =
+
+The plugin normalizes CF7 submissions into a clean JSON structure including form metadata, submitted fields, making it easy to consume in external systems.
 
 = Can this handle high webhook volume? =
 
@@ -307,6 +350,12 @@ Yes. The plugin is completely free and licensed under GPL.
 8. REST API Tokens configuration screen
 
 == Changelog ==
+
+= 1.5.0 — 2026-03-23 =
+- Added built-in CF7 to webhook integration — automatically sends CF7 submissions as structured webhook payloads (form id, title, fields, meta, uploaded files)
+- Added `fswa_normalize_object` filter for custom third-party object normalization
+- Added `get_properties()` fallback in payload normalization to handle objects with private or protected properties
+- Improved hook registration to capture all hook arguments by default (PHP_INT_MAX accepted_args)
 
 = 1.4.0 — 2026-03-22 =
 - Added Action Scheduler support for queue processing (auto-detected, no configuration required)
@@ -379,6 +428,10 @@ Yes. The plugin is completely free and licensed under GPL.
 - Logging of webhook deliveries
 
 == Upgrade Notice ==
+
+= 1.5.0 =
+Adds built-in Contact Form 7 webhook integration.
+You can now send CF7 form submissions to external APIs, automation tools, or CRMs with retry, queue, and replay support — no additional plugins or custom code required.
 
 = 1.4.0 =
 Adds Action Scheduler support for significantly more reliable and scalable webhook processing.
