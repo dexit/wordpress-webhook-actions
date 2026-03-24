@@ -17,7 +17,6 @@ const emit = defineEmits(['update:modelValue'])
 const open = ref(false)
 const search = ref('')
 const customTrigger = ref('')
-const triggers = ref([])
 const grouped = ref({})
 const categories = ref({})
 const loading = ref(true)
@@ -27,32 +26,32 @@ const selectedTriggers = computed({
   set: (value) => emit('update:modelValue', value),
 })
 
+const allKnownNames = computed(() => new Set(Object.values(grouped.value).flat()))
+const totalCount = computed(() => allKnownNames.value.size)
+
+const formatLabel = (name) =>
+  name.replace(/[_-]/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+
 const filteredGrouped = computed(() => {
   if (!search.value) return grouped.value
 
-  const filtered = {}
   const searchLower = search.value.toLowerCase()
+  const filtered = {}
 
-  Object.entries(grouped.value).forEach(([category, items]) => {
-    const matchedItems = items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(searchLower) ||
-        item.label.toLowerCase().includes(searchLower)
-    )
-    if (matchedItems.length > 0) {
-      filtered[category] = matchedItems
-    }
+  Object.entries(grouped.value).forEach(([category, names]) => {
+    const matched = names.filter((name) => name.toLowerCase().includes(searchLower))
+    if (matched.length > 0) filtered[category] = matched
   })
 
   return filtered
 })
 
-const toggleTrigger = (trigger) => {
-  const index = selectedTriggers.value.indexOf(trigger.name)
+const toggleTrigger = (name) => {
+  const index = selectedTriggers.value.indexOf(name)
   if (index === -1) {
-    selectedTriggers.value = [...selectedTriggers.value, trigger.name]
+    selectedTriggers.value = [...selectedTriggers.value, name]
   } else {
-    selectedTriggers.value = selectedTriggers.value.filter((t) => t !== trigger.name)
+    selectedTriggers.value = selectedTriggers.value.filter((t) => t !== name)
   }
 }
 
@@ -68,21 +67,15 @@ const addCustomTrigger = () => {
   }
 }
 
+const searchFocused = ref(false)
+
 const isSelected = (name) => selectedTriggers.value.includes(name)
 
-const getTriggerLabel = (name) => {
-  const trigger = triggers.value.find((t) => t.name === name)
-  return trigger?.label || name
-}
-
-const isCustomTrigger = (name) => {
-  return !triggers.value.find((t) => t.name === name)
-}
+const isCustomTrigger = (name) => !allKnownNames.value.has(name)
 
 onMounted(async () => {
   try {
     const data = await api.triggers.list()
-    triggers.value = data.triggers || []
     grouped.value = data.grouped || {}
     categories.value = data.categories || {}
   } catch (error) {
@@ -147,6 +140,9 @@ onMounted(async () => {
         <span v-else>
           {{ selectedTriggers.length }} trigger{{ selectedTriggers.length !== 1 ? 's' : '' }} selected
         </span>
+        <span v-if="!loading" class="ml-auto mr-2 text-xs text-muted-foreground font-normal">
+          {{ totalCount }} available
+        </span>
         <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
@@ -161,7 +157,11 @@ onMounted(async () => {
             v-model="search"
             type="text"
             placeholder="Search triggers..."
-            class="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-ring"
+            :class="cn('w-full px-2 py-1 text-sm !border rounded !outline-none !shadow-none !bg-background !text-foreground ring-offset-background',
+              searchFocused ? '!border-input !ring-2 !ring-ring !ring-offset-2' : '!border-input'
+            )"
+            @focus="searchFocused = true"
+            @blur="searchFocused = false"
           />
         </div>
 
@@ -173,7 +173,7 @@ onMounted(async () => {
 
           <template v-else>
             <div
-              v-for="(items, category) in filteredGrouped"
+              v-for="(names, category) in filteredGrouped"
               :key="category"
               class="mb-2"
             >
@@ -181,26 +181,26 @@ onMounted(async () => {
                 {{ categories[category] || category }}
               </div>
               <button
-                v-for="trigger in items"
-                :key="trigger.name"
+                v-for="name in names"
+                :key="name"
                 type="button"
                 :class="cn(
                   'relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
-                  isSelected(trigger.name) && 'bg-accent'
+                  isSelected(name) && 'bg-accent'
                 )"
-                @click="toggleTrigger(trigger)"
+                @click="toggleTrigger(name)"
               >
                 <span
                   :class="cn(
                     'absolute left-2 flex h-3.5 w-3.5 items-center justify-center',
-                    !isSelected(trigger.name) && 'invisible'
+                    !isSelected(name) && 'invisible'
                   )"
                 >
                   <Check class="h-4 w-4" />
                 </span>
                 <span class="flex-1 text-left">
-                  {{ trigger.label }}
-                  <span v-if="trigger.isRegistered" class="text-muted-foreground text-xs ml-1">({{ trigger.name }})</span>
+                  {{ formatLabel(name) }}
+                  <span class="text-muted-foreground text-xs ml-1">({{ name }})</span>
                 </span>
               </button>
             </div>

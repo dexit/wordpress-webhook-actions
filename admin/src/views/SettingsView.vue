@@ -7,6 +7,7 @@ import api from '@/lib/api'
 const settings = ref({
   log_retention_days: 30,
   archive_logs: true,
+  menu_under_tools: false,
 })
 const info = ref(null)
 const archive = ref(null)
@@ -34,6 +35,8 @@ const retentionDays = computed({
   set: (val) => { settings.value.log_retention_days = parseInt(val, 10) },
 })
 
+const savedMenuUnderTools = ref(false)
+
 const loadData = async () => {
   loading.value = true
   error.value = null
@@ -47,6 +50,7 @@ const loadData = async () => {
     ])
 
     settings.value = settingsData
+    savedMenuUnderTools.value = settingsData.menu_under_tools
     info.value = infoData
     archive.value = archiveData
     cronInfo.value = cronData
@@ -63,8 +67,14 @@ const saveSettings = async () => {
   error.value = null
   success.value = null
 
+  const menuPositionChanged = settings.value.menu_under_tools !== savedMenuUnderTools.value
+
   try {
     await api.settings.update(settings.value)
+    if (menuPositionChanged) {
+      window.location.reload()
+      return
+    }
     success.value = 'Settings saved successfully'
     setTimeout(() => {
       success.value = null
@@ -179,8 +189,14 @@ onMounted(loadData)
           <div class="space-y-4">
             <div>
               <p class="text-sm text-muted-foreground mb-4">
-                For reliable webhook delivery, set up a system cron job to process the queue every minute.
-                WP-Cron serves as a fallback when system cron isn't configured.
+                <span v-if="cronInfo.action_scheduler_active">
+                  Action Scheduler detected — queue processing is managed automatically.
+                  You can still configure an external cron URL as a direct trigger.
+                </span>
+                <span v-else>
+                  For reliable webhook delivery, set up a system cron job to process the queue every minute.
+                  WP-Cron serves as a fallback when system cron isn't configured.
+                </span>
               </p>
             </div>
 
@@ -232,6 +248,13 @@ onMounted(loadData)
                 <div class="text-muted-foreground">{{ cronInfo.last_run_human }}</div>
               </div>
               <div>
+                <div class="font-medium">Scheduler</div>
+                <div>
+                  <span v-if="cronInfo.action_scheduler_active" class="text-green-600">Action Scheduler</span>
+                  <span v-else class="text-muted-foreground">WP-Cron</span>
+                </div>
+              </div>
+              <div v-if="!cronInfo.action_scheduler_active">
                 <div class="font-medium">WP-Cron Fallback</div>
                 <div class="text-muted-foreground">
                   <span v-if="cronInfo.wp_cron_disabled" class="text-yellow-600">Disabled</span>
@@ -276,7 +299,7 @@ onMounted(loadData)
                 </SelectContent>
               </Select>
               <p class="text-sm text-muted-foreground">
-                Logs older than this will be automatically deleted
+                Logs older than this will be automatically deleted.
               </p>
             </div>
 
@@ -285,7 +308,15 @@ onMounted(loadData)
               <Label>Archive logs before deletion</Label>
             </div>
             <p class="text-sm text-muted-foreground">
-              When enabled, logs are exported to JSON files before being deleted
+              When enabled, logs are exported to JSON files before being deleted.
+            </p>
+
+            <div class="flex items-center space-x-2 pt-2">
+              <Switch v-model="settings.menu_under_tools" />
+              <Label>Show menu under Tools</Label>
+            </div>
+            <p class="text-sm text-muted-foreground">
+              Move the admin menu item under Tools instead of the top-level sidebar.
             </p>
           </div>
 
@@ -369,7 +400,7 @@ onMounted(loadData)
                 Clear All Logs
               </Button>
               <p class="mt-2 text-sm text-muted-foreground">
-                This will permanently delete all logs from the database
+                This will permanently delete all logs from the database.
               </p>
             </div>
           </div>
