@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '1.3.0';
+  private const CURRENT_VERSION = '1.7.0';
 
   /**
    * Run pending migrations
@@ -45,6 +45,10 @@ class Migrator {
       $wpdb->prefix . 'fswa_trigger_schemas',
       $wpdb->prefix . 'fswa_stats',
       $wpdb->prefix . 'fswa_api_tokens',
+      $wpdb->prefix . 'fswa_incoming_endpoints',
+      $wpdb->prefix . 'fswa_incoming_payloads',
+      $wpdb->prefix . 'fswa_endpoint_logs',
+      $wpdb->prefix . 'fswa_dto_pipelines',
     ];
 
     foreach ($requiredTables as $table) {
@@ -69,6 +73,10 @@ class Migrator {
       '1.1.0' => [self::class, 'migration_1_1_0'],
       '1.2.0' => [self::class, 'migration_1_2_0'],
       '1.3.0' => [self::class, 'migration_1_3_0'],
+      '1.4.0' => [self::class, 'migration_1_4_0'],
+      '1.5.0' => [self::class, 'migration_1_5_0'],
+      '1.6.0' => [self::class, 'migration_1_6_0'],
+      '1.7.0' => [self::class, 'migration_1_7_0'],
     ];
   }
 
@@ -292,6 +300,193 @@ class Migrator {
         ) {$charsetCollate};";
 
     dbDelta($sql);
+  }
+
+  /**
+   * Migration 1.4.0 - Add incoming endpoints and payloads tables
+   */
+  public static function migration_1_4_0(): void {
+    global $wpdb;
+
+    $charsetCollate = $wpdb->get_charset_collate();
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    // Incoming endpoints configuration table
+    $endpointsTable = $wpdb->prefix . 'fswa_incoming_endpoints';
+    $sqlEndpoints   = "CREATE TABLE {$endpointsTable} (
+            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name            VARCHAR(255) NOT NULL,
+            slug            VARCHAR(100) NOT NULL,
+            description     TEXT DEFAULT NULL,
+            secret_key      VARCHAR(255) DEFAULT NULL,
+            hmac_algorithm  VARCHAR(20) NOT NULL DEFAULT 'sha256',
+            hmac_header     VARCHAR(100) DEFAULT NULL,
+            is_enabled      TINYINT(1) NOT NULL DEFAULT 1,
+            response_code   SMALLINT UNSIGNED NOT NULL DEFAULT 200,
+            response_body   TEXT DEFAULT NULL,
+            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_slug (slug),
+            KEY idx_enabled (is_enabled)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlEndpoints);
+
+    // Incoming payloads storage table
+    $payloadsTable = $wpdb->prefix . 'fswa_incoming_payloads';
+    $sqlPayloads   = "CREATE TABLE {$payloadsTable} (
+            id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            endpoint_id       BIGINT UNSIGNED NOT NULL,
+            payload           LONGTEXT NOT NULL,
+            headers           LONGTEXT DEFAULT NULL,
+            method            VARCHAR(10) NOT NULL DEFAULT 'POST',
+            source_ip         VARCHAR(45) DEFAULT NULL,
+            content_type      VARCHAR(255) DEFAULT NULL,
+            status            VARCHAR(20) NOT NULL DEFAULT 'received',
+            processing_notes  TEXT DEFAULT NULL,
+            received_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            processed_at      DATETIME DEFAULT NULL,
+            PRIMARY KEY (id),
+            KEY idx_endpoint (endpoint_id),
+            KEY idx_status (status),
+            KEY idx_received (received_at),
+            KEY idx_endpoint_status (endpoint_id, status)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlPayloads);
+  }
+
+  /**
+   * Migration 1.5.0 – Endpoint logs table + auth/methods/CPT/function columns
+   */
+  public static function migration_1_5_0(): void {
+    global $wpdb;
+
+    $charsetCollate  = $wpdb->get_charset_collate();
+    $endpointsTable  = $wpdb->prefix . 'fswa_incoming_endpoints';
+    $logsTable       = $wpdb->prefix . 'fswa_endpoint_logs';
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    // ── New columns on wp_fswa_incoming_endpoints ─────────────────────────
+    $newColumns = [
+      'allowed_methods'    => "ALTER TABLE {$endpointsTable} ADD COLUMN allowed_methods VARCHAR(200) NOT NULL DEFAULT '[\"GET\",\"POST\",\"PUT\",\"PATCH\",\"DELETE\"]'",
+      'auth_mode'          => "ALTER TABLE {$endpointsTable} ADD COLUMN auth_mode VARCHAR(20) NOT NULL DEFAULT 'none'",
+      'auth_config'        => "ALTER TABLE {$endpointsTable} ADD COLUMN auth_config LONGTEXT DEFAULT NULL",
+      'cpt_enabled'        => "ALTER TABLE {$endpointsTable} ADD COLUMN cpt_enabled TINYINT(1) NOT NULL DEFAULT 0",
+      'cpt_config'         => "ALTER TABLE {$endpointsTable} ADD COLUMN cpt_config LONGTEXT DEFAULT NULL",
+      'function_enabled'   => "ALTER TABLE {$endpointsTable} ADD COLUMN function_enabled TINYINT(1) NOT NULL DEFAULT 0",
+      'function_code'      => "ALTER TABLE {$endpointsTable} ADD COLUMN function_code LONGTEXT DEFAULT NULL",
+      'hooks_to_fire'      => "ALTER TABLE {$endpointsTable} ADD COLUMN hooks_to_fire TEXT DEFAULT NULL",
+    ];
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    foreach ($newColumns as $column => $sql) {
+      $exists = $wpdb->get_var($wpdb->prepare(
+        "SHOW COLUMNS FROM {$endpointsTable} LIKE %s",
+        $column
+      ));
+      if (!$exists) {
+        $wpdb->query($sql);
+      }
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+    // ── New endpoint logs table ───────────────────────────────────────────
+    $sqlLogs = "CREATE TABLE {$logsTable} (
+            id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            endpoint_id       BIGINT UNSIGNED NOT NULL,
+            payload_id        BIGINT UNSIGNED DEFAULT NULL,
+            method            VARCHAR(10) NOT NULL DEFAULT 'POST',
+            query_params      TEXT DEFAULT NULL,
+            response_code     SMALLINT UNSIGNED NOT NULL DEFAULT 200,
+            auth_result       VARCHAR(20) NOT NULL DEFAULT 'skipped',
+            duration_ms       INT UNSIGNED DEFAULT NULL,
+            source_ip         VARCHAR(45) DEFAULT NULL,
+            error_message     TEXT DEFAULT NULL,
+            cpt_post_id       BIGINT UNSIGNED DEFAULT NULL,
+            function_executed TINYINT(1) NOT NULL DEFAULT 0,
+            function_output   TEXT DEFAULT NULL,
+            received_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_endpoint_id (endpoint_id),
+            KEY idx_received_at (received_at),
+            KEY idx_endpoint_received (endpoint_id, received_at)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlLogs);
+  }
+
+  /**
+   * Migration 1.6.0 – DTO pipelines table + dto_pipeline_id on endpoints
+   */
+  public static function migration_1_6_0(): void {
+    global $wpdb;
+
+    $charsetCollate = $wpdb->get_charset_collate();
+    $dtoTable       = $wpdb->prefix . 'fswa_dto_pipelines';
+    $endpointsTable = $wpdb->prefix . 'fswa_incoming_endpoints';
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    // ── DTO pipelines table ───────────────────────────────────────────────
+    $sqlDto = "CREATE TABLE {$dtoTable} (
+            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name            VARCHAR(255) NOT NULL,
+            slug            VARCHAR(100) NOT NULL,
+            description     TEXT DEFAULT NULL,
+            pipeline_config LONGTEXT DEFAULT NULL,
+            is_enabled      TINYINT(1) NOT NULL DEFAULT 1,
+            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY idx_slug (slug),
+            KEY idx_enabled (is_enabled)
+        ) {$charsetCollate};";
+
+    dbDelta($sqlDto);
+
+    // ── Add dto_pipeline_id to incoming endpoints ─────────────────────────
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$endpointsTable} LIKE %s",
+      'dto_pipeline_id'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$endpointsTable} ADD COLUMN dto_pipeline_id BIGINT UNSIGNED DEFAULT NULL");
+      $wpdb->query("ALTER TABLE {$endpointsTable} ADD KEY idx_dto_pipeline (dto_pipeline_id)");
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+  }
+
+  /**
+   * Migration 1.7.0 – Add actions_config to endpoints and webhooks tables
+   */
+  public static function migration_1_7_0(): void {
+    global $wpdb;
+
+    $endpointsTable = $wpdb->prefix . 'fswa_incoming_endpoints';
+    $webhooksTable  = $wpdb->prefix . 'fswa_webhooks';
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$endpointsTable} LIKE %s",
+      'actions_config'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$endpointsTable} ADD COLUMN actions_config LONGTEXT DEFAULT NULL");
+    }
+
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
+      'actions_config'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN actions_config LONGTEXT DEFAULT NULL");
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
   }
 
   /**

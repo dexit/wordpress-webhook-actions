@@ -5,6 +5,7 @@ namespace FlowSystems\WebhookActions\Services;
 defined('ABSPATH') || exit;
 
 use FlowSystems\WebhookActions\Repositories\WebhookRepository;
+use FlowSystems\WebhookActions\Services\ActionRunner;
 use WP_Error;
 
 class Dispatcher {
@@ -337,6 +338,22 @@ class Dispatcher {
     $result = $this->transport->send($url, $payload, $headers);
     $durationMs = (int) ((microtime(true) - $startTime) * 1000);
 
+    // Build a context for action templates. Mirrors the 'received' shape but for dispatch.
+    $dispatchContext = [
+      'dispatched' => [
+        'trigger'  => $trigger,
+        'url'      => $url,
+        'payload'  => $payload,
+        'webhook'  => [
+          'id'   => $webhookId,
+          'name' => $webhook['name'] ?? '',
+          'url'  => $url,
+        ],
+      ],
+    ];
+
+    $actions = is_array($webhook['actions_config'] ?? null) ? $webhook['actions_config'] : [];
+
     if (is_wp_error($result)) {
       $errorMessage = $result->get_error_message();
       $this->logError($trigger, $url, (string) $errorMessage, $webhookId, $payload, null, null, $durationMs, $logId);
@@ -362,6 +379,12 @@ class Dispatcher {
        * @param string $error   The error message
        */
       do_action('fswa_error', $trigger, $url, (string) $errorMessage);
+
+      // Run dispatched_error actions (dispatched_any actions also fire via ActionRunner)
+      if (!empty($actions)) {
+        $errorContext = array_merge($dispatchContext, ['dispatched' => array_merge($dispatchContext['dispatched'], ['error' => (string) $errorMessage])]);
+        ActionRunner::run($actions, 'dispatched_error', $errorContext);
+      }
 
       return ['success' => false, 'shouldRetry' => true];
     }
@@ -391,6 +414,28 @@ class Dispatcher {
         'duration_ms'   => $durationMs,
         'should_retry'  => $shouldRetry,
       ]);
+    }
+
+    // Run response-code-based actions
+    if (!empty($actions)) {
+      $responseContext = array_merge($dispatchContext, [
+        'dispatched' => array_merge($dispatchContext['dispatched'], [
+          'http_code'     => $responseCode,
+          'response_body' => $responseBody,
+        ]),
+      ]);
+
+      // Run response-code-specific trigger; dispatched_any actions also fire via ActionRunner.
+      if ($responseCode >= 200 && $responseCode < 300) {
+        ActionRunner::run($actions, 'dispatched_2xx', $responseContext);
+      } elseif ($responseCode >= 400 && $responseCode < 500) {
+        ActionRunner::run($actions, 'dispatched_4xx', $responseContext);
+      } elseif ($responseCode >= 500) {
+        ActionRunner::run($actions, 'dispatched_5xx', $responseContext);
+      } else {
+        // 1xx / 3xx responses: fire dispatched_any only
+        ActionRunner::run($actions, 'dispatched_any', $responseContext);
+      }
     }
 
     if ($success) {

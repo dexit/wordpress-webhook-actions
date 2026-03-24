@@ -148,11 +148,12 @@ class WebhooksController extends WP_REST_Controller {
    */
   public function createItem($request) {
     $data = [
-      'name' => sanitize_text_field($request->get_param('name')),
-      'endpoint_url' => esc_url_raw($request->get_param('endpoint_url')),
-      'auth_header' => sanitize_text_field($request->get_param('auth_header') ?? ''),
-      'is_enabled' => (bool) $request->get_param('is_enabled'),
-      'triggers' => $request->get_param('triggers') ?? [],
+      'name'           => sanitize_text_field($request->get_param('name')),
+      'endpoint_url'   => esc_url_raw($request->get_param('endpoint_url')),
+      'auth_header'    => sanitize_text_field($request->get_param('auth_header') ?? ''),
+      'is_enabled'     => (bool) $request->get_param('is_enabled'),
+      'triggers'       => $request->get_param('triggers') ?? [],
+      'actions_config' => is_array($request->get_param('actions_config')) ? $request->get_param('actions_config') : [],
     ];
 
     // Validate
@@ -241,6 +242,10 @@ class WebhooksController extends WP_REST_Controller {
 
     if ($request->has_param('triggers')) {
       $data['triggers'] = array_map('sanitize_text_field', $request->get_param('triggers'));
+    }
+
+    if ($request->has_param('actions_config')) {
+      $data['actions_config'] = is_array($request->get_param('actions_config')) ? $request->get_param('actions_config') : [];
     }
 
     $result = $this->repository->update($id, $data);
