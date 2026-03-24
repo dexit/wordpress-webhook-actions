@@ -4,17 +4,22 @@ Tags: webhooks, automation, integration, n8n, api
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.3.2
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
-Reliable WordPress webhooks for automation workflows with retries, delivery logs, event IDs, queue processing, and replayable webhook events.
+Reliable WordPress webhooks with retries, queue, Action Scheduler support, delivery logs, and replayable events for automation workflows (n8n, APIs, integrations).
 
 == Description ==
 
 Flow Systems Webhook Actions is a developer-focused WordPress webhook delivery layer designed for reliable automation workflows.
 
-Trigger HTTP webhooks from any WordPress or WooCommerce action (`do_action`) and dispatch them asynchronously through a persistent queue with smart retries, event identity, and full delivery visibility.
+It adds a persistent queue, automatic retries, and Action Scheduler support for production-grade background processing — so your webhooks don’t get lost when external APIs fail.
+
+Works great with WooCommerce, n8n, Zapier alternatives, and custom APIs.
+
+Includes built-in Contact Form 7 integration — send CF7 form submissions to webhooks instantly with clean, structured payloads. Replace fragile CF7 email workflows with reliable webhook-based automation.
+
 
 Unlike basic “fire-and-forget” webhook implementations, this plugin ensures:
 
@@ -25,8 +30,13 @@ Unlike basic “fire-and-forget” webhook implementations, this plugin ensures:
 
 Built for production environments where losing events is not acceptable.
 
+👉 Example: [Send Contact Form 7 submissions to a webhook (n8n demo)](https://flowsystems.pl/examples/cf7-to-webhook/)
+
 = Typical Use Cases =
 
+- Send Contact Form 7 submissions to n8n or external APIs
+- Build reliable form-to-CRM integrations with retry protection
+- Process high-volume WooCommerce webhooks using Action Scheduler
 - Send WooCommerce orders to n8n with retry protection
 - Sync WordPress users to external CRMs safely
 - Trigger backend microservices from WP hooks
@@ -167,6 +177,44 @@ Example scenarios:
 
 This allows WordPress automation pipelines to be controlled entirely through HTTP APIs, enabling advanced integration with AI-driven development workflows.
 
+= Contact Form 7 Webhooks (NEW in 1.5.0) =
+
+Flow Systems Webhook Actions includes built-in integration with Contact Form 7.
+
+When Contact Form 7 is active, form submissions are automatically converted into structured webhook payloads — no custom code required.
+
+Included in each payload:
+
+- Form ID and title
+- Submission data (all fields)
+- Normalized field structure (no raw CF7 format)
+- Request metadata
+- Uploaded files (where applicable)
+
+Benefits:
+
+- Send CF7 submissions to n8n, APIs, CRMs, or automation tools
+- No need for custom hooks or additional plugins
+- Clean JSON payloads ready for external processing
+- Works with existing webhook retry, queue, and replay system
+
+This allows you to build reliable form-to-automation pipelines directly from WordPress.
+
+= Action Scheduler Support (NEW in 1.4.0) =
+
+Flow Systems Webhook Actions now supports Action Scheduler — the same background job system used by WooCommerce.
+
+When available, webhook queue processing automatically switches from WP-Cron to Action Scheduler for improved reliability and scalability.
+
+Benefits:
+
+- More reliable background execution than WP-Cron
+- Better handling of high-volume webhook traffic
+- Persistent job tracking and recovery
+- No configuration required — automatic detection and migration
+
+This makes the plugin suitable for production WooCommerce stores and high-throughput automation pipelines.
+
 = Developer Friendly =
 
 - Works with any WordPress or WooCommerce action
@@ -175,7 +223,7 @@ This allows WordPress automation pipelines to be controlled entirely through HTT
 - Fully extensible via filters and actions
 - Clean namespace and unique prefixes
 - Built according to WordPress.org standards
-- Supports system cron for improved reliability
+- Supports system cron, WP-Cron, and Action Scheduler (auto-detected)
 
 = Why Choose Flow Systems Webhook Actions? =
 
@@ -190,6 +238,8 @@ Flow Systems Webhook Actions provides:
 - Event UUIDs and timestamps
 - Full delivery logging and metrics
 - REST API with token authentication for programmatic access
+- Action Scheduler support for reliable background processing (when available)
+- Built-in CF7 to webhook support (no extra plugins needed)
 
 Built for developers who need production-grade automation reliability.
 
@@ -211,6 +261,11 @@ Built for developers who need production-grade automation reliability.
 - `fswa_success` – Fired after successful webhook delivery
 - `fswa_error` – Fired after webhook delivery failure
 
+= Admin UX Improvements =
+
+- Option to move the plugin menu under "Tools" for a cleaner admin sidebar
+- Instant UI refresh when changing menu location
+
 == Installation ==
 
 1. Upload the plugin files to the `/wp-content/plugins/flowsystems-webhook-actions` directory, or install the plugin through the WordPress plugins screen.
@@ -219,6 +274,32 @@ Built for developers who need production-grade automation reliability.
 4. Add your webhook endpoint URL and select the desired WordPress action triggers.
 
 == Frequently Asked Questions ==
+
+= Can I send Contact Form 7 submissions to a webhook? =
+
+Yes. When Contact Form 7 is active, form submissions are automatically available as webhook triggers. You can send them to any external API, automation tool (like n8n), or CRM.
+
+= Do I need an extra plugin for CF7 to webhook? =
+
+No. Contact Form 7 integration is built in. No additional plugins or custom code are required.
+
+= What does the Contact Form 7 webhook payload look like? =
+
+The plugin normalizes CF7 submissions into a clean JSON structure including form metadata, submitted fields, making it easy to consume in external systems.
+
+= Can this handle high webhook volume? =
+
+Yes. The plugin uses a persistent queue with batch processing and supports Action Scheduler for scalable background execution, making it suitable for high-traffic WordPress and WooCommerce sites.
+
+= Does this plugin support Action Scheduler? =
+
+Yes. If Action Scheduler is available (for example via WooCommerce), the plugin will automatically use it for queue processing instead of WP-Cron. No configuration or reactivation is required.
+
+= What is the difference between WP-Cron and Action Scheduler? =
+
+WP-Cron depends on site traffic and can be unreliable on low-traffic sites. Action Scheduler is a dedicated background job system used by WooCommerce that provides more consistent and reliable execution of queued jobs.
+
+Flow Systems Webhook Actions automatically uses Action Scheduler when available.
 
 = What is a WordPress action? =
 
@@ -269,6 +350,20 @@ Yes. The plugin is completely free and licensed under GPL.
 8. REST API Tokens configuration screen
 
 == Changelog ==
+
+= 1.5.0 — 2026-03-23 =
+- Added built-in CF7 to webhook integration — automatically sends CF7 submissions as structured webhook payloads (form id, title, fields, meta, uploaded files)
+- Added `fswa_normalize_object` filter for custom third-party object normalization
+- Added `get_properties()` fallback in payload normalization to handle objects with private or protected properties
+- Improved hook registration to capture all hook arguments by default (PHP_INT_MAX accepted_args)
+
+= 1.4.0 — 2026-03-22 =
+- Added Action Scheduler support for queue processing (auto-detected, no configuration required)
+- Automatic migration from WP-Cron to Action Scheduler when available
+- Added option to move admin menu under Tools for cleaner dashboard navigation
+- Added dynamic trigger discovery via static PHP source scan
+- Reduced triggers API responses size
+- Fixed input focus styles in admin forms
 
 = 1.3.2 — 2026-03-15 =
 - Fixed `auth_header` field being exposed to API tokens without `full` scope — read and operational tokens now receive a permission notice instead
@@ -333,6 +428,14 @@ Yes. The plugin is completely free and licensed under GPL.
 - Logging of webhook deliveries
 
 == Upgrade Notice ==
+
+= 1.5.0 =
+Adds built-in Contact Form 7 webhook integration.
+You can now send CF7 form submissions to external APIs, automation tools, or CRMs with retry, queue, and replay support — no additional plugins or custom code required.
+
+= 1.4.0 =
+Adds Action Scheduler support for significantly more reliable and scalable webhook processing.
+If Action Scheduler is available (e.g. via WooCommerce), the plugin automatically switches from WP-Cron — no reactivation or setup required.
 
 = 1.3.0 =
 Adds a new database table for API tokens. The table is created automatically on update — no manual steps needed.

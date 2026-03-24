@@ -88,10 +88,11 @@ const displayLabel = computed(() => {
       <button
         type="button"
         :class="cn(
-          'flex !h-10 w-full items-center gap-2 rounded-md !border !border-input !bg-background !px-3 !py-2 !text-sm',
-          'ring-offset-background focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-ring focus-visible:!ring-offset-2',
+          'flex !h-10 w-full items-center gap-2 rounded-md !border !bg-background !px-3 !py-2 !text-sm',
+          'ring-offset-background focus:!outline-none focus:!shadow-none focus:!ring-0',
           'disabled:cursor-not-allowed disabled:opacity-50',
           !displayLabel && 'text-muted-foreground',
+          open ? '!border-input !ring-2 !ring-ring !ring-offset-2' : '!border-input',
         )"
       >
         <CalendarIcon class="h-4 w-4 shrink-0 opacity-50" />
