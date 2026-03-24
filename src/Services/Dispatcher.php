@@ -380,11 +380,10 @@ class Dispatcher {
        */
       do_action('fswa_error', $trigger, $url, (string) $errorMessage);
 
-      // Run dispatched_error actions
+      // Run dispatched_error actions (dispatched_any actions also fire via ActionRunner)
       if (!empty($actions)) {
         $errorContext = array_merge($dispatchContext, ['dispatched' => array_merge($dispatchContext['dispatched'], ['error' => (string) $errorMessage])]);
         ActionRunner::run($actions, 'dispatched_error', $errorContext);
-        ActionRunner::run($actions, 'dispatched_any', $errorContext);
       }
 
       return ['success' => false, 'shouldRetry' => true];
@@ -426,14 +425,17 @@ class Dispatcher {
         ]),
       ]);
 
+      // Run response-code-specific trigger; dispatched_any actions also fire via ActionRunner.
       if ($responseCode >= 200 && $responseCode < 300) {
         ActionRunner::run($actions, 'dispatched_2xx', $responseContext);
       } elseif ($responseCode >= 400 && $responseCode < 500) {
         ActionRunner::run($actions, 'dispatched_4xx', $responseContext);
       } elseif ($responseCode >= 500) {
         ActionRunner::run($actions, 'dispatched_5xx', $responseContext);
+      } else {
+        // 1xx / 3xx responses: fire dispatched_any only
+        ActionRunner::run($actions, 'dispatched_any', $responseContext);
       }
-      ActionRunner::run($actions, 'dispatched_any', $responseContext);
     }
 
     if ($success) {

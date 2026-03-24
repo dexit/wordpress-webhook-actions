@@ -53,7 +53,12 @@ class ActionRunner {
       }
 
       $actionTrigger = $action['trigger'] ?? 'received';
-      if ($actionTrigger !== $trigger && $actionTrigger !== 'dispatched_any') {
+
+      // 'dispatched_any' should match any dispatched_* event but NOT 'received'.
+      $matches = $actionTrigger === $trigger ||
+        ($actionTrigger === 'dispatched_any' && str_starts_with($trigger, 'dispatched_'));
+
+      if (!$matches) {
         continue;
       }
 
