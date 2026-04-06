@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Button, Input, Label, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, CodeEditor } from '@/components/ui';
 import TriggerSelect from '@/components/TriggerSelect.vue';
 import { Zap, Settings, Trash2, Plus } from 'lucide-vue-next';
+import ConditionsEditor from '@/components/ConditionsEditor.vue';
 
 const props = defineProps({
   webhook: {
@@ -21,6 +22,7 @@ const form = ref({
   is_enabled: true,
   triggers: [],
   actions_config: [],
+  conditions: { enabled: false, type: 'and', rules: [] },
 });
 
 const errors = ref({});
@@ -37,6 +39,12 @@ watch(
         is_enabled:     webhook.is_enabled     ?? true,
         triggers:       webhook.triggers       || [],
         actions_config: Array.isArray(webhook.actions_config) ? webhook.actions_config : [],
+     //   name: webhook.name || '',
+       // endpoint_url: webhook.endpoint_url || '',
+       // auth_header: webhook.auth_header || '',
+      //  is_enabled:  webhook.is_enabled ?? true,
+      //  triggers:    webhook.triggers || [],
+        conditions:  webhook.conditions ?? { enabled: false, type: 'and', rules: [] },
       };
     }
   },
@@ -204,10 +212,21 @@ const headersToStr = (h) => (!h || typeof h !== 'object') ? '' : Object.entries(
       <p class="text-sm text-muted-foreground">WordPress actions that will trigger this webhook</p>
     </div>
 
+    <!-- Conditions -->
+    <ConditionsEditor v-model="form.conditions" :is-pro="false" />
+
     <!-- Enabled -->
-    <div class="flex items-center space-x-2">
-      <Switch v-model="form.is_enabled" />
-      <Label>Enabled</Label>
+    <div class="space-y-2">
+      <div class="flex items-center space-x-2">
+        <Switch v-model="form.is_enabled" />
+        <Label>Enabled</Label>
+      </div>
+      <div
+        v-if="!form.is_enabled"
+        class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+      >
+        Disabled webhooks still capture payload examples for mapping and conditions configuration.
+      </div>
     </div>
 
     <hr class="border-border" />

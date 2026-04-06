@@ -24,6 +24,7 @@ const statusOptions = [
   { value: 'error', label: 'Error' },
   { value: 'retry', label: 'Retry' },
   { value: 'pending', label: 'Pending' },
+  { value: 'skipped',            label: 'Skipped' },
   { value: 'permanently_failed', label: 'Permanently Failed' },
 ]
 
@@ -139,7 +140,15 @@ const executeReplayedJob = async () => {
     const log = logs.value.find(l => l.id === replayedLogId.value)
     if (log) logsTable.value?.openDetails(log)
   } catch (e) {
-    error.value = e.message
+    if (e.code === 'rest_job_completed') {
+      // Job already ran in background — close modal and show log details
+      showReplaySuccess.value = false
+      await loadLogs()
+      const log = logs.value.find(l => l.id === replayedLogId.value)
+      if (log) logsTable.value?.openDetails(log)
+    } else {
+      error.value = e.message
+    }
   }
 }
 
@@ -211,7 +220,7 @@ onMounted(() => {
     </div>
 
     <!-- Stats -->
-    <div v-if="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6">
+    <div v-if="stats" class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 mb-6">
       <Card class="p-2 sm:p-4">
         <div class="text-lg sm:text-2xl font-bold">{{ stats.total }}</div>
         <div class="text-xs sm:text-sm text-muted-foreground">Total (7 days)</div>
@@ -227,6 +236,10 @@ onMounted(() => {
       <Card class="p-2 sm:p-4">
         <div class="text-lg sm:text-2xl font-bold text-yellow-600">{{ stats.retry }}</div>
         <div class="text-xs sm:text-sm text-muted-foreground">Retries</div>
+      </Card>
+      <Card class="p-2 sm:p-4">
+        <div class="text-lg sm:text-2xl font-bold text-amber-600">{{ stats.skipped ?? 0 }}</div>
+        <div class="text-xs sm:text-sm text-muted-foreground">Skipped</div>
       </Card>
     </div>
 

@@ -61,6 +61,9 @@ class WebhookRepository {
       $webhook['triggers'] = $triggersByWebhook[$webhook['id']] ?? [];
       $webhook['is_enabled'] = (bool) $webhook['is_enabled'];
       $webhook = $this->castRow($webhook);
+      $webhook['conditions'] = !empty($webhook['conditions'])
+        ? json_decode($webhook['conditions'], true)
+        : null;
     }
 
     return $webhooks;
@@ -101,6 +104,9 @@ class WebhookRepository {
 
     $webhook['triggers'] = $triggers ?: [];
     $webhook['is_enabled'] = (bool) $webhook['is_enabled'];
+    $webhook['conditions'] = !empty($webhook['conditions'])
+      ? json_decode($webhook['conditions'], true)
+      : null;
 
     return $this->castRow($webhook);
   }
@@ -143,6 +149,9 @@ class WebhookRepository {
       $webhook['triggers'] = $triggers ?: [];
       $webhook['is_enabled'] = (bool) $webhook['is_enabled'];
       $webhook = $this->castRow($webhook);
+      $webhook['conditions'] = !empty($webhook['conditions'])
+        ? json_decode($webhook['conditions'], true)
+        : null;
     }
 
     return $webhooks;
@@ -166,6 +175,13 @@ class WebhookRepository {
         'auth_header'    => $data['auth_header'] ?? null,
         'is_enabled'     => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
         'actions_config' => isset($data['actions_config']) ? wp_json_encode($data['actions_config']) : null,
+     //   'name'       => $data['name'],
+     //   'endpoint_url' => $data['endpoint_url'],
+     //   'auth_header' => $data['auth_header'] ?? null,
+      //  'is_enabled' => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
+        'conditions' => isset($data['conditions'])
+          ? (is_array($data['conditions']) ? wp_json_encode($data['conditions']) : $data['conditions'])
+          : null,
       ],
       ['%s', '%s', '%s', '%d', '%s']
     );
@@ -220,6 +236,9 @@ class WebhookRepository {
     if (array_key_exists('actions_config', $data)) {
       $updateData['actions_config'] = ($data['actions_config'] !== null)
         ? (is_array($data['actions_config']) ? wp_json_encode($data['actions_config']) : $data['actions_config'])
+    if (array_key_exists('conditions', $data)) {
+      $updateData['conditions'] = $data['conditions'] !== null
+        ? (is_array($data['conditions']) ? wp_json_encode($data['conditions']) : $data['conditions'])
         : null;
       $format[] = '%s';
     }

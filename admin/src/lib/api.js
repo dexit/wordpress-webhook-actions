@@ -27,8 +27,10 @@ async function request(endpoint, options = {}) {
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || `HTTP ${response.status}`)
+    const errorData = await response.json().catch(() => ({}))
+    const err = new Error(errorData.message || `HTTP ${response.status}`)
+    err.code = errorData.code
+    throw err
   }
 
   // Handle empty responses
@@ -178,10 +180,10 @@ export const api = {
   },
   schemas: {
     getByWebhook: (webhookId) => get(`schemas/webhook/${webhookId}`),
-    get: (webhookId, triggerName) => get(`schemas/webhook/${webhookId}/trigger/${triggerName}`),
-    update: (webhookId, triggerName, data) => put(`schemas/webhook/${webhookId}/trigger/${triggerName}`, data),
-    delete: (webhookId, triggerName) => del(`schemas/webhook/${webhookId}/trigger/${triggerName}`),
-    resetCapture: (webhookId, triggerName) => post(`schemas/webhook/${webhookId}/trigger/${triggerName}/capture`),
+    get: (webhookId, triggerName) => get(`schemas/webhook/${webhookId}/trigger/${encodeURIComponent(encodeURIComponent(triggerName))}`),
+    update: (webhookId, triggerName, data) => put(`schemas/webhook/${webhookId}/trigger/${encodeURIComponent(encodeURIComponent(triggerName))}`, data),
+    delete: (webhookId, triggerName) => del(`schemas/webhook/${webhookId}/trigger/${encodeURIComponent(encodeURIComponent(triggerName))}`),
+    resetCapture: (webhookId, triggerName) => post(`schemas/webhook/${webhookId}/trigger/${encodeURIComponent(encodeURIComponent(triggerName))}/capture`),
     getUserTriggers: () => get('schemas/user-triggers'),
   },
   dto: {

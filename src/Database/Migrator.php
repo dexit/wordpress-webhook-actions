@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '1.7.0';
+  private const CURRENT_VERSION = '1.4.0';
 
   /**
    * Run pending migrations
@@ -74,9 +74,6 @@ class Migrator {
       '1.2.0' => [self::class, 'migration_1_2_0'],
       '1.3.0' => [self::class, 'migration_1_3_0'],
       '1.4.0' => [self::class, 'migration_1_4_0'],
-      '1.5.0' => [self::class, 'migration_1_5_0'],
-      '1.6.0' => [self::class, 'migration_1_6_0'],
-      '1.7.0' => [self::class, 'migration_1_7_0'],
     ];
   }
 
@@ -303,7 +300,7 @@ class Migrator {
   }
 
   /**
-   * Migration 1.4.0 - Add incoming endpoints and payloads tables
+   * Migration 1.4.0 - Add conditions column to webhooks table
    */
   public static function migration_1_4_0(): void {
     global $wpdb;
@@ -485,6 +482,15 @@ class Migrator {
     ));
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN actions_config LONGTEXT DEFAULT NULL");
+    $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
+      'conditions'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN conditions LONGTEXT DEFAULT NULL");
     }
     // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
   }
