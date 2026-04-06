@@ -8,6 +8,8 @@ import {
   Sun,
   Clock,
   KeyRound,
+  Inbox,
+  GitMerge,
 } from 'lucide-vue-next';
 import { useTheme } from './composables/useTheme';
 import HealthStatusBar from './components/HealthStatusBar.vue';
@@ -17,6 +19,8 @@ const { theme, toggleTheme } = useTheme();
 
 const navItems = [
   { path: '/webhooks', label: 'Webhooks', icon: Webhook },
+  { path: '/endpoints', label: 'Endpoints', icon: Inbox },
+  { path: '/dto', label: 'Pipelines', icon: GitMerge },
   { path: '/logs', label: 'Logs', icon: ScrollText },
   { path: '/queue', label: 'Queue', icon: Clock },
   { path: '/tokens', label: 'API Tokens', icon: KeyRound },

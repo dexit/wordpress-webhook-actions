@@ -13,6 +13,9 @@ use FlowSystems\WebhookActions\Api\QueueController;
 use FlowSystems\WebhookActions\Api\HealthController;
 use FlowSystems\WebhookActions\Api\SchemasController;
 use FlowSystems\WebhookActions\Api\ApiTokensController;
+use FlowSystems\WebhookActions\Api\IncomingEndpointsController;
+use FlowSystems\WebhookActions\Api\IncomingWebhookController;
+use FlowSystems\WebhookActions\Api\DtoPipelinesController;
 
 class AdminController {
   public function __construct() {
@@ -20,6 +23,11 @@ class AdminController {
     add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
     add_action('rest_api_init', [$this, 'registerRestRoutes']);
     add_action('admin_notices', [$this, 'showMigrationNotice']);
+
+    // Enrich outgoing webhook payloads triggered by incoming endpoints.
+    // Promotes args[0] (received context) to a top-level `received` key so field
+    // mappings can reference `received.body.*`, `received.query.*`, etc. directly.
+    add_filter('fswa_payload', [$this, 'enrichEndpointTriggerPayload'], 10, 3);
   }
 
   /**
@@ -175,6 +183,29 @@ class AdminController {
     (new HealthController())->registerRoutes();
     (new SchemasController())->registerRoutes();
     (new ApiTokensController())->registerRoutes();
+    (new IncomingEndpointsController())->registerRoutes();
+    (new IncomingWebhookController())->registerRoutes();
+    (new DtoPipelinesController())->registerRoutes();
+  }
+
+  /**
+   * Enrich payload for fswa_endpoint_{slug} triggers.
+   *
+   * When an incoming endpoint fires an outgoing webhook, args[0] is the received
+   * context array (body, query, headers, meta). We promote it to a top-level
+   * `received` key so users can reference paths like `received.body.field` in
+   * their webhook field mappings.
+   *
+   * @param array  $payload The assembled webhook payload
+   * @param string $trigger The trigger hook name
+   * @param array  $args    Raw hook arguments passed to the trigger
+   * @return array
+   */
+  public function enrichEndpointTriggerPayload(array $payload, string $trigger, array $args): array {
+    if (str_starts_with($trigger, 'fswa_endpoint_') && isset($args[0]) && is_array($args[0])) {
+      $payload['received'] = $args[0];
+    }
+    return $payload;
   }
 
   /**

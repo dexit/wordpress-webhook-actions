@@ -47,6 +47,50 @@ const routes = [
     name: 'Settings',
     component: () => import('@/views/SettingsView.vue'),
   },
+  {
+    path: '/dto',
+    name: 'DtoList',
+    component: () => import('@/views/DtoList.vue'),
+  },
+  {
+    path: '/dto/new',
+    name: 'DtoCreate',
+    component: () => import('@/views/DtoEdit.vue'),
+  },
+  {
+    path: '/dto/:id',
+    name: 'DtoEdit',
+    component: () => import('@/views/DtoEdit.vue'),
+    props: true,
+  },
+  {
+    path: '/endpoints',
+    name: 'EndpointsList',
+    component: () => import('@/views/EndpointsList.vue'),
+  },
+  {
+    path: '/endpoints/new',
+    name: 'EndpointCreate',
+    component: () => import('@/views/EndpointEdit.vue'),
+  },
+  {
+    path: '/endpoints/:id',
+    name: 'EndpointEdit',
+    component: () => import('@/views/EndpointEdit.vue'),
+    props: true,
+  },
+  {
+    path: '/endpoints/:id/payloads',
+    name: 'EndpointPayloads',
+    component: () => import('@/views/EndpointPayloads.vue'),
+    props: true,
+  },
+  {
+    path: '/endpoints/:id/logs',
+    name: 'EndpointLogs',
+    component: () => import('@/views/EndpointLogs.vue'),
+    props: true,
+  },
 ]
 
 const router = createRouter({
