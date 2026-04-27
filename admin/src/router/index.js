@@ -48,6 +48,9 @@ const routes = [
     component: () => import('@/views/SettingsView.vue'),
   },
   {
+    path: '/pro',
+    name: 'Pro',
+    component: () => import('@/views/ProView.vue'),
     path: '/dto',
     name: 'DtoList',
     component: () => import('@/views/DtoList.vue'),

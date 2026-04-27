@@ -1,10 +1,10 @@
-=== Flow Systems Webhook Actions ===
+=== Webhook Actions by Flow Systems ===
 Contributors: mateuszflowsystems
 Tags: webhooks, automation, integration, n8n, api
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.6.2
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Reliable WordPress webhooks with retries, queue, Action Scheduler support, deliv
 
 == Description ==
 
-Flow Systems Webhook Actions is a developer-focused WordPress webhook delivery layer designed for reliable automation workflows.
+Webhook Actions by Flow Systems is a developer-focused WordPress webhook delivery layer designed for reliable automation workflows.
 
 It adds a persistent queue, automatic retries, and Action Scheduler support for production-grade background processing — so your webhooks don’t get lost when external APIs fail.
 
@@ -83,7 +83,7 @@ No silent failures.
 
 Webhook debugging is difficult when events cannot be reproduced.
 
-Flow Systems Webhook Actions allows you to replay any webhook event directly from the delivery logs — including successful deliveries.
+Webhook Actions by Flow Systems allows you to replay any webhook event directly from the delivery logs — including successful deliveries.
 
 This makes it easy to:
 
@@ -158,7 +158,7 @@ Full REST API documentation: [REST API Reference](https://wpwebhooks.org/webhook
 
 = AI Agents and Programmatic Automation =
 
-The REST API makes Flow Systems Webhook Actions accessible to AI-powered tools and coding agents.
+The REST API makes Webhook Actions by Flow Systems accessible to AI-powered tools and coding agents.
 
 Automation systems, CI pipelines, and AI coding assistants (such as Claude Code or Cursor) can safely interact with webhook infrastructure using API tokens without requiring WordPress admin sessions.
 
@@ -181,9 +181,35 @@ Example scenarios:
 
 This allows WordPress automation pipelines to be controlled entirely through HTTP APIs, enabling advanced integration with AI-driven development workflows.
 
-= Contact Form 7 Webhooks (NEW in 1.5.0) =
+= Conditional Webhook Dispatch =
 
-Flow Systems Webhook Actions includes built-in integration with Contact Form 7.
+Send webhooks only when your conditions are met — filter by payload field values before dispatch.
+
+Each webhook can have one or more conditions evaluated against the incoming payload:
+
+- Match against string, number, boolean, or null values
+- Operators: equals, not equals, contains, starts with, ends with, greater than, less than, empty, not empty
+- AND / OR match type per condition group (Pro)
+- Multiple condition groups with independent match types (Pro)
+- Payload field selector with live preview to build conditions from real example payloads
+
+Free plan: one condition, AND match only.
+Pro plan: unlimited conditions, condition groups, and AND/OR match per group.
+
+= Webhook Actions Pro =
+
+Webhook Actions Pro extends the plugin with advanced features for production workflows:
+
+- Unlimited conditions and condition groups with AND/OR logic
+- Per-webhook retry settings — override maximum retry attempts at the webhook level
+- Per-webhook backoff strategy — override retry delay behavior per webhook
+- License managed directly from the Pro tab in the admin panel
+
+[Learn more and upgrade →](https://wpwebhooks.org/pricing/)
+
+= Contact Form 7 Webhooks =
+
+Webhook Actions by Flow Systems includes built-in integration with Contact Form 7.
 
 When Contact Form 7 is active, form submissions are automatically converted into structured webhook payloads — no custom code required.
 
@@ -204,9 +230,9 @@ Benefits:
 
 This allows you to build reliable form-to-automation pipelines directly from WordPress.
 
-= Action Scheduler Support (NEW in 1.4.0) =
+= Action Scheduler Support =
 
-Flow Systems Webhook Actions now supports Action Scheduler — the same background job system used by WooCommerce.
+Webhook Actions by Flow Systems now supports Action Scheduler — the same background job system used by WooCommerce.
 
 When available, webhook queue processing automatically switches from WP-Cron to Action Scheduler for improved reliability and scalability.
 
@@ -229,11 +255,11 @@ This makes the plugin suitable for production WooCommerce stores and high-throug
 - Built according to WordPress.org standards
 - Supports system cron, WP-Cron, and Action Scheduler (auto-detected)
 
-= Why Choose Flow Systems Webhook Actions? =
+= Why Choose Webhook Actions by Flow Systems? =
 
 Most WordPress webhook setups fire once, don't retry intelligently, don't provide delivery visibility, and don't expose event identity.
 
-Flow Systems Webhook Actions provides:
+Webhook Actions by Flow Systems provides:
 
 - Persistent queue
 - Smart retry logic
@@ -241,9 +267,13 @@ Flow Systems Webhook Actions provides:
 - Permanent failure state handling
 - Event UUIDs and timestamps
 - Full delivery logging and metrics
+- Conditional webhook dispatch
+- Test webhook delivery — send a test event instantly or via queue without triggering real WordPress events
 - REST API with token authentication for programmatic access
 - Action Scheduler support for reliable background processing (when available)
 - Built-in CF7 to webhook support (no extra plugins needed)
+
+Upgrade to [Webhook Actions Pro](https://wpwebhooks.org/pricing/) for unlimited conditions, per-webhook retry and backoff settings, and more.
 
 Built for developers who need production-grade automation reliability.
 
@@ -251,19 +281,24 @@ Built for developers who need production-grade automation reliability.
 
 - `fswa_should_dispatch` – Decide if a trigger should dispatch
 - `fswa_payload` – Customize webhook payload
+- `fswa_normalize_object` – Normalize a third-party object into an array for payload serialization
 - `fswa_headers` – Add custom HTTP headers
 - `fswa_require_https` – Toggle HTTPS requirement
 - `fswa_max_attempts` – Configure maximum retry attempts
+- `fswa_backoff_delay` – Customize retry backoff delay in seconds
 - `fswa_queue_batch_size` – Configure batch processing size
 - `fswa_http_timeout` – Configure HTTP request timeout
 - `fswa_http_connect_timeout` – Configure HTTP connect timeout
 - `fswa_http_args` – Customize HTTP request arguments
 - `fswa_available_triggers` – Customize available trigger list
+- `fswa_webhook_data` – Filter webhook configuration data returned by the REST API
 
 = Available Actions =
 
 - `fswa_success` – Fired after successful webhook delivery
 - `fswa_error` – Fired after webhook delivery failure
+- `fswa_skipped` – Fired when a webhook dispatch is skipped due to a failed condition
+- `fswa_webhook_saved` – Fired after a webhook is created or updated
 
 = Admin UX Improvements =
 
@@ -303,7 +338,7 @@ Yes. If Action Scheduler is available (for example via WooCommerce), the plugin 
 
 WP-Cron depends on site traffic and can be unreliable on low-traffic sites. Action Scheduler is a dedicated background job system used by WooCommerce that provides more consistent and reliable execution of queued jobs.
 
-Flow Systems Webhook Actions automatically uses Action Scheduler when available.
+Webhook Actions by Flow Systems automatically uses Action Scheduler when available.
 
 = What is a WordPress action? =
 
@@ -340,7 +375,11 @@ Yes. Create an API token from the API Tokens screen in the admin panel and use i
 
 = Is this plugin free? =
 
-Yes. The plugin is completely free and licensed under GPL.
+Yes. The core plugin is completely free and licensed under GPL. Webhook Actions Pro is an optional paid upgrade that adds unlimited conditions, per-webhook retry and backoff settings, and more. [Learn more →](https://wpwebhooks.org/pricing/)
+
+= Can I use conditions to filter which webhooks fire? =
+
+Yes. Each webhook can have conditions evaluated against the incoming payload before dispatch. Free plan supports one condition with AND match. Pro plan supports unlimited conditions, condition groups, and AND/OR logic per group.
 
 == Screenshots ==
 
@@ -354,6 +393,14 @@ Yes. The plugin is completely free and licensed under GPL.
 8. REST API Tokens configuration screen
 
 == Changelog ==
+
+= 1.7.0 — 2026-04-27 =
+- Added "Test Webhook" delivery with run-now and queue modes — test webhook delivery without triggering real WordPress events
+- Added conditional webhook dispatch — filter events by payload field values before dispatch; free plan includes one condition with AND match
+- Added field selector with live preview in the Conditions editor to build conditions from real example payloads
+- Fixed attempt history timestamps displayed in browser local time
+- Renamed plugin to "Webhook Actions by Flow Systems"
+- Added Webhook Actions Pro integration tab for license management
 
 = 1.6.2 — 2026-04-05 =
 - Fixed graceful handling of 409 responses when a queue job was already completed in a background process
@@ -446,6 +493,9 @@ Yes. The plugin is completely free and licensed under GPL.
 - Logging of webhook deliveries
 
 == Upgrade Notice ==
+
+= 1.7.0 =
+Adds test webhook delivery (run-now or via queue without triggering real events) and conditional dispatch — filter webhooks by payload field values before they fire. No database changes.
 
 = 1.6.2 =
 Bug fixes: graceful 409 handling for already-completed queue jobs, and dot-containing keys (e.g. Gravity Forms `6.1`) in the mapping editor. No database changes.

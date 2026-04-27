@@ -55,9 +55,10 @@ class PayloadTransformer {
     if (!$schema) {
       $this->schemaRepository->captureExamplePayload($webhookId, $trigger, $payload);
       return [
-        'original' => null,
-        'transformed' => $payload,
+        'original'        => null,
+        'transformed'     => $payload,
         'mapping_applied' => false,
+        'conditions'      => null,
       ];
     }
 
@@ -90,9 +91,38 @@ class PayloadTransformer {
     }
 
     return [
-      'original' => $mappingApplied ? $payload : null,
-      'transformed' => $transformedPayload,
+      'original'        => $mappingApplied ? $payload : null,
+      'transformed'     => $transformedPayload,
       'mapping_applied' => $mappingApplied,
+      'conditions'      => $schema['conditions'] ?? null,
+    ];
+  }
+
+  /**
+   * Apply the stored field mapping for a webhook/trigger to an already-decoded payload.
+   * No side effects — does not capture the payload as an example.
+   *
+   * @return array{payload: array, mapping_applied: bool}
+   */
+  public function applyStoredMapping(int $webhookId, string $trigger, array $payload): array {
+    $schema = $this->schemaRepository->findByWebhookAndTrigger($webhookId, $trigger);
+
+    if (!$schema) {
+      return ['payload' => $payload, 'mapping_applied' => false];
+    }
+
+    $fieldMapping = $schema['field_mapping'] ?? null;
+    if (is_string($fieldMapping)) {
+      $fieldMapping = json_decode($fieldMapping, true);
+    }
+
+    if (empty($fieldMapping) || !is_array($fieldMapping)) {
+      return ['payload' => $payload, 'mapping_applied' => false];
+    }
+
+    return [
+      'payload'         => $this->applyFieldMapping($payload, $fieldMapping),
+      'mapping_applied' => true,
     ];
   }
 

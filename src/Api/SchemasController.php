@@ -240,6 +240,40 @@ class SchemasController extends WP_REST_Controller {
       $data['include_user_data'] = (bool) $request->get_param('include_user_data');
     }
 
+    if ($request->has_param('conditions')) {
+      $conditions = $request->get_param('conditions');
+
+      $proActive = class_exists('FlowSystems\WebhookActions\Pro\License\LicenseManager')
+        && (new \FlowSystems\WebhookActions\Pro\License\LicenseManager())->isActive();
+
+      if (!$proActive && is_array($conditions) && !empty($conditions['rules'])) {
+        $rules = (array) $conditions['rules'];
+
+        foreach ($rules as $rule) {
+          if (isset($rule['type']) && $rule['type'] === 'group') {
+            return new WP_Error(
+              'rest_pro_required',
+              __('Condition groups require a Pro license.', 'flowsystems-webhook-actions'),
+              ['status' => 403]
+            );
+          }
+        }
+
+        if (count($rules) > 1) {
+          return new WP_Error(
+            'rest_pro_required',
+            __('More than 1 condition requires a Pro license.', 'flowsystems-webhook-actions'),
+            ['status' => 403]
+          );
+        }
+
+        // Silently force match type to 'and' on free tier
+        $conditions['type'] = 'and';
+      }
+
+      $data['conditions'] = $this->sanitizeConditions($conditions);
+    }
+
     if (empty($data)) {
       return new WP_Error(
         'rest_no_data',
@@ -340,5 +374,72 @@ class SchemasController extends WP_REST_Controller {
     return rest_ensure_response([
       'triggers' => $this->payloadTransformer->getUserEnrichmentTriggers(),
     ]);
+  }
+
+  /**
+   * Sanitize and validate a conditions payload from the request.
+   *
+   * @param mixed $raw
+   * @return array|null
+   */
+  private function sanitizeConditions(mixed $raw): ?array {
+    if ($raw === null || !is_array($raw)) {
+      return null;
+    }
+
+    $allowedOperators = [
+      'equals', 'not_equals', 'contains', 'not_contains',
+      'greater_than', 'less_than', 'is_empty', 'is_not_empty',
+      'is_true', 'is_false',
+    ];
+
+    $sanitized = [
+      'enabled' => (bool) ($raw['enabled'] ?? false),
+      'type'    => in_array($raw['type'] ?? 'and', ['and', 'or'], true)
+        ? $raw['type']
+        : 'and',
+      'rules'   => [],
+    ];
+
+    foreach ((array) ($raw['rules'] ?? []) as $rule) {
+      if (isset($rule['type']) && $rule['type'] === 'group') {
+        $groupRules = [];
+        foreach ((array) ($rule['rules'] ?? []) as $groupRule) {
+          if (empty($groupRule['field']) || empty($groupRule['operator'])) {
+            continue;
+          }
+          if (!in_array($groupRule['operator'], $allowedOperators, true)) {
+            continue;
+          }
+          $groupRules[] = [
+            'field'    => sanitize_text_field($groupRule['field']),
+            'operator' => $groupRule['operator'],
+            'value'    => isset($groupRule['value']) ? sanitize_text_field((string) $groupRule['value']) : '',
+          ];
+        }
+        if (!empty($groupRules)) {
+          $sanitized['rules'][] = [
+            'type'  => 'group',
+            'match' => in_array($rule['match'] ?? 'and', ['and', 'or'], true) ? $rule['match'] : 'and',
+            'rules' => $groupRules,
+          ];
+        }
+        continue;
+      }
+
+      if (empty($rule['field']) || empty($rule['operator'])) {
+        continue;
+      }
+      if (!in_array($rule['operator'], $allowedOperators, true)) {
+        continue;
+      }
+      $sanitized['rules'][] = [
+        'field'    => sanitize_text_field($rule['field']),
+        'operator' => $rule['operator'],
+        'value'    => isset($rule['value']) ? sanitize_text_field((string) $rule['value']) : '',
+      ];
+    }
+
+    return $sanitized;
   }
 }

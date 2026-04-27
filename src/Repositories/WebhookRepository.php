@@ -170,6 +170,10 @@ class WebhookRepository {
     $result = $wpdb->insert(
       $this->webhooksTable,
       [
+        'name'         => $data['name'],
+        'endpoint_url' => $data['endpoint_url'],
+        'auth_header'  => $data['auth_header'] ?? null,
+        'is_enabled'   => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
         'name'           => $data['name'],
         'endpoint_url'   => $data['endpoint_url'],
         'auth_header'    => $data['auth_header'] ?? null,
@@ -183,7 +187,7 @@ class WebhookRepository {
           ? (is_array($data['conditions']) ? wp_json_encode($data['conditions']) : $data['conditions'])
           : null,
       ],
-      ['%s', '%s', '%s', '%d', '%s']
+      ['%s', '%s', '%s', '%d']
     );
 
     if (!$result) {
@@ -372,6 +376,35 @@ class WebhookRepository {
     );
 
     return $result !== false;
+  }
+
+  /**
+   * Get disabled webhooks that have triggers matching the given trigger name.
+   * Used to capture example payloads even when the webhook is not active.
+   *
+   * @param string $triggerName
+   * @return array
+   */
+  public function getDisabledByTrigger(string $triggerName): array {
+    global $wpdb;
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $webhooks = $wpdb->get_results(
+      $wpdb->prepare(
+        "SELECT w.* FROM {$this->webhooksTable} w
+                INNER JOIN {$this->triggersTable} t ON w.id = t.webhook_id
+                WHERE t.trigger_name = %s AND w.is_enabled = 0",
+        $triggerName
+      ),
+      ARRAY_A
+    );
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+    foreach ($webhooks as &$webhook) {
+      $webhook['is_enabled'] = false;
+    }
+
+    return $webhooks;
   }
 
   /**

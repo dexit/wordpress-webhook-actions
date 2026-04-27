@@ -30,6 +30,7 @@ async function request(endpoint, options = {}) {
     const errorData = await response.json().catch(() => ({}))
     const err = new Error(errorData.message || `HTTP ${response.status}`)
     err.code = errorData.code
+    err.data = errorData
     throw err
   }
 
@@ -129,6 +130,7 @@ export const api = {
     update: (id, data) => put(`webhooks/${id}`, data),
     delete: (id) => del(`webhooks/${id}`),
     toggle: (id) => post(`webhooks/${id}/toggle`),
+    test: (id, data) => post(`webhooks/${id}/test`, data),
     logs: (id, params) => get(`webhooks/${id}/logs`, params),
   },
   logs: {
@@ -177,6 +179,16 @@ export const api = {
     rotate: (id, data = {}) => post(`tokens/${id}/rotate`, data),
     updateExpiry: (id, expiresAt) => patch(`tokens/${id}`, { expires_at: expiresAt }),
     delete: (id) => del(`tokens/${id}`),
+  },
+  pro: {
+    status: () => get('pro/status'),
+    activatePlugin: () => post('pro/activate-plugin'),
+    activate: (licenseKey) => post('license/activate', { license_key: licenseKey }),
+    deactivate: () => del('license/deactivate'),
+  },
+  proSettings: {
+    get: () => get('pro/settings'),
+    update: (data) => put('pro/settings', data),
   },
   schemas: {
     getByWebhook: (webhookId) => get(`schemas/webhook/${webhookId}`),

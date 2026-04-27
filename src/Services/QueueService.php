@@ -25,7 +25,7 @@ class QueueService {
    * @param int|null $logId Associated log ID
    * @return int Job ID
    */
-  public function enqueue(int $webhookId, string $trigger, array $payload, ?DateTime $scheduledAt = null, ?int $logId = null): int {
+  public function enqueue(int $webhookId, string $trigger, array $payload, ?DateTime $scheduledAt = null, ?int $logId = null, bool $isTest = false): int {
     if ($scheduledAt === null) {
       $scheduledAt = new DateTime('now', new DateTimeZone('UTC'));
     }
@@ -34,18 +34,20 @@ class QueueService {
      * Filter the maximum number of retry attempts for failed webhooks.
      *
      * @param int $max_attempts Maximum retry attempts (default 5)
+     * @param int $webhookId    The webhook ID being enqueued
      */
-    $maxAttempts = (int) apply_filters('fswa_max_attempts', 5);
+    $maxAttempts = $isTest ? 1 : (int) apply_filters('fswa_max_attempts', 5, $webhookId);
 
     $data = [
-      'webhook_id' => $webhookId,
+      'webhook_id'   => $webhookId,
       'trigger_name' => $trigger,
-      'payload' => wp_json_encode($payload),
-      'status' => 'pending',
-      'attempts' => 0,
+      'payload'      => wp_json_encode($payload),
+      'status'       => 'pending',
+      'attempts'     => 0,
       'max_attempts' => $maxAttempts,
+      'is_test'      => $isTest ? 1 : 0,
       'scheduled_at' => $scheduledAt->format('Y-m-d H:i:s'),
-      'created_at' => current_time('mysql', true),
+      'created_at'   => current_time('mysql', true),
     ];
 
     if ($logId !== null) {
@@ -139,6 +141,17 @@ class QueueService {
 
     // Calculate backoff delay: min(2^attempts * 30, 3600) seconds
     $delaySeconds = min(pow(2, $newAttempts) * 30, 3600);
+    $webhookId    = (int) ($job['webhook_id'] ?? 0);
+
+    /**
+     * Filter the backoff delay before rescheduling a failed webhook job.
+     *
+     * @param int $delay_seconds  Calculated delay in seconds
+     * @param int $attempt_number Attempt number after this failure (1-indexed)
+     * @param int $webhook_id     The webhook ID
+     */
+    $delaySeconds = max(1, (int) apply_filters('fswa_backoff_delay', $delaySeconds, $newAttempts, $webhookId));
+
     $scheduledAt = new DateTime('now', new DateTimeZone('UTC'));
     $scheduledAt->modify("+{$delaySeconds} seconds");
     $scheduledAtStr = $scheduledAt->format('Y-m-d H:i:s');

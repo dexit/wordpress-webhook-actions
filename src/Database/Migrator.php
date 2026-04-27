@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '1.4.0';
+  private const CURRENT_VERSION = '1.7.0';
 
   /**
    * Run pending migrations
@@ -74,6 +74,10 @@ class Migrator {
       '1.2.0' => [self::class, 'migration_1_2_0'],
       '1.3.0' => [self::class, 'migration_1_3_0'],
       '1.4.0' => [self::class, 'migration_1_4_0'],
+      '1.4.1' => [self::class, 'migration_1_4_1'],
+      '1.5.0' => [self::class, 'migration_1_5_0'],
+      '1.6.0' => [self::class, 'migration_1_6_0'],
+      '1.7.0' => [self::class, 'migration_1_7_0'],
     ];
   }
 
@@ -491,6 +495,101 @@ class Migrator {
     ));
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN conditions LONGTEXT DEFAULT NULL");
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+  }
+
+  /**
+   * Migration 1.4.1 - Move conditions from fswa_webhooks to fswa_trigger_schemas
+   */
+  public static function migration_1_4_1(): void {
+    global $wpdb;
+
+    $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
+    $schemasTable  = $wpdb->prefix . 'fswa_trigger_schemas';
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // Drop conditions from webhooks if it was added by 1.4.0
+    $webhookConditionsExists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
+      'conditions'
+    ));
+    if ($webhookConditionsExists) {
+      $wpdb->query("ALTER TABLE {$webhooksTable} DROP COLUMN conditions");
+    }
+
+    // Add conditions to trigger_schemas
+    $schemaConditionsExists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$schemasTable} LIKE %s",
+      'conditions'
+    ));
+    if (!$schemaConditionsExists) {
+      $wpdb->query("ALTER TABLE {$schemasTable} ADD COLUMN conditions LONGTEXT DEFAULT NULL");
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+  }
+
+  /**
+   * Migration 1.5.0 - Add retry_limit column to webhooks table
+   */
+  public static function migration_1_5_0(): void {
+    global $wpdb;
+
+    $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
+      'retry_limit'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN retry_limit INT UNSIGNED NULL DEFAULT NULL");
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+  }
+
+  /**
+   * Migration 1.6.0 - Add backoff config columns to webhooks table
+   */
+  public static function migration_1_6_0(): void {
+    global $wpdb;
+
+    $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
+
+    $columns = [
+      'backoff_strategy'   => "ALTER TABLE {$webhooksTable} ADD COLUMN backoff_strategy VARCHAR(20) NULL DEFAULT NULL",
+      'backoff_base_delay' => "ALTER TABLE {$webhooksTable} ADD COLUMN backoff_base_delay INT UNSIGNED NULL DEFAULT NULL",
+      'backoff_max_delay'  => "ALTER TABLE {$webhooksTable} ADD COLUMN backoff_max_delay INT UNSIGNED NULL DEFAULT NULL",
+    ];
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    foreach ($columns as $column => $sql) {
+      $exists = $wpdb->get_var($wpdb->prepare(
+        "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
+        $column
+      ));
+      if (!$exists) {
+        $wpdb->query($sql);
+      }
+    }
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+  }
+
+  /**
+   * Migration 1.7.0 - Add is_test flag to queue table
+   */
+  public static function migration_1_7_0(): void {
+    global $wpdb;
+
+    $queueTable = $wpdb->prefix . 'fswa_queue';
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$queueTable} LIKE %s",
+      'is_test'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$queueTable} ADD COLUMN is_test TINYINT(1) NOT NULL DEFAULT 0");
     }
     // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
   }

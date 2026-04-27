@@ -8,14 +8,17 @@ import {
   Sun,
   Clock,
   KeyRound,
+  Sparkles,
   Inbox,
   GitMerge,
 } from 'lucide-vue-next';
 import { useTheme } from './composables/useTheme';
+import { usePro } from './composables/usePro';
 import HealthStatusBar from './components/HealthStatusBar.vue';
 
 const route = useRoute();
 const { theme, toggleTheme } = useTheme();
+const { proActive } = usePro();
 
 const navItems = [
   { path: '/webhooks', label: 'Webhooks', icon: Webhook },
@@ -25,6 +28,7 @@ const navItems = [
   { path: '/queue', label: 'Queue', icon: Clock },
   { path: '/tokens', label: 'API Tokens', icon: KeyRound },
   { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/pro', label: 'Pro', icon: Sparkles },
 ];
 
 const isActive = (path) => {
@@ -38,7 +42,16 @@ const isActive = (path) => {
     <div
       class="flex items-center justify-between mb-6 pb-4 border-b border-border"
     >
-      <h1 class="text-2xl font-semibold text-foreground">Webhook Actions</h1>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-semibold text-foreground">Webhook Actions</h1>
+        <span
+          v-if="proActive"
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-primary/15 text-primary border border-primary/30"
+        >
+          <Sparkles class="w-3.5 h-3.5" />
+          Pro
+        </span>
+      </div>
       <button
         @click="toggleTheme"
         class="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"

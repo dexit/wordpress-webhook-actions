@@ -13,6 +13,7 @@ use FlowSystems\WebhookActions\Api\QueueController;
 use FlowSystems\WebhookActions\Api\HealthController;
 use FlowSystems\WebhookActions\Api\SchemasController;
 use FlowSystems\WebhookActions\Api\ApiTokensController;
+use FlowSystems\WebhookActions\Api\ProStatusController;
 use FlowSystems\WebhookActions\Api\IncomingEndpointsController;
 use FlowSystems\WebhookActions\Api\IncomingWebhookController;
 use FlowSystems\WebhookActions\Api\DtoPipelinesController;
@@ -183,6 +184,7 @@ class AdminController {
     (new HealthController())->registerRoutes();
     (new SchemasController())->registerRoutes();
     (new ApiTokensController())->registerRoutes();
+    (new ProStatusController())->registerRoutes();
     (new IncomingEndpointsController())->registerRoutes();
     (new IncomingWebhookController())->registerRoutes();
     (new DtoPipelinesController())->registerRoutes();
@@ -217,7 +219,7 @@ class AdminController {
 ?>
       <div class="notice notice-success is-dismissible">
         <p>
-          <?php esc_html_e('Flow Systems Webhook Actions: Your webhooks have been migrated to the new database format.', 'flowsystems-webhook-actions'); ?>
+          <?php esc_html_e('Webhook Actions by Flow Systems: Your webhooks have been migrated to the new database format.', 'flowsystems-webhook-actions'); ?>
         </p>
       </div>
 <?php

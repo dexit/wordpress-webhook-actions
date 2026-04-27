@@ -49,12 +49,13 @@ const statusVariant = (status) => {
     pending:           'secondary',
     skipped:           'warning',
     permanently_failed: 'destructive',
+    test:              'outline',
   }
   return variants[status] || 'default'
 }
 
 const isRetryable  = (status) => status === 'error' || status === 'permanently_failed'
-const isReplayable = (status) => status === 'success'
+const isReplayable = (status) => status === 'success' || status === 'test'
 
 const formatDate = formatUtcDate
 
@@ -391,7 +392,7 @@ const allOnPageSelected = computed(() => {
                 <span class="font-medium">Attempt #{{ attempt.attempt + 1 }}</span>
                 <span v-if="attempt.http_code" class="text-muted-foreground">HTTP {{ attempt.http_code }}</span>
                 <span v-if="attempt.duration_ms != null" class="text-muted-foreground">{{ attempt.duration_ms }}ms</span>
-                <span class="text-muted-foreground ml-auto shrink-0">{{ attempt.attempted_at }}</span>
+                <span class="text-muted-foreground ml-auto shrink-0">{{ formatDate(attempt.attempted_at) }}</span>
                 <ChevronDown
                   class="h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform"
                   :class="{ 'rotate-180': openAttempts.has(index) }"
@@ -418,7 +419,7 @@ const allOnPageSelected = computed(() => {
                   </div>
                   <div class="col-span-2">
                     <span class="text-muted-foreground">Attempted At</span>
-                    <div class="font-medium font-mono">{{ attempt.attempted_at }}</div>
+                    <div class="font-medium font-mono">{{ formatDate(attempt.attempted_at) }}</div>
                   </div>
                 </div>
                 <div v-if="attempt.error_message">
