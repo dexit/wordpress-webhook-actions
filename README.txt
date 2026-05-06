@@ -4,7 +4,7 @@ Tags: webhooks, automation, integration, n8n, api
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.7.0
+Stable tag: 1.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -34,6 +34,12 @@ Built for production environments where losing events is not acceptable.
 👉 Step-by-step example: [Send Gravity Forms Submissions to n8n](https://wpwebhooks.org/examples/gravity-forms-webhooks/)
 👉 Step-by-step example: [Send IvyForms submissions to a webhook (n8n demo)](https://wpwebhooks.org/examples/ivyforms-to-webhook/)
 
+= ⚡ Webhook Actions Pro =
+
+Unlock unlimited conditions, per-webhook retry and backoff settings, type casting in payload mapping, and more.
+
+[See pricing and upgrade →](https://wpwebhooks.org/pricing/)
+
 = Typical Use Cases =
 
 - CF7 to Webhook: Send Contact Form 7 Data to n8n or external APIs
@@ -58,7 +64,9 @@ Every dispatched webhook includes:
 - Unique UUID (v4) per event
 - ISO 8601 UTC timestamp
 - Embedded `event.id`, `event.timestamp`, `event.version` in the payload
-- HTTP headers: `X-Event-Id`, `X-Event-Timestamp`
+- HTTP headers: `X-Event-Id`, `X-Event-Timestamp`, `X-Webhook-Id`
+
+`X-Webhook-Id` carries the webhook's own stable UUID — distinct from the per-event `X-Event-Id`. When multiple webhooks point to the same endpoint, the receiving system can use `X-Webhook-Id` to identify which webhook configuration triggered the delivery without inspecting the payload.
 
 This enables downstream deduplication, idempotent workflow design, and reliable debugging across systems.
 
@@ -83,7 +91,7 @@ No silent failures.
 
 Webhook debugging is difficult when events cannot be reproduced.
 
-Webhook Actions by Flow Systems allows you to replay any webhook event directly from the delivery logs — including successful deliveries.
+Webhook Actions by Flow Systems allows you to replay any webhook event directly from the delivery logs — including successful deliveries and condition-skipped events.
 
 This makes it easy to:
 
@@ -91,8 +99,23 @@ This makes it easy to:
 - Debug external integrations
 - Recover from temporary endpoint failures
 - Test webhook consumers without recreating WordPress events
+- Re-evaluate previously skipped events after changing webhook conditions
 
 Each replay uses the original payload and event metadata, ensuring consistent behavior across retries and debugging sessions.
+
+= Synchronous Execution =
+
+By default, all webhooks are delivered asynchronously via the built-in queue — events are stored, processed in the background, and retried automatically on failure. This is the recommended approach for production sites.
+
+For specific webhooks that require inline delivery (e.g. an internal API that must respond within the same request), you can enable **Synchronous Execution** per webhook:
+
+- The webhook fires during the WordPress request that triggered it — no queue delay
+- The first attempt runs blocking in the current request
+- If that attempt fails with a retryable error (5xx, transport error), it automatically falls back to the queue with standard exponential backoff starting at attempt 2
+- Non-retryable failures (4xx) are marked permanently failed immediately
+- A warning dialog must be acknowledged before enabling, and can be dismissed permanently per-browser
+
+Use with caution on user-facing requests — a slow or unreachable endpoint will delay page loads, form submissions, and other frontend interactions.
 
 = Delivery Observability =
 
@@ -124,10 +147,33 @@ Adapt outgoing JSON payloads to match any external API:
 - Rename fields using dot notation
 - Restructure nested objects
 - Exclude sensitive or unnecessary data
+- Cast field values to number, string, or boolean before sending (e.g. WooCommerce price `"100.50"` → `100.5`)
 - Store example payloads for configuration
 - Modify via `fswa_payload` filter
 
 Payloads always include stable event metadata for consistency.
+
+= Configurable HTTP Requests =
+
+Every webhook can be configured to match exactly what the target API expects:
+
+**HTTP Method**
+
+Choose the method used for each delivery: GET, POST, PUT, PATCH, or DELETE. Default is POST.
+
+**Custom Request Headers**
+
+Add any number of key/value header pairs sent with every delivery. Header values support dot-notation paths — reference any field from the outgoing payload directly (e.g. `event.id`, `site.url`). Resolved at dispatch time against the live payload.
+
+**URL Query Parameters**
+
+Append query parameters to the endpoint URL at dispatch time. Values also support dot-notation payload resolution.
+
+For GET and DELETE requests — where a request body is not appropriate — query parameters become the primary payload transport. If no params are configured, the full payload is sent as a `?payload=` fallback. POST, PUT, and PATCH send a JSON body as normal; any configured params are appended to the URL in addition.
+
+**Request details in delivery logs**
+
+Every delivery log stores the exact headers sent and the fully resolved URL (including all query parameters), so you can inspect precisely what was dispatched.
 
 = REST API Access with Token Authentication =
 
@@ -188,6 +234,7 @@ Send webhooks only when your conditions are met — filter by payload field valu
 Each webhook can have one or more conditions evaluated against the incoming payload:
 
 - Match against string, number, boolean, or null values
+- Cast field values to number, string, or boolean before comparison — enables `greater than` / `less than` on numeric strings (e.g. WooCommerce `"100.50"`)
 - Operators: equals, not equals, contains, starts with, ends with, greater than, less than, empty, not empty
 - AND / OR match type per condition group (Pro)
 - Multiple condition groups with independent match types (Pro)
@@ -196,11 +243,13 @@ Each webhook can have one or more conditions evaluated against the incoming payl
 Free plan: one condition, AND match only.
 Pro plan: unlimited conditions, condition groups, and AND/OR match per group.
 
-= Webhook Actions Pro =
+= Webhook Actions Pro (full feature list) =
 
 Webhook Actions Pro extends the plugin with advanced features for production workflows:
 
 - Unlimited conditions and condition groups with AND/OR logic
+- Type casting in conditions — cast field values to number, string, or boolean before comparison
+- Type casting in payload mapping — cast values before sending to external APIs
 - Per-webhook retry settings — override maximum retry attempts at the webhook level
 - Per-webhook backoff strategy — override retry delay behavior per webhook
 - License managed directly from the Pro tab in the admin panel
@@ -250,6 +299,7 @@ This makes the plugin suitable for production WooCommerce stores and high-throug
 - Works with any WordPress or WooCommerce action
 - Full REST API (`/wp-json/fswa/v1/`) usable from any HTTP client — not just the admin panel
 - API token authentication with scoped access (`read`, `operational`, `full`)
+- Configurable HTTP method, custom headers, and URL query parameters per webhook
 - Fully extensible via filters and actions
 - Clean namespace and unique prefixes
 - Built according to WordPress.org standards
@@ -267,7 +317,9 @@ Webhook Actions by Flow Systems provides:
 - Permanent failure state handling
 - Event UUIDs and timestamps
 - Full delivery logging and metrics
+- Configurable HTTP method, custom headers, and URL query parameters per webhook
 - Conditional webhook dispatch
+- Per-webhook synchronous execution — optional inline delivery with automatic queue fallback on failure
 - Test webhook delivery — send a test event instantly or via queue without triggering real WordPress events
 - REST API with token authentication for programmatic access
 - Action Scheduler support for reliable background processing (when available)
@@ -280,9 +332,10 @@ Built for developers who need production-grade automation reliability.
 = Available Filters =
 
 - `fswa_should_dispatch` – Decide if a trigger should dispatch
-- `fswa_payload` – Customize webhook payload
+- `fswa_payload` – Customize webhook payload before dispatch
+- `fswa_capture_payload` – Modify the payload just before it is stored as the captured example (does not affect the dispatched payload); args: `$payload`, `$webhookId`, `$trigger`
 - `fswa_normalize_object` – Normalize a third-party object into an array for payload serialization
-- `fswa_headers` – Add custom HTTP headers
+- `fswa_headers` – Add or modify HTTP headers sent with the request
 - `fswa_require_https` – Toggle HTTPS requirement
 - `fswa_max_attempts` – Configure maximum retry attempts
 - `fswa_backoff_delay` – Customize retry backoff delay in seconds
@@ -299,6 +352,7 @@ Built for developers who need production-grade automation reliability.
 - `fswa_error` – Fired after webhook delivery failure
 - `fswa_skipped` – Fired when a webhook dispatch is skipped due to a failed condition
 - `fswa_webhook_saved` – Fired after a webhook is created or updated
+- `fswa_webhook_response` – Fired after an HTTP response is received (success or error); args: `$webhookId`, `$trigger`, `$responseCode`, `$responseBody`, `$payload`, `$webhook`
 
 = Admin UX Improvements =
 
@@ -359,7 +413,7 @@ Failed webhooks are automatically retried using exponential backoff. The delay i
 = Can I replay webhook events? =
 
 Yes. Every webhook delivery is logged with its payload and attempt history.
-You can replay any event directly from the logs, which is useful for debugging integrations or re-running automation workflows.
+You can replay successful events and condition-skipped events directly from the logs — useful for debugging integrations, re-running automation workflows, or re-evaluating a skipped event after you've changed the webhook's conditions.
 
 = What is Payload Mapping? =
 
@@ -391,8 +445,34 @@ Yes. Each webhook can have conditions evaluated against the incoming payload bef
 6. Queue status overview
 7. Settings configuration screen
 8. REST API Tokens configuration screen
+9. Conditional webhook dispatch — conditions editor
+10. Test webhook drawer — send a test delivery and inspect request details inline
 
 == Changelog ==
+
+= 1.10.0 — 2026-05-03 =
+- Added per-webhook synchronous execution mode — when enabled, the webhook fires inline during the WordPress request that triggers it, bypassing the queue; a warning dialog explains the performance impact before enabling; dismissal can be stored permanently per-browser
+- First synchronous attempt runs blocking in the current request; retryable failures (5xx, transport errors) automatically fall back to the async queue starting at attempt 2 with standard exponential backoff; non-retryable failures (4xx) are marked permanently failed immediately
+- Added sync execution toggle to the Webhooks list view — enable or disable per webhook without opening the edit screen
+- Added Request Headers and Query Parameters sections to delivery log details — inspect the exact headers and URL parameters sent with each delivery
+- Added collapsible Request Payload and Original Payload sections in delivery log details — collapse state is persisted in browser storage so the panel opens in the same state on next visit
+- Fixed GET and DELETE webhooks not including custom headers or URL parameters in deliveries
+- Added replay support for skipped (condition-failed) log entries — re-evaluate a previously skipped event after changing the webhook's conditions
+
+= 1.9.0 — 2026-05-03 =
+- Added configurable HTTP method per webhook — choose GET, POST, PUT, PATCH, or DELETE (default: POST)
+- Added custom request headers per webhook — define key/value pairs sent with every delivery; values support dot-notation paths resolved against the outgoing payload
+- Added URL query parameters per webhook — appended to the endpoint URL; for GET and DELETE requests, query params are the primary payload transport (no body); a full `?payload=` fallback is used when no params are configured
+- Added `fswa_capture_payload` filter — modify or enrich the payload stored as the captured example without affecting what is dispatched; designed for Pro extensions and custom PHP snippets
+- Added `fswa_webhook_response` action — fires after every HTTP response is received per webhook; intended for Pro extensions to run custom logic against the response (parse body, trigger follow-up actions, store data)
+- Added `request_headers` and `request_url` columns to delivery logs — the exact headers sent and the fully resolved URL (with query params applied) are now stored and visible in the delivery log
+- Improved test webhook drawer — defaults to "Captured + Mapping" payload source; result panel now shows HTTP method, fully resolved endpoint URL, sent headers, and request body
+
+= 1.8.0 — 2026-04-28 =
+- Added type casting in Conditions — cast field values to number, string, or boolean before comparison; enables greater than / less than on numeric strings (e.g. WooCommerce price "100.50")
+- Added type casting in Payload Mapping — cast field values before sending to external APIs
+- Added `X-Webhook-Id` request header — sent with every delivery; carries the webhook's stable UUID so downstream systems can identify which webhook configuration triggered the request when multiple webhooks share the same endpoint
+- Fixed test webhook result label — now reflects actual HTTP status: 2xx = Success, 3xx = Redirect, 4xx = Client Error, 5xx = Server Error (previously all completed deliveries showed green "Success")
 
 = 1.7.0 — 2026-04-27 =
 - Added "Test Webhook" delivery with run-now and queue modes — test webhook delivery without triggering real WordPress events
@@ -493,6 +573,15 @@ Yes. Each webhook can have conditions evaluated against the incoming payload bef
 - Logging of webhook deliveries
 
 == Upgrade Notice ==
+
+= 1.10.0 =
+Adds per-webhook synchronous execution, delivery log details improvements (request headers, query parameters, collapsible payloads), a fix for GET/DELETE webhooks not sending custom headers or URL params, and replay support for condition-skipped log entries. Database migration runs automatically — adds `is_synchronous` to the webhooks table. No manual steps required.
+
+= 1.9.0 =
+Adds configurable HTTP method, custom headers, and URL query parameters per webhook. Database migration runs automatically — adds `http_method`, `custom_headers`, `url_params` to the webhooks table and `request_headers`, `request_url` to the logs table. No manual steps required.
+
+= 1.8.0 =
+Adds type casting in Conditions and Payload Mapping — cast string values to number, string, or boolean before comparison or before sending to an API. Fixes test webhook result labels to correctly reflect HTTP status codes. No database changes.
 
 = 1.7.0 =
 Adds test webhook delivery (run-now or via queue without triggering real events) and conditional dispatch — filter webhooks by payload field values before they fire. No database changes.

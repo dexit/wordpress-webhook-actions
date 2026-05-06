@@ -30,7 +30,7 @@ const singleTrigger = computed(() => triggers.value.length === 1)
 
 watch(() => props.open, (open) => {
   if (open) {
-    source.value = 'captured'
+    source.value = 'mapped'
     selectedTrigger.value = triggers.value[0] ?? ''
     customPayload.value = '{\n  \n}'
     result.value = null
@@ -82,9 +82,17 @@ const viewLog = () => {
   router.push(`/webhooks/${props.webhook.id}/logs`)
 }
 
-const nowSuccess = computed(() => result.value?.mode === 'now' && result.value?.log?.status === 'test')
-const nowFailed  = computed(() => result.value?.mode === 'now' && result.value?.log?.status !== 'test')
-const queued     = computed(() => result.value?.mode === 'queue')
+const queued = computed(() => result.value?.mode === 'queue')
+
+const nowStatus = computed(() => {
+  if (result.value?.mode !== 'now') return null
+  const code = result.value?.log?.http_code
+  if (!code)                        return { label: 'Failed',       icon: XCircle,       bar: 'bg-red-50    dark:bg-red-950    text-red-800    dark:text-red-300    border-b border-red-200    dark:border-red-800'    }
+  if (code >= 200 && code < 300)    return { label: 'Success',      icon: CheckCircle2,  bar: 'bg-green-50  dark:bg-green-950  text-green-800  dark:text-green-300  border-b border-green-200  dark:border-green-800'  }
+  if (code >= 300 && code < 400)    return { label: 'Redirect',     icon: AlertTriangle, bar: 'bg-yellow-50 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-300 border-b border-yellow-200 dark:border-yellow-800' }
+  if (code >= 400 && code < 500)    return { label: 'Client Error', icon: AlertTriangle, bar: 'bg-orange-50 dark:bg-orange-950 text-orange-800 dark:text-orange-300 border-b border-orange-200 dark:border-orange-800' }
+  return                                   { label: 'Server Error', icon: XCircle,       bar: 'bg-red-50    dark:bg-red-950    text-red-800    dark:text-red-300    border-b border-red-200    dark:border-red-800'    }
+})
 
 const formatJson = (data) => {
   if (!data) return null
@@ -179,32 +187,43 @@ const formatJson = (data) => {
           <!-- Inline result (Run Now) -->
           <div v-if="result?.mode === 'now'" class="rounded-md border overflow-hidden">
             <!-- Status bar -->
-            <div
-              :class="[
-                'flex items-center gap-2 px-3 py-2 text-sm font-medium',
-                nowSuccess
-                  ? 'bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-300 border-b border-green-200 dark:border-green-800'
-                  : 'bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-300 border-b border-red-200 dark:border-red-800',
-              ]"
-            >
-              <CheckCircle2 v-if="nowSuccess" class="h-4 w-4 shrink-0" />
-              <XCircle v-else class="h-4 w-4 shrink-0" />
-              <span>{{ nowSuccess ? 'Success' : 'Failed' }}</span>
+            <div :class="['flex items-center gap-2 px-3 py-2 text-sm font-medium', nowStatus.bar]">
+              <component :is="nowStatus.icon" class="h-4 w-4 shrink-0" />
+              <span>{{ nowStatus.label }}</span>
               <span v-if="result.log?.http_code" class="font-mono text-xs opacity-70">HTTP {{ result.log.http_code }}</span>
               <span v-if="result.log?.duration_ms" class="text-xs opacity-70 ml-auto">{{ result.log.duration_ms }}ms</span>
             </div>
+            <!-- Request details -->
+            <div class="p-3 border-b border-border">
+              <div class="text-xs text-muted-foreground mb-1.5">Request</div>
+              <div class="flex items-start gap-1.5 mb-2">
+                <span class="text-xs font-mono font-semibold bg-muted px-1.5 py-0.5 rounded shrink-0">{{ result.log?.http_method ?? 'POST' }}</span>
+                <span class="text-xs font-mono text-muted-foreground break-all">{{ result.log?.request_url ?? result.log?.target_url }}</span>
+              </div>
+              <div v-if="result.log?.request_headers && Object.keys(result.log.request_headers).length" class="mb-2">
+                <div class="text-xs text-muted-foreground mb-1">Headers</div>
+                <div class="bg-muted rounded p-2 space-y-0.5">
+                  <div v-for="(val, key) in result.log.request_headers" :key="key" class="flex gap-2 text-xs font-mono">
+                    <span class="text-muted-foreground shrink-0">{{ key }}:</span>
+                    <span class="break-all">{{ val }}</span>
+                  </div>
+                </div>
+              </div>
+              <pre v-if="result.log?.request_payload" class="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-48 whitespace-pre-wrap break-all">{{ formatJson(result.log.request_payload) }}</pre>
+              <span v-else class="text-xs text-muted-foreground italic">No body sent</span>
+            </div>
             <!-- Response body -->
-            <div v-if="result.log?.response_body" class="p-3">
+            <div v-if="result.log?.response_body" class="p-3 border-b border-border">
               <div class="text-xs text-muted-foreground mb-1">Response</div>
               <pre class="text-xs font-mono bg-muted rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">{{ formatJson(result.log.response_body) }}</pre>
             </div>
             <!-- Error -->
-            <div v-if="result.log?.error_message && !nowSuccess" class="p-3">
+            <div v-if="result.log?.error_message && nowStatus.label !== 'Success'" class="p-3 border-b border-border">
               <div class="text-xs text-muted-foreground mb-1">Error</div>
               <div class="text-xs font-mono text-destructive break-all">{{ result.log.error_message }}</div>
             </div>
             <!-- View in logs -->
-            <div class="px-3 py-2 border-t border-border">
+            <div class="px-3 py-2">
               <button class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors flex items-center gap-1" @click="viewLog">
                 View full log
                 <ExternalLink class="h-3 w-3" />

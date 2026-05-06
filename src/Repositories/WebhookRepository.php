@@ -64,6 +64,9 @@ class WebhookRepository {
       $webhook['conditions'] = !empty($webhook['conditions'])
         ? json_decode($webhook['conditions'], true)
         : null;
+      $webhook['is_synchronous'] = (bool) $webhook['is_synchronous'];
+      $webhook['custom_headers'] = !empty($webhook['custom_headers']) ? json_decode($webhook['custom_headers'], true) : [];
+      $webhook['url_params']     = !empty($webhook['url_params'])     ? json_decode($webhook['url_params'], true)     : [];
     }
 
     return $webhooks;
@@ -104,11 +107,90 @@ class WebhookRepository {
 
     $webhook['triggers'] = $triggers ?: [];
     $webhook['is_enabled'] = (bool) $webhook['is_enabled'];
+    $webhook['is_synchronous'] = (bool) ($webhook['is_synchronous'] ?? false);
     $webhook['conditions'] = !empty($webhook['conditions'])
       ? json_decode($webhook['conditions'], true)
       : null;
+    $webhook['custom_headers'] = !empty($webhook['custom_headers']) ? json_decode($webhook['custom_headers'], true) : [];
+    $webhook['url_params']     = !empty($webhook['url_params'])     ? json_decode($webhook['url_params'], true)     : [];
 
     return $this->castRow($webhook);
+  }
+
+  /**
+   * Get a map of webhook_id => webhook_uuid for a set of IDs
+   *
+   * @param int[] $ids
+   * @return array<int, string>
+   */
+  public function getUuidMap(array $ids): array {
+    if (empty($ids)) {
+      return [];
+    }
+
+    global $wpdb;
+
+    $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $rows = $wpdb->get_results(
+      $wpdb->prepare(
+        "SELECT id, webhook_uuid FROM {$this->webhooksTable} WHERE id IN ({$placeholders})",
+        ...$ids
+      ),
+      ARRAY_A
+    );
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
+    $map = [];
+    foreach ($rows as $row) {
+      $map[(int) $row['id']] = $row['webhook_uuid'];
+    }
+
+    return $map;
+  }
+
+  /**
+   * Find a webhook by its UUID (exact match)
+   *
+   * @param string $uuid
+   * @return array|null
+   */
+  public function findByUuid(string $uuid): ?array {
+    global $wpdb;
+
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $webhook = $wpdb->get_row(
+      $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        "SELECT * FROM {$this->webhooksTable} WHERE webhook_uuid = %s",
+        $uuid
+      ),
+      ARRAY_A
+    );
+
+    return $webhook ?: null;
+  }
+
+  /**
+   * Find webhook IDs whose UUID contains the given partial string
+   *
+   * @param string $partial
+   * @return int[]
+   */
+  public function findIdsByUuidPartial(string $partial): array {
+    global $wpdb;
+
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $ids = $wpdb->get_col(
+      $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        "SELECT id FROM {$this->webhooksTable} WHERE webhook_uuid LIKE %s",
+        '%' . $wpdb->esc_like($partial) . '%'
+      )
+    );
+
+    return array_map('intval', $ids ?: []);
   }
 
   /**
@@ -152,6 +234,11 @@ class WebhookRepository {
       $webhook['conditions'] = !empty($webhook['conditions'])
         ? json_decode($webhook['conditions'], true)
         : null;
+      $webhook['triggers']       = $triggers ?: [];
+      $webhook['is_enabled']     = (bool) $webhook['is_enabled'];
+      $webhook['is_synchronous'] = (bool) ($webhook['is_synchronous'] ?? false);
+      $webhook['custom_headers'] = !empty($webhook['custom_headers']) ? json_decode($webhook['custom_headers'], true) : [];
+      $webhook['url_params']     = !empty($webhook['url_params'])     ? json_decode($webhook['url_params'], true)     : [];
     }
 
     return $webhooks;
@@ -186,8 +273,17 @@ class WebhookRepository {
         'conditions' => isset($data['conditions'])
           ? (is_array($data['conditions']) ? wp_json_encode($data['conditions']) : $data['conditions'])
           : null,
+        'webhook_uuid'   => wp_generate_uuid4(),
+        'name'           => $data['name'],
+        'endpoint_url'   => $data['endpoint_url'],
+        'http_method'    => strtoupper($data['http_method'] ?? 'POST'),
+        'custom_headers' => !empty($data['custom_headers']) ? wp_json_encode($data['custom_headers']) : null,
+        'url_params'     => !empty($data['url_params']) ? wp_json_encode($data['url_params']) : null,
+        'auth_header'    => $data['auth_header'] ?? null,
+        'is_enabled'     => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
+        'is_synchronous' => isset($data['is_synchronous']) ? (int)(bool)$data['is_synchronous'] : 0,
       ],
-      ['%s', '%s', '%s', '%d']
+      ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d']
     );
 
     if (!$result) {
@@ -245,6 +341,26 @@ class WebhookRepository {
         ? (is_array($data['conditions']) ? wp_json_encode($data['conditions']) : $data['conditions'])
         : null;
       $format[] = '%s';
+    }
+
+    if (isset($data['http_method'])) {
+      $updateData['http_method'] = strtoupper($data['http_method']);
+      $format[] = '%s';
+    }
+
+    if (array_key_exists('custom_headers', $data)) {
+      $updateData['custom_headers'] = !empty($data['custom_headers']) ? wp_json_encode($data['custom_headers']) : null;
+      $format[] = '%s';
+    }
+
+    if (array_key_exists('url_params', $data)) {
+      $updateData['url_params'] = !empty($data['url_params']) ? wp_json_encode($data['url_params']) : null;
+      $format[] = '%s';
+    }
+
+    if (isset($data['is_synchronous'])) {
+      $updateData['is_synchronous'] = (int)(bool)$data['is_synchronous'];
+      $format[] = '%d';
     }
 
     if (!empty($updateData)) {

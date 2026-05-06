@@ -157,19 +157,72 @@ class Dispatcher {
         $eventTimestamp
       );
 
-      $this->queueService->enqueue(
-        $webhookId,
-        $trigger,
-        [
-          'webhook'          => $webhook,
-          'payload'          => $transformedPayload,
-          'log_id'           => $logId,
-          'mapping_applied'  => $mappingApplied,
-          'original_payload' => $originalPayload,
-        ],
-        null,
-        $logId ?: null
-      );
+      if (!empty($webhook['is_synchronous'])) {
+        // Attempt 0 runs inline, blocking the current WP request
+        $result = $this->sendToWebhook(
+          $webhook,
+          $transformedPayload,
+          $trigger,
+          $logId,
+          0,
+          false,
+          $originalPayload ?: null
+        );
+
+        if ($result['shouldRetry']) {
+          // Retryable failure — hand off to queue starting at attempt 1
+          // First retry delay mirrors rescheduleWithBackoff() for attempt 1: min(2^1 * 30, 3600)
+          $firstRetryDelay = max(1, (int) apply_filters('fswa_backoff_delay', min(pow(2, 1) * 30, 3600), 1, $webhookId));
+          $retryAt = new \DateTime('now', new \DateTimeZone('UTC'));
+          $retryAt->modify("+{$firstRetryDelay} seconds");
+
+          $this->queueService->enqueue(
+            $webhookId,
+            $trigger,
+            [
+              'webhook'          => $webhook,
+              'payload'          => $transformedPayload,
+              'log_id'           => $logId,
+              'mapping_applied'  => $mappingApplied,
+              'original_payload' => $originalPayload,
+            ],
+            $retryAt,
+            $logId ?: null,
+            false,
+            1
+          );
+
+          if ($logId) {
+            $this->logService->updateLog($logId, [
+              'status'          => 'retry',
+              'next_attempt_at' => $retryAt->format('Y-m-d H:i:s'),
+            ]);
+          }
+        } elseif (!$result['success']) {
+          // Non-retryable failure (4xx, config error) — mark permanently failed
+          if ($logId) {
+            $this->logService->updateLog($logId, [
+              'status'          => 'permanently_failed',
+              'next_attempt_at' => null,
+            ]);
+          }
+        }
+        // Success: log already updated to 'success' by sendToWebhook()
+      } else {
+        $this->queueService->enqueue(
+          $webhookId,
+          $trigger,
+          [
+            'webhook'          => $webhook,
+            'payload'          => $transformedPayload,
+            'log_id'           => $logId,
+            'mapping_applied'  => $mappingApplied,
+            'original_payload' => $originalPayload,
+          ],
+          null,
+          $logId ?: null
+        );
+      }
     }
 
     // Capture example payloads for disabled webhooks so mapping and conditions
@@ -309,7 +362,7 @@ class Dispatcher {
     $attemptNumber = (int) ($job['attempts'] ?? 0);
     $isTest        = (bool) ($job['is_test'] ?? false);
 
-    return $this->sendToWebhook($webhook, $payload, $trigger, $logId, $attemptNumber, $isTest);
+    return $this->sendToWebhook($webhook, $payload, $trigger, $logId, $attemptNumber, $isTest, $originalPayload ?: null);
   }
 
   /**
@@ -345,7 +398,8 @@ class Dispatcher {
     string $trigger,
     ?int $logId = null,
     int $attemptNumber = 0,
-    bool $isTest = false
+    bool $isTest = false,
+    ?array $originalPayload = null
   ): array {
     if (empty($webhook['endpoint_url']) || !is_string($webhook['endpoint_url'])) {
       return ['success' => false, 'shouldRetry' => false];
@@ -373,6 +427,7 @@ class Dispatcher {
     // Add event identity headers before fswa_headers filter
     $headers['X-Event-Id']        = $payload['event']['id'] ?? '';
     $headers['X-Event-Timestamp'] = $payload['event']['timestamp'] ?? '';
+    $headers['X-Webhook-Id']      = $webhook['webhook_uuid'] ?? '';
 
     /**
      * Filter the HTTP headers sent with the webhook request.
@@ -383,8 +438,34 @@ class Dispatcher {
      */
     $headers = apply_filters('fswa_headers', $headers, $webhook, $trigger);
 
+    $method = strtoupper($webhook['http_method'] ?? 'POST');
+    $resolveAgainst = $originalPayload ?? $payload;
+
+    // Merge custom headers (values resolved against pre-mapping payload, falling back to literal)
+    foreach ($webhook['custom_headers'] ?? [] as $pair) {
+      if (!empty($pair['key'])) {
+        $resolved = $this->payloadTransformer->getValueByPath($resolveAgainst, $pair['value'] ?? '');
+        $headers[$pair['key']] = ($resolved !== null) ? (string) $resolved : ($pair['value'] ?? '');
+      }
+    }
+
+    // Build URL with query params
+    $noBodyMethods = ['GET', 'DELETE'];
+    if (!empty($webhook['url_params'])) {
+      $queryArgs = [];
+      foreach ($webhook['url_params'] as $pair) {
+        if (!empty($pair['key'])) {
+          $resolved = $this->payloadTransformer->getValueByPath($resolveAgainst, $pair['value'] ?? '');
+          $queryArgs[$pair['key']] = ($resolved !== null) ? (string) $resolved : ($pair['value'] ?? '');
+        }
+      }
+      $url = add_query_arg($queryArgs, $url);
+    } elseif (in_array($method, $noBodyMethods, true)) {
+      $url = add_query_arg('payload', rawurlencode(wp_json_encode($payload)), $url);
+    }
+
     $startTime = microtime(true);
-    $result = $this->transport->send($url, $payload, $headers);
+    $result = $this->transport->send($url, $payload, $headers, $method);
     $durationMs = (int) ((microtime(true) - $startTime) * 1000);
 
     // Build a context for action templates. Mirrors the 'received' shape but for dispatch.
@@ -405,7 +486,7 @@ class Dispatcher {
 
     if (is_wp_error($result)) {
       $errorMessage = $result->get_error_message();
-      $this->logError($trigger, $url, (string) $errorMessage, $webhookId, $payload, null, null, $durationMs, $logId, $isTest);
+      $this->logError($trigger, $url, (string) $errorMessage, $webhookId, $payload, null, null, $durationMs, $logId, $isTest, $headers);
 
       if ($logId !== null) {
         $this->logService->appendAttemptHistory($logId, [
@@ -446,10 +527,10 @@ class Dispatcher {
     $shouldRetry = !$isTest && !$success && ($responseCode >= 500 || $responseCode === 429);
 
     if ($success) {
-      $this->logSuccess($trigger, $url, $payload, $result, $webhookId, $durationMs, $logId, $isTest);
+      $this->logSuccess($trigger, $url, $payload, $result, $webhookId, $durationMs, $logId, $isTest, $headers);
     } else {
       $errorMessage = sprintf("HTTP %d: %s", $responseCode, (string) $responseBody);
-      $this->logError($trigger, $url, $errorMessage, $webhookId, $payload, $responseCode, $responseBody, $durationMs, $logId, $isTest);
+      $this->logError($trigger, $url, $errorMessage, $webhookId, $payload, $responseCode, $responseBody, $durationMs, $logId, $isTest, $headers);
     }
 
     if ($logId !== null) {
@@ -487,6 +568,20 @@ class Dispatcher {
         ActionRunner::run($actions, 'dispatched_any', $responseContext);
       }
     }
+    /**
+     * Fires after a webhook HTTP response is received.
+     * Use this to process the response per-webhook — e.g. parse the body,
+     * trigger follow-up actions, or store data from the remote system.
+     * Fires for both success and error HTTP responses (not transport failures).
+     *
+     * @param int    $webhookId    The webhook ID.
+     * @param string $trigger      The trigger event name.
+     * @param int    $responseCode The HTTP response code.
+     * @param string $responseBody The raw response body.
+     * @param array  $payload      The payload that was sent.
+     * @param array  $webhook      The full webhook configuration.
+     */
+    do_action('fswa_webhook_response', $webhookId, $trigger, $responseCode, $responseBody, $payload, $webhook);
 
     if ($success) {
       /**
@@ -696,17 +791,20 @@ class Dispatcher {
     ?string $responseBody = null,
     ?int $durationMs = null,
     ?int $logId = null,
-    bool $isTest = false
+    bool $isTest = false,
+    ?array $headers = null
   ): void {
     $status = $isTest ? 'test' : 'error';
     if ($webhookId > 0) {
       if ($logId !== null) {
         $this->logService->updateLog($logId, [
-          'status'        => $status,
-          'http_code'     => $httpCode,
-          'response_body' => $responseBody,
-          'error_message' => $error,
-          'duration_ms'   => $durationMs,
+          'status'          => $status,
+          'http_code'       => $httpCode,
+          'response_body'   => $responseBody,
+          'error_message'   => $error,
+          'duration_ms'     => $durationMs,
+          'request_headers' => $headers,
+          'request_url'     => $url,
         ]);
       } else {
         $this->logService->logError(
@@ -742,7 +840,8 @@ class Dispatcher {
     int $webhookId = 0,
     int $durationMs = 0,
     ?int $logId = null,
-    bool $isTest = false
+    bool $isTest = false,
+    ?array $headers = null
   ): void {
     $responseCode = wp_remote_retrieve_response_code($response);
     $responseBody = wp_remote_retrieve_body($response);
@@ -751,10 +850,12 @@ class Dispatcher {
     if ($webhookId > 0) {
       if ($logId !== null) {
         $this->logService->updateLog($logId, [
-          'status'        => $status,
-          'http_code'     => (int) $responseCode,
-          'response_body' => (string) $responseBody,
-          'duration_ms'   => $durationMs,
+          'status'          => $status,
+          'http_code'       => (int) $responseCode,
+          'response_body'   => (string) $responseBody,
+          'duration_ms'     => $durationMs,
+          'request_headers' => $headers,
+          'request_url'     => $url,
         ]);
       } else {
         $this->logService->logSuccess(

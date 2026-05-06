@@ -219,6 +219,10 @@ class WebhooksController extends WP_REST_Controller {
    //   'is_enabled'  => (bool) $request->get_param('is_enabled'),
     //  'triggers'    => $request->get_param('triggers') ?? [],
       'conditions'  => $this->sanitizeConditions($request->get_param('conditions')),
+      'http_method'    => strtoupper(sanitize_text_field($request->get_param('http_method') ?? 'POST')),
+      'custom_headers'  => $this->sanitizeKvArray($request->get_param('custom_headers') ?? []),
+      'url_params'      => $this->sanitizeKvArray($request->get_param('url_params') ?? []),
+      'is_synchronous'  => (bool) $request->get_param('is_synchronous'),
     ];
 
     // Validate
@@ -321,6 +325,20 @@ class WebhooksController extends WP_REST_Controller {
       $data['actions_config'] = is_array($request->get_param('actions_config')) ? $request->get_param('actions_config') : [];
     if ($request->has_param('conditions')) {
       $data['conditions'] = $this->sanitizeConditions($request->get_param('conditions'));
+    if ($request->has_param('http_method')) {
+      $data['http_method'] = strtoupper(sanitize_text_field($request->get_param('http_method')));
+    }
+
+    if ($request->has_param('custom_headers')) {
+      $data['custom_headers'] = $this->sanitizeKvArray($request->get_param('custom_headers') ?? []);
+    }
+
+    if ($request->has_param('url_params')) {
+      $data['url_params'] = $this->sanitizeKvArray($request->get_param('url_params') ?? []);
+    }
+
+    if ($request->has_param('is_synchronous')) {
+      $data['is_synchronous'] = (bool) $request->get_param('is_synchronous');
     }
 
     $result = $this->repository->update($id, $data);
@@ -493,7 +511,7 @@ class WebhooksController extends WP_REST_Controller {
 
     if ($mode === 'now') {
       $dispatcher = new Dispatcher(new WPHttpTransport(), $this->queueService);
-      $dispatcher->sendToWebhook($webhook, $testPayload, $trigger, $logId, 0, true);
+      $dispatcher->sendToWebhook($webhook, $testPayload, $trigger, $logId, 0, true, $originalPayload ?? null);
 
       $log = $this->logService->getRepository()->find($logId);
 
@@ -524,6 +542,20 @@ class WebhooksController extends WP_REST_Controller {
       'job_id' => $jobId,
       'log_id' => $logId,
     ]);
+  }
+
+  private function sanitizeKvArray(array $pairs): array {
+    return array_values(array_filter(
+      array_map(function ($pair) {
+        if (!is_array($pair) || empty($pair['key'])) return null;
+        $key = sanitize_text_field($pair['key']);
+        if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $key)) return null;
+        return [
+          'key'   => $key,
+          'value' => sanitize_text_field($pair['value'] ?? ''),
+        ];
+      }, $pairs)
+    ));
   }
 
   /**
@@ -576,11 +608,48 @@ class WebhooksController extends WP_REST_Controller {
           'type' => 'string',
           'context' => ['view', 'edit'],
         ],
+        'http_method' => [
+          'description' => __('HTTP method used for delivery.', 'flowsystems-webhook-actions'),
+          'type'        => 'string',
+          'enum'        => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+          'default'     => 'POST',
+          'context'     => ['view', 'edit'],
+        ],
+        'custom_headers' => [
+          'description' => __('Extra request headers as key-value pairs.', 'flowsystems-webhook-actions'),
+          'type'        => 'array',
+          'context'     => ['view', 'edit'],
+          'items'       => [
+            'type'       => 'object',
+            'properties' => [
+              'key'   => ['type' => 'string'],
+              'value' => ['type' => 'string'],
+            ],
+          ],
+        ],
+        'url_params' => [
+          'description' => __('Query parameters appended to the URL.', 'flowsystems-webhook-actions'),
+          'type'        => 'array',
+          'context'     => ['view', 'edit'],
+          'items'       => [
+            'type'       => 'object',
+            'properties' => [
+              'key'   => ['type' => 'string'],
+              'value' => ['type' => 'string'],
+            ],
+          ],
+        ],
         'is_enabled' => [
           'description' => __('Whether the webhook is enabled.', 'flowsystems-webhook-actions'),
           'type' => 'boolean',
           'context' => ['view', 'edit'],
           'default' => true,
+        ],
+        'is_synchronous' => [
+          'description' => __('Whether the webhook executes synchronously (blocking, bypasses queue).', 'flowsystems-webhook-actions'),
+          'type' => 'boolean',
+          'context' => ['view', 'edit'],
+          'default' => false,
         ],
         'triggers' => [
           'description' => __('List of trigger actions.', 'flowsystems-webhook-actions'),

@@ -35,13 +35,19 @@ class Activation {
     // Webhooks table
     $sqlWebhooks = "CREATE TABLE {$webhooksTable} (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            webhook_uuid VARCHAR(36) NOT NULL DEFAULT '',
             name VARCHAR(255) NOT NULL,
             endpoint_url VARCHAR(2048) NOT NULL,
+            http_method VARCHAR(10) NOT NULL DEFAULT 'POST',
+            custom_headers TEXT NULL,
+            url_params TEXT NULL,
             auth_header VARCHAR(1024) DEFAULT NULL,
             is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+            is_synchronous TINYINT(1) NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
+            UNIQUE KEY idx_webhook_uuid (webhook_uuid),
             KEY idx_enabled (is_enabled)
         ) {$charsetCollate};";
 
@@ -69,6 +75,8 @@ class Activation {
             request_payload LONGTEXT,
             original_payload LONGTEXT DEFAULT NULL,
             mapping_applied TINYINT(1) NOT NULL DEFAULT 0,
+            request_headers TEXT DEFAULT NULL,
+            request_url TEXT DEFAULT NULL,
             response_body LONGTEXT,
             error_message TEXT,
             duration_ms INT UNSIGNED DEFAULT NULL,
@@ -147,7 +155,7 @@ class Activation {
 
     dbDelta($sqlApiTokens);
 
-    update_option('fswa_db_version', '1.4.1');
+    update_option('fswa_db_version', '1.11.0');
   }
 
   /**
