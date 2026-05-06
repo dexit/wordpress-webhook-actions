@@ -155,7 +155,7 @@ class Activation {
 
     dbDelta($sqlApiTokens);
 
-    update_option('fswa_db_version', '1.11.0');
+    update_option('fswa_db_version', '1.10.0');
   }
 
   /**
