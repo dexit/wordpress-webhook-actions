@@ -9,6 +9,8 @@ import {
   Clock,
   KeyRound,
   Sparkles,
+  Inbox,
+  GitMerge,
 } from 'lucide-vue-next';
 import { useTheme } from './composables/useTheme';
 import { usePro } from './composables/usePro';
@@ -20,6 +22,8 @@ const { proActive } = usePro();
 
 const navItems = [
   { path: '/webhooks', label: 'Webhooks', icon: Webhook },
+  { path: '/endpoints', label: 'Endpoints', icon: Inbox },
+  { path: '/dto', label: 'Pipelines', icon: GitMerge },
   { path: '/logs', label: 'Logs', icon: ScrollText },
   { path: '/queue', label: 'Queue', icon: Clock },
   { path: '/tokens', label: 'API Tokens', icon: KeyRound },

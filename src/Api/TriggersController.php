@@ -10,6 +10,7 @@ use WP_REST_Response;
 use WP_Error;
 use FlowSystems\WebhookActions\Api\AuthHelper;
 use FlowSystems\WebhookActions\Services\HookDiscoveryService;
+use FlowSystems\WebhookActions\Repositories\IncomingEndpointRepository;
 
 class TriggersController extends WP_REST_Controller {
   protected $namespace = 'fswa/v1';
@@ -45,20 +46,26 @@ class TriggersController extends WP_REST_Controller {
    * @return array
    */
   private function getAvailableTriggers(): array {
-    $excluded = $this->getExcludedHookPatterns();
+    $excluded   = $this->getExcludedHookPatterns();
     $categories = $this->getCategories();
-    $grouped = [];
-    $seen = [];
+    $grouped    = [];
+    $seen       = [];
+
+    // Incoming endpoint triggers (fswa_endpoint_{slug}) — highest priority
+    foreach ($this->getEndpointTriggers() as $trigger) {
+      $grouped['endpoints'][$trigger] = true;
+      $seen[$trigger]                 = true;
+    }
 
     // Runtime-registered hooks ($wp_filter)
     global $wp_filter;
     foreach (array_keys($wp_filter) as $hookName) {
-      if ($this->isExcludedHook($hookName, $excluded)) {
+      if (isset($seen[$hookName]) || $this->isExcludedHook($hookName, $excluded)) {
         continue;
       }
-      $category = $this->detectHookCategory($hookName);
+      $category              = $this->detectHookCategory($hookName);
       $grouped[$category][$hookName] = true;
-      $seen[$hookName] = true;
+      $seen[$hookName]       = true;
     }
 
     // Statically scanned hooks (plugins, themes, WP core)
@@ -71,7 +78,7 @@ class TriggersController extends WP_REST_Controller {
         $categories[$categoryKey] = ucwords(str_replace(['-', '_'], ' ', $slug));
       }
       $grouped[$categoryKey][$hookName] = true;
-      $seen[$hookName] = true;
+      $seen[$hookName]                  = true;
     }
 
     // Convert sets to sorted arrays
@@ -100,10 +107,36 @@ class TriggersController extends WP_REST_Controller {
     $grouped = apply_filters('fswa_available_triggers', $grouped);
 
     return [
-      'grouped' => $grouped,
+      'grouped'    => $grouped,
       'categories' => $categories,
       'allowCustom' => true,
     ];
+  }
+
+  /**
+   * Build hook names for all enabled incoming endpoints.
+   *
+   * Each endpoint fires `fswa_endpoint_{slug}` when it receives a payload.
+   *
+   * @return string[]
+   */
+  private function getEndpointTriggers(): array {
+    try {
+      $repo     = new IncomingEndpointRepository();
+      $all      = $repo->getAll();
+    } catch (\Throwable $e) {
+      return [];
+    }
+
+    $triggers = [];
+    foreach ($all as $endpoint) {
+      $slug = $endpoint['slug'] ?? '';
+      if (!empty($slug)) {
+        $triggers[] = 'fswa_endpoint_' . $slug;
+      }
+    }
+
+    return $triggers;
   }
 
   /**
@@ -221,17 +254,18 @@ class TriggersController extends WP_REST_Controller {
    */
   private function getCategories(): array {
     return [
-      'wordpress' => __('WordPress', 'flowsystems-webhook-actions'),
-      'users' => __('Users', 'flowsystems-webhook-actions'),
-      'posts' => __('Posts', 'flowsystems-webhook-actions'),
-      'pages' => __('Pages', 'flowsystems-webhook-actions'),
-      'comments' => __('Comments', 'flowsystems-webhook-actions'),
-      'taxonomy' => __('Taxonomy', 'flowsystems-webhook-actions'),
-      'media' => __('Media', 'flowsystems-webhook-actions'),
-      'plugins' => __('Plugins', 'flowsystems-webhook-actions'),
-      'options' => __('Options', 'flowsystems-webhook-actions'),
+      'endpoints'   => __('Incoming Endpoints', 'flowsystems-webhook-actions'),
+      'wordpress'   => __('WordPress', 'flowsystems-webhook-actions'),
+      'users'       => __('Users', 'flowsystems-webhook-actions'),
+      'posts'       => __('Posts', 'flowsystems-webhook-actions'),
+      'pages'       => __('Pages', 'flowsystems-webhook-actions'),
+      'comments'    => __('Comments', 'flowsystems-webhook-actions'),
+      'taxonomy'    => __('Taxonomy', 'flowsystems-webhook-actions'),
+      'media'       => __('Media', 'flowsystems-webhook-actions'),
+      'plugins'     => __('Plugins', 'flowsystems-webhook-actions'),
+      'options'     => __('Options', 'flowsystems-webhook-actions'),
       'woocommerce' => __('WooCommerce', 'flowsystems-webhook-actions'),
-      'other' => __('Other', 'flowsystems-webhook-actions'),
+      'other'       => __('Other', 'flowsystems-webhook-actions'),
     ];
   }
 }
