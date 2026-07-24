@@ -1,6 +1,7 @@
 <script setup>
 import { Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Unlink } from 'lucide-vue-next';
 import { Button, Badge, Switch } from '@/components/ui';
+import MarkdownView from '@/components/MarkdownView.vue';
 import { __ } from '@/i18n';
 
 defineProps({
@@ -35,6 +36,8 @@ const emit = defineEmits(['copy', 'toggle', 'toggle-sync', 'logs', 'test', 'edit
           {{ __('Sync') }}
         </Badge>
       </div>
+
+      <MarkdownView v-if="webhook.description" :source="webhook.description" class="mb-2 text-xs" />
 
       <div class="flex items-center gap-1 mb-2">
         <p class="text-xs sm:text-sm text-muted-foreground font-mono truncate">

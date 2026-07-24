@@ -1,10 +1,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Network, Unlink } from 'lucide-vue-next'
+import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Network, Unlink, Download, Upload } from 'lucide-vue-next'
 import { Button, Card, Badge, Switch, Dialog, Checkbox, Input, Label } from '@/components/ui'
 import TestWebhookDrawer from '@/components/TestWebhookDrawer.vue'
 import WebhookCardContent from '@/components/WebhookCardContent.vue'
+import MarkdownView from '@/components/MarkdownView.vue'
+import MarkdownField from '@/components/MarkdownField.vue'
+import ExportDialog from '@/components/ExportDialog.vue'
+import ImportDialog from '@/components/ImportDialog.vue'
 import api from '@/lib/api'
 import { useHealthStats } from '@/composables/useHealthStats'
 import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
@@ -28,9 +32,17 @@ const pendingSyncWebhook = ref(null)
 const pendingDeleteChain = ref(null)
 const pendingRenameChain = ref(null)
 const renameInput = ref('')
+const renameDescInput = ref('')
 const renameError = ref('')
 const renaming = ref(false)
 const testWebhook = ref(null)
+const showExportDialog = ref(false)
+const showImportDialog = ref(false)
+
+const onImported = async () => {
+  showImportDialog.value = false
+  await loadWebhooks()
+}
 
 const loadWebhooks = async () => {
   loading.value = true
@@ -191,6 +203,7 @@ const deleteWebhook = (webhook) => {
 const openRenameChain = (chain) => {
   pendingRenameChain.value = chain
   renameInput.value = chain.name || ''
+  renameDescInput.value = chain.description || ''
   renameError.value = ''
 }
 
@@ -198,18 +211,19 @@ const confirmRenameChain = async () => {
   const chain = pendingRenameChain.value
   if (!chain || renaming.value) return
   const newName = (renameInput.value || '').trim()
+  const newDesc = renameDescInput.value || ''
   if (!newName) {
     renameError.value = __('Name is required.')
     return
   }
-  if (newName === chain.name) {
+  if (newName === chain.name && newDesc === (chain.description || '')) {
     pendingRenameChain.value = null
     return
   }
   renaming.value = true
   renameError.value = ''
   try {
-    await updateChain(chain.id, { name: newName })
+    await updateChain(chain.id, { name: newName, description: newDesc })
     pendingRenameChain.value = null
   } catch (e) {
     renameError.value = e?.message || __('Failed to rename chain.')
@@ -314,23 +328,32 @@ onMounted(loadWebhooks)
       </template>
     </Dialog>
 
-    <!-- Rename Chain Dialog -->
+    <!-- Edit Chain Dialog -->
     <Dialog
       :open="!!pendingRenameChain"
-      :title="__('Rename chain')"
+      :title="__('Edit chain')"
       @close="pendingRenameChain = null"
     >
-      <div class="space-y-2">
-        <Label for="fswa-chain-rename-input">{{ __('Chain name') }}</Label>
-        <Input
-          id="fswa-chain-rename-input"
-          v-model="renameInput"
-          :placeholder="__('My chain')"
-          :disabled="renaming"
-          :class="{ 'border-destructive': renameError }"
-          @keyup.enter="confirmRenameChain"
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <Label for="fswa-chain-rename-input">{{ __('Chain name') }}</Label>
+          <Input
+            id="fswa-chain-rename-input"
+            v-model="renameInput"
+            :placeholder="__('My chain')"
+            :disabled="renaming"
+            :class="{ 'border-destructive': renameError }"
+            @keyup.enter="confirmRenameChain"
+          />
+          <p v-if="renameError" class="text-sm text-destructive">{{ renameError }}</p>
+        </div>
+        <MarkdownField
+          id="fswa-chain-desc-input"
+          v-model="renameDescInput"
+          :label="__('Description (optional)')"
+          :placeholder="__('What does this chain automate? Markdown supported.')"
+          :rows="3"
         />
-        <p v-if="renameError" class="text-sm text-destructive">{{ renameError }}</p>
       </div>
       <template #footer>
         <div class="flex gap-2">
@@ -401,11 +424,33 @@ onMounted(loadWebhooks)
         <h2 class="text-xl font-semibold">{{ __('Webhooks') }}</h2>
         <p class="text-muted-foreground text-sm">{{ __('Trigger webhooks on WordPress events') }}</p>
       </div>
-      <Button @click="router.push('/webhooks/new')" class="self-start sm:self-auto">
-        <Plus class="mr-2 h-4 w-4" />
-        {{ __('Add Webhook') }}
-      </Button>
+      <div class="flex gap-2 self-start sm:self-auto">
+        <Button variant="outline" @click="showImportDialog = true">
+          <Upload class="mr-2 h-4 w-4" />
+          {{ __('Import') }}
+        </Button>
+        <Button variant="outline" :disabled="webhooks.length === 0" @click="showExportDialog = true">
+          <Download class="mr-2 h-4 w-4" />
+          {{ __('Export') }}
+        </Button>
+        <Button @click="router.push('/webhooks/new')">
+          <Plus class="mr-2 h-4 w-4" />
+          {{ __('Add Webhook') }}
+        </Button>
+      </div>
     </div>
+
+    <ExportDialog
+      :open="showExportDialog"
+      :webhooks="webhooks"
+      :chains="chains"
+      @close="showExportDialog = false"
+    />
+    <ImportDialog
+      :open="showImportDialog"
+      @close="showImportDialog = false"
+      @imported="onImported"
+    />
 
     <!-- Loading -->
     <div v-if="loading" class="text-center py-8 text-muted-foreground">
@@ -463,7 +508,7 @@ onMounted(loadWebhooks)
             </Button>
           </div>
         </div>
-        <p v-if="group.chain.description" class="text-xs text-muted-foreground">{{ group.chain.description }}</p>
+        <MarkdownView v-if="group.chain.description" :source="group.chain.description" class="text-xs" />
         <div class="space-y-3 sm:space-y-4">
           <Card
             v-for="webhook in group.webhooks"

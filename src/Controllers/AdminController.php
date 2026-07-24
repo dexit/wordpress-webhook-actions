@@ -18,6 +18,7 @@ use FlowSystems\WebhookActions\Api\ChainsController;
 use FlowSystems\WebhookActions\Api\ActivityLogController;
 use FlowSystems\WebhookActions\Api\CredentialsController;
 use FlowSystems\WebhookActions\Api\AgentController;
+use FlowSystems\WebhookActions\Api\ExportController;
 
 class AdminController {
   public function __construct() {
@@ -202,6 +203,7 @@ class AdminController {
     (new ActivityLogController())->registerRoutes();
     (new CredentialsController())->registerRoutes();
     (new AgentController())->registerRoutes();
+    (new ExportController())->registerRoutes();
   }
 
   /**

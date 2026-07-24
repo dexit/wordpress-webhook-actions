@@ -208,6 +208,7 @@ class WebhooksController extends WP_REST_Controller {
   public function createItem($request) {
     $data = [
       'name'           => sanitize_text_field($request->get_param('name')),
+      'description'    => sanitize_textarea_field($request->get_param('description') ?? ''),
       'endpoint_url'   => $this->sanitizeTemplateUrl($request->get_param('endpoint_url') ?? ''),
       'auth_header'    => sanitize_text_field($request->get_param('auth_header') ?? ''),
       'auth_credential_id' => (int) ($request->get_param('auth_credential_id') ?? 0) ?: null,
@@ -307,6 +308,10 @@ class WebhooksController extends WP_REST_Controller {
 
     if ($request->has_param('name')) {
       $data['name'] = sanitize_text_field($request->get_param('name'));
+    }
+
+    if ($request->has_param('description')) {
+      $data['description'] = sanitize_textarea_field($request->get_param('description') ?? '');
     }
 
     if ($request->has_param('endpoint_url')) {
@@ -711,6 +716,11 @@ class WebhooksController extends WP_REST_Controller {
           'type' => 'string',
           'context' => ['view', 'edit'],
           'required' => true,
+        ],
+        'description' => [
+          'description' => __('Optional markdown description documenting what this webhook does.', 'flowsystems-webhook-actions'),
+          'type' => 'string',
+          'context' => ['view', 'edit'],
         ],
         'endpoint_url' => [
           'description' => __('URL to send the webhook to.', 'flowsystems-webhook-actions'),

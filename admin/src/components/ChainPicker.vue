@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { Input, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Button, Checkbox } from '@/components/ui';
 import { Plus, X } from 'lucide-vue-next';
+import MarkdownField from '@/components/MarkdownField.vue';
 import api from '@/lib/api';
 import { useChains } from '@/composables/useChains';
 import { __, sprintf } from '@/i18n';
@@ -9,7 +10,7 @@ import { __, sprintf } from '@/i18n';
 const props = defineProps({
   modelValue: {
     type: Object,
-    default: () => ({ chain_id: null, new_chain_name: '', source_webhook_ids: [] }),
+    default: () => ({ chain_id: null, new_chain_name: '', new_chain_description: '', source_webhook_ids: [] }),
   },
   currentWebhookId: { type: [Number, String, null], default: null },
 });
@@ -62,6 +63,10 @@ const chainSelectValue = computed({
 
 const updateNewChainName = (e) => {
   emit('update:modelValue', { ...props.modelValue, new_chain_name: e.target.value });
+};
+
+const updateNewChainDescription = (val) => {
+  emit('update:modelValue', { ...props.modelValue, new_chain_description: val });
 };
 
 const currentId = computed(() => {
@@ -131,6 +136,14 @@ const isCreatingNew = computed(() => props.modelValue.chain_id == null);
           :value="modelValue.new_chain_name"
           @input="updateNewChainName"
           :placeholder="__('e.g. Order to HubSpot')"
+        />
+        <MarkdownField
+          id="new-chain-description"
+          :model-value="modelValue.new_chain_description || ''"
+          @update:model-value="updateNewChainDescription"
+          :label="__('Chain description (optional)')"
+          :placeholder="__('What does this chain automate? Markdown supported.')"
+          :rows="3"
         />
       </div>
     </div>

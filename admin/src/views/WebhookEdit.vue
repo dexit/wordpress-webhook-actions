@@ -78,7 +78,10 @@ const loadWebhook = async (silent = false) => {
 const resolveChainId = async (chainCfg) => {
   if (chainCfg.chain_id != null) return Number(chainCfg.chain_id);
   if (chainCfg.new_chain_name) {
-    const created = await createChain({ name: chainCfg.new_chain_name });
+    const created = await createChain({
+      name: chainCfg.new_chain_name,
+      description: chainCfg.new_chain_description || '',
+    });
     return Number(created.id);
   }
   return null;

@@ -206,6 +206,11 @@ export const api = {
     resetCapture: (webhookId, triggerName) => post(`schemas/webhook/${webhookId}/trigger/${encodeURIComponent(encodeURIComponent(triggerName))}/capture`),
     getUserTriggers: () => get('schemas/user-triggers'),
   },
+  builds: {
+    export: (data) => post('export', data),
+    analyze: (document) => post('import/analyze', { document }),
+    import: (data) => post('import', data),
+  },
   chains: {
     list: () => get('chains'),
     get: (id) => get(`chains/${id}`),
