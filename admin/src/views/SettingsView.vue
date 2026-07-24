@@ -15,6 +15,7 @@ const settings = ref({
   menu_under_tools: false,
   activity_log_retention_days: 90,
   ai_trace_enabled: false,
+  ai_debug_enabled: true,
 })
 const info = ref(null)
 const archive = ref(null)
@@ -501,11 +502,19 @@ onMounted(loadData)
 
             <div class="space-y-4">
               <div class="flex items-center space-x-2">
-                <Switch v-model="settings.ai_trace_enabled" />
-                <Label>{{ __('Enable AI Dev Trace') }}</Label>
+                <Switch v-model="settings.ai_debug_enabled" />
+                <Label>{{ __('Log AI Dev Trace') }}</Label>
               </div>
               <p class="text-sm text-muted-foreground">
-                {{ __('Adds a diagnostic panel to Build with AI that records the exact prompts and raw responses exchanged with the AI model. Useful for troubleshooting. API keys are always redacted. Leave this off unless you are debugging.') }}
+                {{ __('Records the exact prompts and raw responses exchanged with the AI model to a protected log file, so support can diagnose a build you report. On by default; API keys are always redacted and entries older than 30 days are pruned automatically. Turn this off if you would rather not keep the log.') }}
+              </p>
+
+              <div class="flex items-center space-x-2 pt-2">
+                <Switch v-model="settings.ai_trace_enabled" />
+                <Label>{{ __('Show AI Dev Trace panel') }}</Label>
+              </div>
+              <p class="text-sm text-muted-foreground">
+                {{ __('Adds a diagnostic panel to Build with AI where you can read and export the recorded trace. Independent of logging above.') }}
               </p>
             </div>
 

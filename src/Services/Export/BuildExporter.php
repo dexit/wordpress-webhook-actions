@@ -80,7 +80,7 @@ class BuildExporter {
       }
     }
 
-    return [
+    $doc = [
       'fswa_export' => [
         'version'        => self::SCHEMA_VERSION,
         'kind'           => $this->resolveKind($webhookDocs, $chainDocs),
@@ -92,6 +92,18 @@ class BuildExporter {
       'webhooks'    => $webhookDocs,
       'chains'      => $chainDocs,
     ];
+
+    /**
+     * Let extensions attach top-level blocks to the export document — e.g. Pro
+     * bolting on an `ai_build` block (Build-with-AI transcript + model) when the
+     * exported objects trace back to an AI Builder conversation. Mirrors the
+     * per-trigger {@see 'fswa_export_trigger'} filter but for the whole document.
+     *
+     * @param array $doc        The full export document.
+     * @param int[] $webhookIds The webhook IDs included in this export.
+     * @param int[] $chainIds   The chain IDs included in this export.
+     */
+    return apply_filters('fswa_export_doc', $doc, $webhookIds, $chainIds);
   }
 
   /**
