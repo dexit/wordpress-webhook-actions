@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Network, Unlink, Download, Upload } from 'lucide-vue-next'
+import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Network, Unlink, Download, Upload, Loader2 } from 'lucide-vue-next'
 import { Button, Card, Badge, Switch, Dialog, Checkbox, Input, Label } from '@/components/ui'
 import TestWebhookDrawer from '@/components/TestWebhookDrawer.vue'
 import WebhookCardContent from '@/components/WebhookCardContent.vue'
@@ -14,6 +14,7 @@ import { useHealthStats } from '@/composables/useHealthStats'
 import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
 import { useSyncWarning } from '@/composables/useSyncWarning'
 import { useChains } from '@/composables/useChains'
+import { useBuildExport } from '@/composables/useBuildExport'
 import { __, _n, sprintf } from '@/i18n'
 
 const { fetchStats: refreshHealthStats } = useHealthStats()
@@ -38,10 +39,59 @@ const renaming = ref(false)
 const testWebhook = ref(null)
 const showExportDialog = ref(false)
 const showImportDialog = ref(false)
+const exportingKey = ref(null)
 
+const { exportBuild } = useBuildExport()
+
+const highlightKey = ref(null)
+
+// Reload the list after import but keep the dialog open so its result panel can
+// offer jump/edit links to the freshly imported items.
 const onImported = async () => {
-  showImportDialog.value = false
   await loadWebhooks()
+}
+
+const onEditWebhook = (id) => {
+  showImportDialog.value = false
+  router.push(`/webhooks/${id}`)
+}
+
+// Close the dialog, then scroll the imported webhook/chain into view and flash it.
+const onFocusItem = async ({ type, id }) => {
+  showImportDialog.value = false
+  const key = `${type}-${id}`
+  await nextTick()
+  const el = document.getElementById(key)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  highlightKey.value = key
+  setTimeout(() => {
+    if (highlightKey.value === key) highlightKey.value = null
+  }, 2500)
+}
+
+const exportWebhook = async (webhook) => {
+  if (exportingKey.value) return
+  exportingKey.value = webhook.id
+  try {
+    await exportBuild({ webhook_ids: [webhook.id] }, webhook.name)
+  } catch (e) {
+    error.value = e?.message || __('Export failed.')
+  } finally {
+    exportingKey.value = null
+  }
+}
+
+const exportChain = async (chain) => {
+  if (exportingKey.value) return
+  exportingKey.value = `chain-${chain.id}`
+  try {
+    await exportBuild({ chain_ids: [chain.id] }, chain.name)
+  } catch (e) {
+    error.value = e?.message || __('Export failed.')
+  } finally {
+    exportingKey.value = null
+  }
 }
 
 const loadWebhooks = async () => {
@@ -426,11 +476,11 @@ onMounted(loadWebhooks)
       </div>
       <div class="flex gap-2 self-start sm:self-auto">
         <Button variant="outline" @click="showImportDialog = true">
-          <Upload class="mr-2 h-4 w-4" />
+          <Download class="mr-2 h-4 w-4" />
           {{ __('Import') }}
         </Button>
         <Button variant="outline" :disabled="webhooks.length === 0" @click="showExportDialog = true">
-          <Download class="mr-2 h-4 w-4" />
+          <Upload class="mr-2 h-4 w-4" />
           {{ __('Export') }}
         </Button>
         <Button @click="router.push('/webhooks/new')">
@@ -450,6 +500,8 @@ onMounted(loadWebhooks)
       :open="showImportDialog"
       @close="showImportDialog = false"
       @imported="onImported"
+      @edit-webhook="onEditWebhook"
+      @focus="onFocusItem"
     />
 
     <!-- Loading -->
@@ -477,7 +529,9 @@ onMounted(loadWebhooks)
       <div
         v-for="group in chainGroups"
         :key="`chain-${group.chain.id}`"
-        class="rounded-lg border-l-4 border-accent bg-muted/20 pl-4 pr-2 py-3 space-y-2"
+        :id="`chain-${group.chain.id}`"
+        class="rounded-lg border-l-4 border-accent bg-muted/20 pl-4 pr-2 py-3 space-y-2 transition-shadow"
+        :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': highlightKey === `chain-${group.chain.id}` }"
       >
         <div class="flex items-center gap-2">
           <Network class="h-4 w-4 text-accent shrink-0" />
@@ -486,6 +540,18 @@ onMounted(loadWebhooks)
             {{ sprintf(_n('%d webhook', '%d webhooks', group.webhooks.length), group.webhooks.length) }}
           </Badge>
           <div class="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :title="__('Export chain')"
+              :aria-label="__('Export chain')"
+              :disabled="exportingKey === `chain-${group.chain.id}`"
+              @click="exportChain(group.chain)"
+            >
+              <Loader2 v-if="exportingKey === `chain-${group.chain.id}`" class="h-3.5 w-3.5 animate-spin" />
+              <Upload v-else class="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -513,7 +579,8 @@ onMounted(loadWebhooks)
           <Card
             v-for="webhook in group.webhooks"
             :key="`g${group.chain.id}-w${webhook.id}`"
-            class="p-3 sm:p-4"
+            :id="`webhook-${webhook.id}`"
+            :class="['p-3 sm:p-4 transition-shadow', highlightKey === `webhook-${webhook.id}` && 'ring-2 ring-primary ring-offset-2 ring-offset-background']"
           >
             <WebhookCardContent
               :webhook="webhook"
@@ -521,6 +588,7 @@ onMounted(loadWebhooks)
               :wp-triggers="wpTriggers(webhook)"
               :toggling-id="togglingId"
               :toggling-sync="togglingSync"
+              :exporting-id="exportingKey"
               :copied-key="copiedKey"
               @copy="copy"
               @toggle="toggleWebhook"
@@ -529,6 +597,7 @@ onMounted(loadWebhooks)
               @test="testWebhook = $event"
               @edit="router.push(`/webhooks/${webhook.id}`)"
               @delete="deleteWebhook"
+              @export="exportWebhook"
             />
           </Card>
         </div>
@@ -542,7 +611,8 @@ onMounted(loadWebhooks)
         <Card
           v-for="webhook in unchainedWebhooks"
           :key="`u${webhook.id}`"
-          class="p-3 sm:p-4"
+          :id="`webhook-${webhook.id}`"
+          :class="['p-3 sm:p-4 transition-shadow', highlightKey === `webhook-${webhook.id}` && 'ring-2 ring-primary ring-offset-2 ring-offset-background']"
         >
           <WebhookCardContent
             :webhook="webhook"
@@ -550,6 +620,7 @@ onMounted(loadWebhooks)
             :wp-triggers="wpTriggers(webhook)"
             :toggling-id="togglingId"
             :toggling-sync="togglingSync"
+            :exporting-id="exportingKey"
             :copied-key="copiedKey"
             @copy="copy"
             @toggle="toggleWebhook"
@@ -558,6 +629,7 @@ onMounted(loadWebhooks)
             @test="testWebhook = $event"
             @edit="router.push(`/webhooks/${webhook.id}`)"
             @delete="deleteWebhook"
+            @export="exportWebhook"
           />
         </Card>
       </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Unlink } from 'lucide-vue-next';
+import { Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Unlink, Upload, Loader2 } from 'lucide-vue-next';
 import { Button, Badge, Switch } from '@/components/ui';
 import MarkdownView from '@/components/MarkdownView.vue';
 import { __ } from '@/i18n';
@@ -10,10 +10,11 @@ defineProps({
   wpTriggers: { type: Array, default: () => [] },
   togglingId: { type: [Number, String, null], default: null },
   togglingSync: { type: [Number, String, null], default: null },
+  exportingId: { type: [Number, String, null], default: null },
   copiedKey: { type: [String, null], default: null },
 });
 
-const emit = defineEmits(['copy', 'toggle', 'toggle-sync', 'logs', 'test', 'edit', 'delete']);
+const emit = defineEmits(['copy', 'toggle', 'toggle-sync', 'logs', 'test', 'edit', 'delete', 'export']);
 </script>
 
 <template>
@@ -110,6 +111,10 @@ const emit = defineEmits(['copy', 'toggle', 'toggle-sync', 'logs', 'test', 'edit
       </Button>
       <Button size="icon" variant="ghost" :title="__('Test')" class="h-8 w-8 sm:h-9 sm:w-9" @click="emit('test', webhook)">
         <FlaskConical class="h-4 w-4" />
+      </Button>
+      <Button size="icon" variant="ghost" :title="__('Export')" class="h-8 w-8 sm:h-9 sm:w-9" :disabled="exportingId === webhook.id" @click="emit('export', webhook)">
+        <Loader2 v-if="exportingId === webhook.id" class="h-4 w-4 animate-spin" />
+        <Upload v-else class="h-4 w-4" />
       </Button>
       <Button size="icon" variant="ghost" :title="__('Edit')" class="h-8 w-8 sm:h-9 sm:w-9" @click="emit('edit', webhook)">
         <Pencil class="h-4 w-4" />

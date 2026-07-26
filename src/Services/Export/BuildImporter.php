@@ -23,12 +23,14 @@ class BuildImporter {
   private SchemaRepository $schemas;
   private ChainRepository $chains;
   private ChainLinkRepository $links;
+  private BuildSchemaValidator $validator;
 
   public function __construct() {
-    $this->webhooks = new WebhookRepository();
-    $this->schemas  = new SchemaRepository();
-    $this->chains   = new ChainRepository();
-    $this->links    = new ChainLinkRepository();
+    $this->webhooks  = new WebhookRepository();
+    $this->schemas   = new SchemaRepository();
+    $this->chains    = new ChainRepository();
+    $this->links     = new ChainLinkRepository();
+    $this->validator = new BuildSchemaValidator();
   }
 
   /**
@@ -100,7 +102,14 @@ class BuildImporter {
 
     try {
       $uuidToNewId = [];
-      $created     = ['webhooks' => 0, 'chains' => 0, 'links' => 0, 'skipped' => 0];
+      $created     = [
+        'webhooks'      => 0,
+        'chains'        => 0,
+        'links'         => 0,
+        'skipped'       => 0,
+        'webhook_items' => [], // [{id, name}] of created webhooks, for the UI to link to.
+        'chain_items'   => [], // [{id, name}] of created chains.
+      ];
 
       foreach ($document['webhooks'] as $webhook) {
         $newId = $this->importWebhook($webhook, $credentialMap, $onCollision, $created);
@@ -170,6 +179,7 @@ class BuildImporter {
     }
     $newId = (int) $newId;
     $created['webhooks']++;
+    $created['webhook_items'][] = ['id' => $newId, 'name' => $data['name']];
 
     foreach ($webhook['triggers'] ?? [] as $trigger) {
       $this->importTrigger($newId, $trigger);
@@ -229,6 +239,7 @@ class BuildImporter {
     }
     $chainId = (int) $chainId;
     $created['chains']++;
+    $created['chain_items'][] = ['id' => $chainId, 'name' => $name];
 
     foreach ($chain['links'] ?? [] as $link) {
       $sourceId = (int) ($uuidToNewId[$link['source_uuid'] ?? ''] ?? 0);
@@ -265,24 +276,12 @@ class BuildImporter {
   }
 
   /**
+   * Strictly validate the whole document against the v1 schema before any read
+   * or write. Delegates to {@see BuildSchemaValidator}.
+   *
    * @return true|WP_Error
    */
   private function validate(array $document) {
-    $meta = $document['fswa_export'] ?? null;
-    if (!is_array($meta) || (int) ($meta['version'] ?? 0) !== BuildExporter::SCHEMA_VERSION) {
-      return new WP_Error(
-        'fswa_import_invalid',
-        __('Unrecognized or unsupported export file.', 'flowsystems-webhook-actions'),
-        ['status' => 400]
-      );
-    }
-    if (!isset($document['webhooks']) || !is_array($document['webhooks'])) {
-      return new WP_Error(
-        'fswa_import_invalid',
-        __('Export file contains no webhooks.', 'flowsystems-webhook-actions'),
-        ['status' => 400]
-      );
-    }
-    return true;
+    return $this->validator->validate($document);
   }
 }

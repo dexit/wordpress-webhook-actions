@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Dialog, Button, Checkbox, Label } from '@/components/ui'
-import api from '@/lib/api'
+import { Dialog, Button, Checkbox, Label, Input } from '@/components/ui'
+import { useBuildExport } from '@/composables/useBuildExport'
 import { __ } from '@/i18n'
 
 const props = defineProps({
@@ -12,20 +12,38 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
-const exportAll = ref(true)
+const { exportBuild } = useBuildExport()
+
+const exportAll = ref(false)
 const selectedWebhookIds = ref(new Set())
 const selectedChainIds = ref(new Set())
+const webhookSearch = ref('')
+const chainSearch = ref('')
 const exporting = ref(false)
 const error = ref('')
 
 // Reset selection each time the dialog opens.
 watch(() => props.open, (open) => {
   if (open) {
-    exportAll.value = true
+    exportAll.value = false
     selectedWebhookIds.value = new Set()
     selectedChainIds.value = new Set()
+    webhookSearch.value = ''
+    chainSearch.value = ''
     error.value = ''
   }
+})
+
+const filteredWebhooks = computed(() => {
+  const q = webhookSearch.value.trim().toLowerCase()
+  if (!q) return props.webhooks
+  return props.webhooks.filter((w) => (w.name || '').toLowerCase().includes(q))
+})
+
+const filteredChains = computed(() => {
+  const q = chainSearch.value.trim().toLowerCase()
+  if (!q) return props.chains
+  return props.chains.filter((c) => (c.name || '').toLowerCase().includes(q))
 })
 
 const toggleWebhook = (id) => {
@@ -44,32 +62,26 @@ const canExport = computed(() =>
   exportAll.value || selectedWebhookIds.value.size > 0 || selectedChainIds.value.size > 0
 )
 
-const download = (document) => {
-  const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = window.document.createElement('a')
-  const stamp = new Date().toISOString().slice(0, 10)
-  a.href = url
-  a.download = `webhook-actions-build-${stamp}.json`
-  window.document.body.appendChild(a)
-  a.click()
-  window.document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
-
 const runExport = async () => {
   if (!canExport.value || exporting.value) return
   exporting.value = true
   error.value = ''
   try {
-    const payload = exportAll.value
-      ? { all: true }
-      : {
-          webhook_ids: Array.from(selectedWebhookIds.value),
-          chain_ids: Array.from(selectedChainIds.value),
-        }
-    const document = await api.builds.export(payload)
-    download(document)
+    const webhookIds = Array.from(selectedWebhookIds.value)
+    const chainIds = Array.from(selectedChainIds.value)
+    const payload = exportAll.value ? { all: true } : { webhook_ids: webhookIds, chain_ids: chainIds }
+
+    // Name the file after the single selected item when there is exactly one.
+    let hint = ''
+    if (!exportAll.value) {
+      if (webhookIds.length === 1 && chainIds.length === 0) {
+        hint = props.webhooks.find((w) => Number(w.id) === webhookIds[0])?.name || ''
+      } else if (chainIds.length === 1 && webhookIds.length === 0) {
+        hint = props.chains.find((c) => Number(c.id) === chainIds[0])?.name || ''
+      }
+    }
+
+    await exportBuild(payload, hint)
     emit('close')
   } catch (e) {
     error.value = e?.message || __('Export failed.')
@@ -95,21 +107,25 @@ const runExport = async () => {
       <div v-if="!exportAll" class="space-y-4">
         <div v-if="webhooks.length" class="space-y-1.5">
           <Label class="text-xs text-muted-foreground">{{ __('Webhooks') }}</Label>
+          <Input v-model="webhookSearch" type="search" :placeholder="__('Search webhooks…')" class="h-8 text-sm" />
           <div class="max-h-40 overflow-y-auto rounded-md border p-2 space-y-1">
-            <label v-for="w in webhooks" :key="w.id" class="flex items-center gap-2 cursor-pointer rounded px-2 py-1 hover:bg-muted/50">
+            <label v-for="w in filteredWebhooks" :key="w.id" class="flex items-center gap-2 cursor-pointer rounded px-2 py-1 hover:bg-muted/50">
               <Checkbox :model-value="selectedWebhookIds.has(Number(w.id))" @update:model-value="toggleWebhook(w.id)" />
               <span class="text-sm">{{ w.name }}</span>
             </label>
+            <p v-if="!filteredWebhooks.length" class="px-2 py-1 text-xs text-muted-foreground">{{ __('No webhooks match your search.') }}</p>
           </div>
         </div>
 
         <div v-if="chains.length" class="space-y-1.5">
           <Label class="text-xs text-muted-foreground">{{ __('Chains (member webhooks included automatically)') }}</Label>
+          <Input v-model="chainSearch" type="search" :placeholder="__('Search chains…')" class="h-8 text-sm" />
           <div class="max-h-40 overflow-y-auto rounded-md border p-2 space-y-1">
-            <label v-for="c in chains" :key="c.id" class="flex items-center gap-2 cursor-pointer rounded px-2 py-1 hover:bg-muted/50">
+            <label v-for="c in filteredChains" :key="c.id" class="flex items-center gap-2 cursor-pointer rounded px-2 py-1 hover:bg-muted/50">
               <Checkbox :model-value="selectedChainIds.has(Number(c.id))" @update:model-value="toggleChain(c.id)" />
               <span class="text-sm">{{ c.name }}</span>
             </label>
+            <p v-if="!filteredChains.length" class="px-2 py-1 text-xs text-muted-foreground">{{ __('No chains match your search.') }}</p>
           </div>
         </div>
       </div>
