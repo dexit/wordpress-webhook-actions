@@ -353,6 +353,18 @@ class SchemasController extends WP_REST_Controller {
     }
 
     $schema = $this->schemaRepository->findByWebhookAndTrigger($webhookId, $trigger);
+
+    // Resolve the example (own or shared) so the update response has the same
+    // shape as the list/get endpoints. Without this the raw row carries a null
+    // example_payload for webhooks that borrow a shared example, and clients that
+    // cache the response would blank their Mapping/Conditions previews until the
+    // next full fetch.
+    $resolved = $this->schemaRepository->resolveExample($webhookId, $trigger, $schema);
+    $schema['example_payload']         = $resolved['example'];
+    $schema['example_source']          = $resolved['source']; // own | shared | null
+    $schema['example_from_webhook_id'] = $resolved['from_webhook_id'];
+    $schema['use_shared_example']      = (int) ($schema['use_shared_example'] ?? 1);
+
     $schema['supports_user_enrichment'] = $this->payloadTransformer->supportsUserEnrichment($trigger);
 
     $this->activityLog->log('schema.updated', 'webhook', $webhookId, $webhook['name'] ?? null, ['trigger' => $trigger, 'old' => $oldValues, 'new' => $data]);
