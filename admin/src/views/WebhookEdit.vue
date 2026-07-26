@@ -10,6 +10,7 @@ import api from '@/lib/api';
 import { useHealthStats } from '@/composables/useHealthStats';
 import { useSchemas } from '@/composables/useSchemas';
 import { useChains } from '@/composables/useChains';
+import { applyMappingTransform } from '@/utils/payloadTransform';
 import { __ } from '@/i18n';
 
 const { createChain, syncTargetSources, clearTargetLinks, refresh: refreshChains } = useChains();
@@ -21,21 +22,43 @@ const route = useRoute();
 
 const { schemas } = useSchemas(route.params.id);
 
-const firstExamplePayload = computed(() => {
+// The first schema that has a captured example — the basis for the top-level
+// form's URL / param / header template previews.
+const firstSchemaWithExample = computed(() => {
   for (const schema of schemas.value) {
     if (!schema.example_payload) continue;
     const parsed = typeof schema.example_payload === 'string'
       ? JSON.parse(schema.example_payload)
       : schema.example_payload;
-    if (parsed) return parsed;
+    if (parsed) return { schema, parsed };
   }
   return null;
 });
 
+const firstExamplePayload = computed(() => firstSchemaWithExample.value?.parsed ?? null);
+
+// The post-mapping payload for that schema — mirrors PayloadTransformer::transform.
+// URL templates resolve against the mapped (then glued) payload at dispatch, so
+// this is the correct fallback when no pre-glue preview is active.
+const firstMappedPayload = computed(() => {
+  const entry = firstSchemaWithExample.value;
+  if (!entry) return null;
+  const mapping = entry.schema.field_mapping;
+  if (!mapping) return entry.parsed;
+  return applyMappingTransform(entry.parsed, {
+    mappings: mapping.mappings || [],
+    excluded: mapping.excluded || [],
+    includeUnmapped: mapping.includeUnmapped !== false,
+  });
+});
+
 const gluePreviewPayloads = ref({});
+// The final on-the-wire payload: pre-glue preview result if present, else the
+// mapped payload. Matches the payload URL templates resolve against at dispatch,
+// with the raw example kept as the last-resort fallback (as expandUrlTemplates does).
 const firstGluePayload = computed(() => {
   const vals = Object.values(gluePreviewPayloads.value);
-  return vals.find(v => v != null) ?? null;
+  return vals.find(v => v != null) ?? firstMappedPayload.value ?? null;
 });
 
 const webhook = ref(null);
@@ -78,7 +101,10 @@ const loadWebhook = async (silent = false) => {
 const resolveChainId = async (chainCfg) => {
   if (chainCfg.chain_id != null) return Number(chainCfg.chain_id);
   if (chainCfg.new_chain_name) {
-    const created = await createChain({ name: chainCfg.new_chain_name });
+    const created = await createChain({
+      name: chainCfg.new_chain_name,
+      description: chainCfg.new_chain_description || '',
+    });
     return Number(created.id);
   }
   return null;

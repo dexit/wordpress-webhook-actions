@@ -14,12 +14,16 @@ use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Services\QueueService;
 use FlowSystems\WebhookActions\Services\LogService;
 use FlowSystems\WebhookActions\Services\PayloadTransformer;
+use FlowSystems\WebhookActions\Services\DormantProFeatures;
 use FlowSystems\WebhookActions\Services\Dispatcher;
 use FlowSystems\WebhookActions\Services\WPHttpTransport;
 use FlowSystems\WebhookActions\Api\AuthHelper;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
 
 class WebhooksController extends WP_REST_Controller {
+  /** Max markdown description length, in characters. Mirrored in ChainsController + the SPA MarkdownField + BuildSchemaValidator. */
+  private const DESCRIPTION_MAX = 4000;
+
   protected $namespace = 'fswa/v1';
   protected $rest_base = 'webhooks';
 
@@ -29,6 +33,7 @@ class WebhooksController extends WP_REST_Controller {
   private LogService $logService;
   private PayloadTransformer $payloadTransformer;
   private ActivityLogService $activityLog;
+  private DormantProFeatures $dormantPro;
 
   public function __construct() {
     $this->repository         = new WebhookRepository();
@@ -37,6 +42,7 @@ class WebhooksController extends WP_REST_Controller {
     $this->logService         = new LogService();
     $this->payloadTransformer = new PayloadTransformer();
     $this->activityLog        = new ActivityLogService();
+    $this->dormantPro         = new DormantProFeatures();
   }
 
   /**
@@ -164,6 +170,10 @@ class WebhooksController extends WP_REST_Controller {
       $webhook['auth_header'] = __('You don\'t have permissions to see it.', 'flowsystems-webhook-actions');
     }
 
+    // Flag Pro-only features (Code Glue, {{ }} URL templates) configured on this
+    // webhook that will NOT run because Pro is inactive — [] when Pro is loaded.
+    $webhook['dormant_pro_features'] = $this->dormantPro->forWebhook($webhook);
+
     /**
      * Filter webhook data before it is returned in a REST response.
      * Extensions can append or transform fields here.
@@ -206,8 +216,12 @@ class WebhooksController extends WP_REST_Controller {
    * Create a webhook
    */
   public function createItem($request) {
+    if ($err = $this->guardDescriptionLength($request)) {
+      return $err;
+    }
     $data = [
       'name'           => sanitize_text_field($request->get_param('name')),
+      'description'    => sanitize_textarea_field($request->get_param('description') ?? ''),
       'endpoint_url'   => $this->sanitizeTemplateUrl($request->get_param('endpoint_url') ?? ''),
       'auth_header'    => sanitize_text_field($request->get_param('auth_header') ?? ''),
       'auth_credential_id' => (int) ($request->get_param('auth_credential_id') ?? 0) ?: null,
@@ -289,9 +303,34 @@ class WebhooksController extends WP_REST_Controller {
   }
 
   /**
+   * Reject a description over the enforced character limit. Returns a WP_Error
+   * (HTTP 400) or null. Character-based (mb_strlen) to match the SPA counter.
+   *
+   * @return WP_Error|null
+   */
+  private function guardDescriptionLength($request) {
+    $desc = $request->get_param('description');
+    if ($desc !== null && mb_strlen((string) $desc) > self::DESCRIPTION_MAX) {
+      return new WP_Error(
+        'fswa_description_too_long',
+        sprintf(
+          /* translators: %d: maximum character count */
+          __('Description must be %d characters or fewer.', 'flowsystems-webhook-actions'),
+          self::DESCRIPTION_MAX
+        ),
+        ['status' => 400]
+      );
+    }
+    return null;
+  }
+
+  /**
    * Update a webhook
    */
   public function updateItem($request) {
+    if ($err = $this->guardDescriptionLength($request)) {
+      return $err;
+    }
     $id = (int) $request->get_param('id');
     $webhook = $this->repository->find($id);
 
@@ -307,6 +346,10 @@ class WebhooksController extends WP_REST_Controller {
 
     if ($request->has_param('name')) {
       $data['name'] = sanitize_text_field($request->get_param('name'));
+    }
+
+    if ($request->has_param('description')) {
+      $data['description'] = sanitize_textarea_field($request->get_param('description') ?? '');
     }
 
     if ($request->has_param('endpoint_url')) {
@@ -711,6 +754,11 @@ class WebhooksController extends WP_REST_Controller {
           'type' => 'string',
           'context' => ['view', 'edit'],
           'required' => true,
+        ],
+        'description' => [
+          'description' => __('Optional markdown description documenting what this webhook does.', 'flowsystems-webhook-actions'),
+          'type' => 'string',
+          'context' => ['view', 'edit'],
         ],
         'endpoint_url' => [
           'description' => __('URL to send the webhook to.', 'flowsystems-webhook-actions'),

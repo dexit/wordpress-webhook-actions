@@ -39,6 +39,7 @@ class Activation {
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             webhook_uuid VARCHAR(36) NOT NULL DEFAULT '',
             name VARCHAR(255) NOT NULL,
+            description TEXT NULL,
             endpoint_url VARCHAR(2048) NOT NULL,
             http_method VARCHAR(10) NOT NULL DEFAULT 'POST',
             custom_headers TEXT NULL,

@@ -13,26 +13,34 @@ defined('ABSPATH') || exit;
  * This is the window you need to iterate on prompts: you cannot tune what the
  * model does until you can see what it received and returned.
  *
- * Off by default. Toggled via the `fswa_ai_debug` option (set from the trace
- * panel's "Logging" switch) or by defining the `FSWA_AI_DEBUG` constant. The
- * panel itself is shown under the Vite dev server, or in production when the site
- * enables "AI Dev Trace" in Settings (the `fswa_ai_trace_enabled` option). The log
- * dir is protected from web access; even so, traces can contain prompt/payload
- * data, so keep this off unless you are actively debugging.
+ * On by default so a build's history is already captured when a user reports a
+ * problem (support does not have to ask them to flip a switch and reproduce).
+ * Toggled via the `fswa_ai_debug` option (set from the trace panel's "Logging"
+ * switch) or forced by defining the `FSWA_AI_DEBUG` constant. The panel that
+ * surfaces the log is still shown only under the Vite dev server, or in
+ * production when the site enables "AI Dev Trace" in Settings (the separate
+ * `fswa_ai_trace_enabled` option). The log dir is protected from web access;
+ * even so, traces can contain prompt/payload data — a site can opt out from the
+ * panel's "Logging" switch, and old day files are pruned by {@see self::prune()}.
  */
 class AgentTraceLog {
-  private const DIR_NAME    = 'fswa-ai-logs';
-  private const OPTION      = 'fswa_ai_debug';
-  private const TAIL_BYTES  = 512 * 1024; // Read at most the last 512 KB per file.
+  private const DIR_NAME     = 'fswa-ai-logs';
+  private const OPTION       = 'fswa_ai_debug';
+  private const TAIL_BYTES   = 512 * 1024; // Read at most the last 512 KB per file.
+  private const RETAIN_DAYS  = 30;         // Prune day files older than this.
+
+  /** Default for the logging option when the site has never set it. */
+  public const DEFAULT_ENABLED = true;
 
   /**
    * Is trace logging on? True if the constant is set, or the option is enabled.
+   * On by default (see class docblock) until a site explicitly turns it off.
    */
   public function isEnabled(): bool {
     if (defined('FSWA_AI_DEBUG') && FSWA_AI_DEBUG) {
       return true;
     }
-    return (bool) get_option(self::OPTION, false);
+    return (bool) get_option(self::OPTION, self::DEFAULT_ENABLED);
   }
 
   /**
@@ -65,6 +73,11 @@ class AgentTraceLog {
     }
 
     $file = $dir . '/' . gmdate('Y-m-d') . '.jsonl';
+    // First trace of the day: prune stale files so on-by-default logging can't
+    // grow the uploads dir without bound. Cheap — runs at most once per day.
+    if (!file_exists($file)) {
+      $this->prune();
+    }
     // A day file created by another OS user (e.g. a root wp-cli session) can
     // leave the web user unable to append — fall back to a per-user sibling
     // instead of dropping traces silently for the rest of the day. recent()
@@ -124,6 +137,29 @@ class AgentTraceLog {
       }
     }
     return $removed;
+  }
+
+  /**
+   * Delete day files older than RETAIN_DAYS, keyed off the date in the filename
+   * (robust against filemtime being touched). Best-effort; never throws.
+   */
+  private function prune(): void {
+    $dir = $this->dir();
+    if (!is_dir($dir)) {
+      return;
+    }
+    $cutoff = strtotime('-' . self::RETAIN_DAYS . ' days');
+    if ($cutoff === false) {
+      return;
+    }
+    foreach (glob($dir . '/*.jsonl') ?: [] as $file) {
+      if (preg_match('/(\d{4}-\d{2}-\d{2})/', basename($file), $m)) {
+        $ts = strtotime($m[1]);
+        if ($ts !== false && $ts < $cutoff) {
+          @unlink($file);
+        }
+      }
+    }
   }
 
   /**

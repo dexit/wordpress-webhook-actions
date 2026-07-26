@@ -1,15 +1,20 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Network, Unlink } from 'lucide-vue-next'
+import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Network, Unlink, Download, Upload, Loader2, AlertTriangle } from 'lucide-vue-next'
 import { Button, Card, Badge, Switch, Dialog, Checkbox, Input, Label } from '@/components/ui'
 import TestWebhookDrawer from '@/components/TestWebhookDrawer.vue'
 import WebhookCardContent from '@/components/WebhookCardContent.vue'
+import MarkdownView from '@/components/MarkdownView.vue'
+import MarkdownField from '@/components/MarkdownField.vue'
+import ExportDialog from '@/components/ExportDialog.vue'
+import ImportDialog from '@/components/ImportDialog.vue'
 import api from '@/lib/api'
 import { useHealthStats } from '@/composables/useHealthStats'
 import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
 import { useSyncWarning } from '@/composables/useSyncWarning'
 import { useChains } from '@/composables/useChains'
+import { useBuildExport } from '@/composables/useBuildExport'
 import { __, _n, sprintf } from '@/i18n'
 
 const { fetchStats: refreshHealthStats } = useHealthStats()
@@ -28,9 +33,90 @@ const pendingSyncWebhook = ref(null)
 const pendingDeleteChain = ref(null)
 const pendingRenameChain = ref(null)
 const renameInput = ref('')
+const renameDescInput = ref('')
 const renameError = ref('')
 const renaming = ref(false)
 const testWebhook = ref(null)
+const showExportDialog = ref(false)
+const showImportDialog = ref(false)
+const exportingKey = ref(null)
+
+const { exportBuild } = useBuildExport()
+
+const highlightKey = ref(null)
+
+// Enabled webhooks with Pro-only features (Code Glue, {{ }} URL templates) that
+// won't run because Pro is inactive. The REST layer only sets dormant_pro_features
+// when Pro is not loaded, so an empty list here means everything is fine.
+const dormantProWebhooks = computed(() => webhooks.value.filter((w) => w.dormant_pro_features?.length))
+
+// Kept in script (not inline in the template) because the copy contains literal
+// {{ }} braces, which Vue would otherwise parse as an interpolation.
+const dormantProDescription = __('Webhook Actions Pro is inactive, so assigned Code Glue snippets are skipped and {{ }} URL templates are sent literally. Field mapping and conditions still work. Reactivate Pro to restore these — no data is lost.')
+
+const activatingPro = ref(false)
+const activateProError = ref(null)
+const activatePro = async () => {
+  activatingPro.value = true
+  activateProError.value = null
+  try {
+    await api.pro.activatePlugin()
+    await loadWebhooks()
+  } catch (e) {
+    activateProError.value = e.message || __('Could not activate Pro. Activate it from the Plugins screen.')
+  } finally {
+    activatingPro.value = false
+  }
+}
+
+// Reload the list after import but keep the dialog open so its result panel can
+// offer jump/edit links to the freshly imported items.
+const onImported = async () => {
+  await loadWebhooks()
+}
+
+const onEditWebhook = (id) => {
+  showImportDialog.value = false
+  router.push(`/webhooks/${id}`)
+}
+
+// Close the dialog, then scroll the imported webhook/chain into view and flash it.
+const onFocusItem = async ({ type, id }) => {
+  showImportDialog.value = false
+  const key = `${type}-${id}`
+  await nextTick()
+  const el = document.getElementById(key)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  highlightKey.value = key
+  setTimeout(() => {
+    if (highlightKey.value === key) highlightKey.value = null
+  }, 2500)
+}
+
+const exportWebhook = async (webhook) => {
+  if (exportingKey.value) return
+  exportingKey.value = webhook.id
+  try {
+    await exportBuild({ webhook_ids: [webhook.id] }, webhook.name)
+  } catch (e) {
+    error.value = e?.message || __('Export failed.')
+  } finally {
+    exportingKey.value = null
+  }
+}
+
+const exportChain = async (chain) => {
+  if (exportingKey.value) return
+  exportingKey.value = `chain-${chain.id}`
+  try {
+    await exportBuild({ chain_ids: [chain.id] }, chain.name)
+  } catch (e) {
+    error.value = e?.message || __('Export failed.')
+  } finally {
+    exportingKey.value = null
+  }
+}
 
 const loadWebhooks = async () => {
   loading.value = true
@@ -191,6 +277,7 @@ const deleteWebhook = (webhook) => {
 const openRenameChain = (chain) => {
   pendingRenameChain.value = chain
   renameInput.value = chain.name || ''
+  renameDescInput.value = chain.description || ''
   renameError.value = ''
 }
 
@@ -198,18 +285,19 @@ const confirmRenameChain = async () => {
   const chain = pendingRenameChain.value
   if (!chain || renaming.value) return
   const newName = (renameInput.value || '').trim()
+  const newDesc = renameDescInput.value || ''
   if (!newName) {
     renameError.value = __('Name is required.')
     return
   }
-  if (newName === chain.name) {
+  if (newName === chain.name && newDesc === (chain.description || '')) {
     pendingRenameChain.value = null
     return
   }
   renaming.value = true
   renameError.value = ''
   try {
-    await updateChain(chain.id, { name: newName })
+    await updateChain(chain.id, { name: newName, description: newDesc })
     pendingRenameChain.value = null
   } catch (e) {
     renameError.value = e?.message || __('Failed to rename chain.')
@@ -314,23 +402,32 @@ onMounted(loadWebhooks)
       </template>
     </Dialog>
 
-    <!-- Rename Chain Dialog -->
+    <!-- Edit Chain Dialog -->
     <Dialog
       :open="!!pendingRenameChain"
-      :title="__('Rename chain')"
+      :title="__('Edit chain')"
       @close="pendingRenameChain = null"
     >
-      <div class="space-y-2">
-        <Label for="fswa-chain-rename-input">{{ __('Chain name') }}</Label>
-        <Input
-          id="fswa-chain-rename-input"
-          v-model="renameInput"
-          :placeholder="__('My chain')"
-          :disabled="renaming"
-          :class="{ 'border-destructive': renameError }"
-          @keyup.enter="confirmRenameChain"
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <Label for="fswa-chain-rename-input">{{ __('Chain name') }}</Label>
+          <Input
+            id="fswa-chain-rename-input"
+            v-model="renameInput"
+            :placeholder="__('My chain')"
+            :disabled="renaming"
+            :class="{ 'border-destructive': renameError }"
+            @keyup.enter="confirmRenameChain"
+          />
+          <p v-if="renameError" class="text-sm text-destructive">{{ renameError }}</p>
+        </div>
+        <MarkdownField
+          id="fswa-chain-desc-input"
+          v-model="renameDescInput"
+          :label="__('Description (optional)')"
+          :placeholder="__('What does this chain automate? Markdown supported.')"
+          :rows="3"
         />
-        <p v-if="renameError" class="text-sm text-destructive">{{ renameError }}</p>
       </div>
       <template #footer>
         <div class="flex gap-2">
@@ -401,11 +498,35 @@ onMounted(loadWebhooks)
         <h2 class="text-xl font-semibold">{{ __('Webhooks') }}</h2>
         <p class="text-muted-foreground text-sm">{{ __('Trigger webhooks on WordPress events') }}</p>
       </div>
-      <Button @click="router.push('/webhooks/new')" class="self-start sm:self-auto">
-        <Plus class="mr-2 h-4 w-4" />
-        {{ __('Add Webhook') }}
-      </Button>
+      <div class="flex gap-2 self-start sm:self-auto">
+        <Button variant="outline" @click="showImportDialog = true">
+          <Download class="mr-2 h-4 w-4" />
+          {{ __('Import') }}
+        </Button>
+        <Button variant="outline" :disabled="webhooks.length === 0" @click="showExportDialog = true">
+          <Upload class="mr-2 h-4 w-4" />
+          {{ __('Export') }}
+        </Button>
+        <Button @click="router.push('/webhooks/new')">
+          <Plus class="mr-2 h-4 w-4" />
+          {{ __('Add Webhook') }}
+        </Button>
+      </div>
     </div>
+
+    <ExportDialog
+      :open="showExportDialog"
+      :webhooks="webhooks"
+      :chains="chains"
+      @close="showExportDialog = false"
+    />
+    <ImportDialog
+      :open="showImportDialog"
+      @close="showImportDialog = false"
+      @imported="onImported"
+      @edit-webhook="onEditWebhook"
+      @focus="onFocusItem"
+    />
 
     <!-- Loading -->
     <div v-if="loading" class="text-center py-8 text-muted-foreground">
@@ -428,11 +549,45 @@ onMounted(loadWebhooks)
 
     <!-- List -->
     <div v-else class="space-y-5">
+      <!-- Pro-inactive warning: enabled webhooks whose Code Glue / URL templates won't run -->
+      <div
+        v-if="dormantProWebhooks.length"
+        class="rounded-md border border-yellow-300 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-300"
+      >
+        <div class="flex items-start gap-2">
+          <AlertTriangle class="h-4 w-4 shrink-0 mt-0.5" />
+          <div class="flex-1 min-w-0 space-y-1">
+            <p class="font-medium">
+              {{ sprintf(_n(
+                '%d webhook uses Webhook Actions Pro features that are not running',
+                '%d webhooks use Webhook Actions Pro features that are not running',
+                dormantProWebhooks.length,
+              ), dormantProWebhooks.length) }}
+            </p>
+            <p class="text-xs opacity-90">{{ dormantProDescription }}</p>
+            <p v-if="activateProError" class="text-xs text-destructive">{{ activateProError }}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            class="shrink-0 gap-1.5 border-yellow-400 dark:border-yellow-700"
+            :disabled="activatingPro"
+            @click="activatePro"
+          >
+            <Loader2 v-if="activatingPro" class="h-3.5 w-3.5 animate-spin" />
+            <Zap v-else class="h-3.5 w-3.5" />
+            {{ activatingPro ? __('Activating…') : __('Activate Pro') }}
+          </Button>
+        </div>
+      </div>
+
       <!-- Chain groups -->
       <div
         v-for="group in chainGroups"
         :key="`chain-${group.chain.id}`"
-        class="rounded-lg border-l-4 border-accent bg-muted/20 pl-4 pr-2 py-3 space-y-2"
+        :id="`chain-${group.chain.id}`"
+        class="rounded-lg border-l-4 border-accent bg-muted/20 pl-4 pr-2 py-3 space-y-2 transition-shadow"
+        :class="{ 'ring-2 ring-primary ring-offset-2 ring-offset-background': highlightKey === `chain-${group.chain.id}` }"
       >
         <div class="flex items-center gap-2">
           <Network class="h-4 w-4 text-accent shrink-0" />
@@ -441,6 +596,18 @@ onMounted(loadWebhooks)
             {{ sprintf(_n('%d webhook', '%d webhooks', group.webhooks.length), group.webhooks.length) }}
           </Badge>
           <div class="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :title="__('Export chain')"
+              :aria-label="__('Export chain')"
+              :disabled="exportingKey === `chain-${group.chain.id}`"
+              @click="exportChain(group.chain)"
+            >
+              <Loader2 v-if="exportingKey === `chain-${group.chain.id}`" class="h-3.5 w-3.5 animate-spin" />
+              <Upload v-else class="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -463,12 +630,13 @@ onMounted(loadWebhooks)
             </Button>
           </div>
         </div>
-        <p v-if="group.chain.description" class="text-xs text-muted-foreground">{{ group.chain.description }}</p>
+        <MarkdownView v-if="group.chain.description" :source="group.chain.description" class="text-xs" />
         <div class="space-y-3 sm:space-y-4">
           <Card
             v-for="webhook in group.webhooks"
             :key="`g${group.chain.id}-w${webhook.id}`"
-            class="p-3 sm:p-4"
+            :id="`webhook-${webhook.id}`"
+            :class="['p-3 sm:p-4 transition-shadow', highlightKey === `webhook-${webhook.id}` && 'ring-2 ring-primary ring-offset-2 ring-offset-background']"
           >
             <WebhookCardContent
               :webhook="webhook"
@@ -476,6 +644,7 @@ onMounted(loadWebhooks)
               :wp-triggers="wpTriggers(webhook)"
               :toggling-id="togglingId"
               :toggling-sync="togglingSync"
+              :exporting-id="exportingKey"
               :copied-key="copiedKey"
               @copy="copy"
               @toggle="toggleWebhook"
@@ -484,6 +653,7 @@ onMounted(loadWebhooks)
               @test="testWebhook = $event"
               @edit="router.push(`/webhooks/${webhook.id}`)"
               @delete="deleteWebhook"
+              @export="exportWebhook"
             />
           </Card>
         </div>
@@ -497,7 +667,8 @@ onMounted(loadWebhooks)
         <Card
           v-for="webhook in unchainedWebhooks"
           :key="`u${webhook.id}`"
-          class="p-3 sm:p-4"
+          :id="`webhook-${webhook.id}`"
+          :class="['p-3 sm:p-4 transition-shadow', highlightKey === `webhook-${webhook.id}` && 'ring-2 ring-primary ring-offset-2 ring-offset-background']"
         >
           <WebhookCardContent
             :webhook="webhook"
@@ -505,6 +676,7 @@ onMounted(loadWebhooks)
             :wp-triggers="wpTriggers(webhook)"
             :toggling-id="togglingId"
             :toggling-sync="togglingSync"
+            :exporting-id="exportingKey"
             :copied-key="copiedKey"
             @copy="copy"
             @toggle="toggleWebhook"
@@ -513,6 +685,7 @@ onMounted(loadWebhooks)
             @test="testWebhook = $event"
             @edit="router.push(`/webhooks/${webhook.id}`)"
             @delete="deleteWebhook"
+            @export="exportWebhook"
           />
         </Card>
       </div>

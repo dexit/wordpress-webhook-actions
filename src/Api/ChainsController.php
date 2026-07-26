@@ -15,6 +15,9 @@ use FlowSystems\WebhookActions\Repositories\WebhookRepository;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
 
 class ChainsController extends WP_REST_Controller {
+  /** Max markdown description length, in characters. Mirrors WebhooksController. */
+  private const DESCRIPTION_MAX = 4000;
+
   protected $namespace = 'fswa/v1';
   protected $rest_base = 'chains';
 
@@ -122,7 +125,32 @@ class ChainsController extends WP_REST_Controller {
     return rest_ensure_response($chain);
   }
 
+  /**
+   * Reject a description over the enforced character limit (HTTP 400) or null.
+   * Character-based (mb_strlen) to match the SPA counter.
+   *
+   * @return WP_Error|null
+   */
+  private function guardDescriptionLength($request) {
+    $desc = $request->get_param('description');
+    if ($desc !== null && mb_strlen((string) $desc) > self::DESCRIPTION_MAX) {
+      return new WP_Error(
+        'fswa_description_too_long',
+        sprintf(
+          /* translators: %d: maximum character count */
+          __('Description must be %d characters or fewer.', 'flowsystems-webhook-actions'),
+          self::DESCRIPTION_MAX
+        ),
+        ['status' => 400]
+      );
+    }
+    return null;
+  }
+
   public function createItem($request) {
+    if ($err = $this->guardDescriptionLength($request)) {
+      return $err;
+    }
     $name        = sanitize_text_field((string) $request->get_param('name'));
     $description = $request->get_param('description');
     $description = $description === null ? null : sanitize_textarea_field((string) $description);
@@ -150,6 +178,9 @@ class ChainsController extends WP_REST_Controller {
   }
 
   public function updateItem($request) {
+    if ($err = $this->guardDescriptionLength($request)) {
+      return $err;
+    }
     $id    = (int) $request->get_param('id');
     $chain = $this->chainRepository->find($id);
     if (!$chain) {

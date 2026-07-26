@@ -4,7 +4,7 @@ Tags: ai, webhooks, automation, integration, n8n
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 2.3.0
+Stable tag: 2.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -39,6 +39,8 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 - HTTP method, custom headers, and URL query parameters per webhook
 - Dynamic endpoint URLs — `{{ field.path }}` placeholders resolved at dispatch time (free via `fswa_webhook_url` filter)
 - Webhook Chains — wire 2xx completions to downstream webhooks with full observability
+- Import & Export — move webhooks and chains between sites as portable JSON (triggers, field mapping, and conditions included; Code Glue with Pro), with strict validation and a per-item result summary on import
+- Markdown descriptions — document what each webhook and chain does inline, with a Write/Preview toggle while editing
 - Credentials Vault — store reusable auth secrets (Bearer, Basic, API key, custom) encrypted at rest; reference them from webhooks instead of pasting raw Authorization headers. Secrets are write-only over the API — never returned, only a masked hint
 - Activity History — persistent audit log of every admin and API-token action
 - Built-in CF7 and IvyForms integrations — structured payloads, no extra plugins
@@ -125,9 +127,10 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.3.0 — 2026-07-22 =
-- New: WP Webhooks AI — Pro licenses now include monthly AI credits for Build with AI, hosted by us with no API keys to configure. Pick "WP Webhooks AI (included)" under Credentials source when Webhook Actions Pro is active
-- New: live credits counter in Build with AI — the model bar shows how many credits are left and counts down after every agent call, with the balance, top-ups, and reset date also shown in provider settings
-- New: hosted status is carried on every settings response, so switching between Auto, connectors, own keys, and WP Webhooks AI never loses the option
-- Improved: the Pro tab now lists AI credits among Pro features
-- Improved: translations (Polish, Dutch, Chinese) for all new strings, plus 37 previously untranslated strings backfilled
+= 2.4.0 — 2026-07-26 =
+- New: Import & Export — download any webhook or chain (with its triggers, field mapping, conditions, and, with Pro, Code Glue) as a portable JSON file and import it into another site, with strict validation and a per-item result summary
+- New: Markdown descriptions for webhooks and chains, with a Write/Preview toggle so you see the rendered result while editing
+- New: heads-up when Webhook Actions Pro is inactive but a webhook still relies on Pro features — a per-webhook badge and a list banner flag that Code Glue and `{{ }}` URL templates will not run (field mapping and conditions still do), with a one-click Activate Pro
+- Improved: the Build with AI model bar now shows the WP Webhooks AI logo and a live countdown until your monthly credits reset
+- Fixed: the Pre-dispatch Code Glue preview and the Test drawer now resolve the payload in the real dispatch order (field mapping first, then Code Glue), so the preview matches what is actually sent
+- Fixed: saving Payload Mapping or Conditions no longer blanks the live preview for webhooks that reuse a shared example payload

@@ -10,6 +10,7 @@ use WP_Error;
 use FlowSystems\WebhookActions\Services\LogArchiver;
 use FlowSystems\WebhookActions\Repositories\LogRepository;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
+use FlowSystems\WebhookActions\Services\Ai\AgentTraceLog;
 
 class SettingsController extends WP_REST_Controller {
   protected $namespace = 'fswa/v1';
@@ -54,6 +55,9 @@ class SettingsController extends WP_REST_Controller {
             'maximum' => 365,
           ],
           'ai_trace_enabled' => [
+            'type' => 'boolean',
+          ],
+          'ai_debug_enabled' => [
             'type' => 'boolean',
           ],
         ],
@@ -106,6 +110,7 @@ class SettingsController extends WP_REST_Controller {
       'menu_under_tools'            => (bool) get_option('fswa_menu_under_tools', self::DEFAULT_MENU_UNDER_TOOLS),
       'activity_log_retention_days' => (int) get_option('fswa_activity_log_retention_days', self::DEFAULT_ACTIVITY_RETENTION_DAYS),
       'ai_trace_enabled'            => (bool) get_option('fswa_ai_trace_enabled', self::DEFAULT_AI_TRACE_ENABLED),
+      'ai_debug_enabled'            => (bool) get_option('fswa_ai_debug', AgentTraceLog::DEFAULT_ENABLED),
     ];
 
     return rest_ensure_response($settings);
@@ -151,6 +156,13 @@ class SettingsController extends WP_REST_Controller {
       $oldValues['ai_trace_enabled'] = (bool) get_option('fswa_ai_trace_enabled', self::DEFAULT_AI_TRACE_ENABLED);
       update_option('fswa_ai_trace_enabled', $val);
       $newValues['ai_trace_enabled'] = $val;
+    }
+
+    if ($request->has_param('ai_debug_enabled')) {
+      $val = (bool) $request->get_param('ai_debug_enabled');
+      $oldValues['ai_debug_enabled'] = (bool) get_option('fswa_ai_debug', AgentTraceLog::DEFAULT_ENABLED);
+      update_option('fswa_ai_debug', $val, false);
+      $newValues['ai_debug_enabled'] = $val;
     }
 
     if (!empty($newValues)) {

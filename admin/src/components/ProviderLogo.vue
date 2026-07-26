@@ -1,13 +1,18 @@
 <script setup>
 /**
  * Brand mark for an AI provider, keyed by the provider id returned from the API
- * ('anthropic' | 'openai' | 'google'). Falls back to a generic chip when the id
- * is unknown. Uses `currentColor` so it inherits text colour where sensible.
+ * ('anthropic' | 'openai' | 'google' | 'hosted'). 'hosted' (WP Webhooks AI)
+ * renders the plugin's own flow glyph on the dark starfield frame from the
+ * WP.org icon. Falls back to a generic chip when the id is unknown. Uses
+ * `currentColor` so it inherits text colour where sensible.
  */
 defineProps({
   provider: { type: String, default: '' },
   size: { type: [Number, String], default: 20 },
 });
+
+// Unique suffix so multiple instances don't collide on shared <defs> ids.
+const uid = Math.random().toString(36).slice(2, 8);
 </script>
 
 <template>
@@ -32,6 +37,50 @@ defineProps({
       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" fill="#34A853" />
       <path d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" fill="#FBBC05" />
       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A10.6 10.6 0 0 0 12 1 11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z" fill="#EA4335" />
+    </svg>
+
+    <!-- WP Webhooks AI (hosted) — the plugin's finished draw-animation mark:
+         flow glyph + AI sparkle stars on the dark starfield frame. -->
+    <svg v-else-if="provider === 'hosted'" :width="size" :height="size" viewBox="4 4 92 92" fill="none" aria-hidden="true">
+      <defs>
+        <clipPath :id="`fr-${uid}`"><rect x="6" y="6" width="88" height="88" rx="20" /></clipPath>
+        <radialGradient :id="`gg-${uid}`" cx="30%" cy="28%" r="52%">
+          <stop offset="0%" stop-color="#0e463a" stop-opacity="0.6" />
+          <stop offset="100%" stop-color="#070709" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient :id="`gc-${uid}`" cx="30%" cy="74%" r="52%">
+          <stop offset="0%" stop-color="#0a3344" stop-opacity="0.6" />
+          <stop offset="100%" stop-color="#070709" stop-opacity="0" />
+        </radialGradient>
+        <pattern :id="`dots-${uid}`" width="9" height="9" patternUnits="userSpaceOnUse">
+          <circle cx="0.6" cy="0.6" r="0.6" fill="#ffffff" opacity="0.06" />
+        </pattern>
+        <filter :id="`bl-${uid}`" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="1.4" /></filter>
+      </defs>
+      <g :clip-path="`url(#fr-${uid})`">
+        <rect x="6" y="6" width="88" height="88" fill="#070709" />
+        <rect x="6" y="6" width="88" height="88" :fill="`url(#gg-${uid})`" />
+        <rect x="6" y="6" width="88" height="88" :fill="`url(#gc-${uid})`" />
+        <rect x="6" y="6" width="88" height="88" :fill="`url(#dots-${uid})`" />
+        <!-- glyph glow underlay -->
+        <g :filter="`url(#bl-${uid})`" opacity="0.3" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="9">
+          <path d="M 20 30 L 50 30 L 50 50 L 80 50" stroke="#00ff9d" />
+          <path d="M 20 70 L 50 70 L 50 50" stroke="#00d4ff" />
+        </g>
+        <!-- sharp glyph -->
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7">
+          <path d="M 20 30 L 50 30 L 50 50 L 80 50" stroke="#00ff9d" />
+          <path d="M 20 70 L 50 70 L 50 50" stroke="#00d4ff" />
+        </g>
+        <path d="M 80 50 L 70 43.5 L 70 56.5 Z" fill="#00ff9d" />
+        <circle cx="20" cy="30" r="3.6" fill="#00ff9d" />
+        <circle cx="20" cy="70" r="3.6" fill="#00d4ff" />
+        <circle cx="50" cy="50" r="5.4" fill="#00ff9d" />
+        <!-- AI sparkle stars (top-right flourish from the finished mark) -->
+        <path transform="translate(74 24)" d="M 0 -7 L 1.9 -1.9 L 7 0 L 1.9 1.9 L 0 7 L -1.9 1.9 L -7 0 L -1.9 -1.9 Z" fill="#00ff9d" />
+        <path transform="translate(63.5 15.5)" d="M 0 -3.6 L 1 -1 L 3.6 0 L 1 1 L 0 3.6 L -1 1 L -3.6 0 L -1 -1 Z" fill="#9af0ff" />
+      </g>
+      <rect x="6" y="6" width="88" height="88" rx="20" fill="none" stroke="#12433a" stroke-width="1.5" />
     </svg>
 
     <!-- Fallback -->

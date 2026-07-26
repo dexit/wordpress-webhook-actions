@@ -36,10 +36,10 @@ const handleOverlayClick = (e) => {
 
       <!-- Content -->
       <div
-        class="fixed z-[100001] grid w-full max-w-lg gap-4 border border-border bg-background p-6 shadow-lg rounded-lg"
+        class="fixed z-[100001] flex flex-col w-full max-w-lg max-h-[90vh] gap-4 border border-border bg-background p-6 shadow-lg rounded-lg"
       >
         <!-- Header -->
-        <div class="flex flex-col space-y-1.5 text-center sm:text-left">
+        <div class="shrink-0 flex flex-col space-y-1.5 text-center sm:text-left">
           <h2 v-if="title" class="text-lg font-semibold leading-none tracking-tight">
             {{ title }}
           </h2>
@@ -48,11 +48,13 @@ const handleOverlayClick = (e) => {
           </p>
         </div>
 
-        <!-- Body -->
-        <slot />
+        <!-- Body (scrolls when the dialog would exceed the viewport) -->
+        <div class="min-h-0 overflow-y-auto">
+          <slot />
+        </div>
 
         <!-- Footer -->
-        <div v-if="$slots.footer" class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+        <div v-if="$slots.footer" class="shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
           <slot name="footer" />
         </div>
 

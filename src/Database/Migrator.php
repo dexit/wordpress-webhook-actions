@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '2.2.0';
+  private const CURRENT_VERSION = '2.3.0';
 
   /**
    * Run pending migrations
@@ -90,6 +90,7 @@ class Migrator {
       '2.0.0'  => [self::class, 'migration_2_0_0'],
       '2.1.0'  => [self::class, 'migration_2_1_0'],
       '2.2.0'  => [self::class, 'migration_2_2_0'],
+      '2.3.0'  => [self::class, 'migration_2_3_0'],
     ];
   }
 
@@ -755,6 +756,26 @@ class Migrator {
     ));
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$table} ADD COLUMN use_shared_example TINYINT(1) NOT NULL DEFAULT 1 AFTER include_user_data");
+    }
+    // phpcs:enable
+  }
+
+  /**
+   * Migration 2.3.0 - Add a markdown description column to webhooks so a webhook
+   * can carry human-readable documentation (chains already have `description`).
+   */
+  public static function migration_2_3_0(): void {
+    global $wpdb;
+
+    $table = $wpdb->prefix . 'fswa_webhooks';
+
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    $exists = $wpdb->get_var($wpdb->prepare(
+      "SHOW COLUMNS FROM {$table} LIKE %s",
+      'description'
+    ));
+    if (!$exists) {
+      $wpdb->query("ALTER TABLE {$table} ADD COLUMN description TEXT NULL AFTER name");
     }
     // phpcs:enable
   }

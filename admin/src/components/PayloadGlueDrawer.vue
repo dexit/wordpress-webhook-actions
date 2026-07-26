@@ -15,7 +15,14 @@ const props = defineProps({
   open: Boolean,
   webhookId: { type: [Number, String], required: true },
   trigger: { type: String, required: true },
+  // Raw captured example payload (before field mapping). Used as the post-dispatch
+  // $originalPayload fallback and to detect whether any example is available.
   examplePayload: { type: Object, default: null },
+  // The payload AFTER field mapping — exactly what the pre-dispatch snippet
+  // receives at dispatch (Dispatcher runs PayloadTransformer::transform before
+  // the fswa_webhook_payload filter). Falls back to examplePayload when no
+  // mapping is configured. This is the input the pre-dispatch preview runs on.
+  mappedPayload: { type: Object, default: null },
   initialTab: { type: String, default: 'pre' },
 })
 
@@ -106,12 +113,15 @@ const fetchLastSuccessLog = async () => {
   }
 }
 
+// The payload the pre-dispatch snippet sees at dispatch: post-mapping.
+// Falls back to the raw example when no mapping is configured.
+const preInputPayload = computed(() => props.mappedPayload ?? props.examplePayload)
+
 // ── Run preview ──────────────────────────────────────────────────────────────
 const runPreview = async () => {
-  const payload = props.examplePayload
-  if (!payload) return
-
   if (activeTab.value === 'pre') {
+    const payload = preInputPayload.value
+    if (!payload) return
     preRunning.value = true
     preResult.value = null
     preError.value = null
@@ -128,9 +138,16 @@ const runPreview = async () => {
       preRunning.value = false
     }
   } else {
+    // Post-dispatch: $payload is the payload that was actually SENT
+    // (mapped + pre-glued). The truest source is the last successful log's
+    // request_payload; fall back to the mapped payload, then the raw example.
+    const sentPayload = lastSuccessLog.value?.request_payload
+      ?? props.mappedPayload
+      ?? props.examplePayload
+    if (!sentPayload) return
     const postContext = lastSuccessLog.value
       ? {
-          originalPayload: lastSuccessLog.value.original_payload ?? null,
+          originalPayload: lastSuccessLog.value.original_payload ?? props.examplePayload ?? null,
           responseCode: lastSuccessLog.value.http_code ?? 0,
           responseBody: typeof lastSuccessLog.value.response_body === 'string'
             ? lastSuccessLog.value.response_body
@@ -141,7 +158,7 @@ const runPreview = async () => {
     postResult.value = null
     postError.value = null
     try {
-      const res = await previewSnippet(postCode.value, payload, 'post', postContext)
+      const res = await previewSnippet(postCode.value, sentPayload, 'post', postContext)
       postResult.value = res.output || null
       postError.value = res.error || null
       if (!res.error) emit('glue-post-preview', { trigger: props.trigger })
@@ -391,6 +408,7 @@ const copyCode = () => {
               <p v-html="sprintf(__('%1$sAvailable variables:%2$s %3$s$payload%4$s (mapped array), %3$s$args%4$s (%5$s$payload[\'args\']%6$s)'), '<strong>', '</strong>', '<code class=&quot;font-mono&quot;>', '</code>', '<code>', '</code>')"></p>
               <p v-html="sprintf(__('%1$sShorthand:%2$s works for any variable, e.g. %3$s{{ $args.0.field }}%4$s → %3$s$args[0][\'field\']%4$s, %3$s{{ $payload.key }}%4$s → %3$s$payload[\'key\']%4$s'), '<strong>', '</strong>', '<code class=&quot;font-mono&quot;>', '</code>')"></p>
               <p v-html="sprintf(__('Must %1$sreturn $payload;%2$s — the returned array replaces the payload before dispatch.'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>
+              <p class="pt-0.5 border-t border-border/60 mt-1" v-html="sprintf(__('%1$sOrder:%2$s field mapping runs first, then this snippet — so %3$s$payload%4$s here is the %5$spost-mapping%6$s payload, exactly as at dispatch.'), '<strong>', '</strong>', '<code class=&quot;font-mono&quot;>', '</code>', '<strong>', '</strong>')"></p>
             </div>
             <div v-else class="text-xs text-muted-foreground rounded-md border px-3 py-2 bg-muted/20 space-y-1">
               <p v-html="sprintf(__('%1$sAvailable variables:%2$s %3$s$payload%4$s (sent), %3$s$originalPayload%4$s (pre-mapping), %3$s$responseCode%4$s, %3$s$responseBody%4$s'), '<strong>', '</strong>', '<code class=&quot;font-mono&quot;>', '</code>')"></p>
@@ -475,7 +493,7 @@ const copyCode = () => {
                 <pre class="text-xs font-mono bg-muted rounded-md p-3 overflow-x-auto max-h-64 whitespace-pre-wrap break-all border">{{ formatJson(preResult) }}</pre>
                 <div class="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
                   <CheckCircle2 class="h-3 w-3 shrink-0" />
-                  {{ __('Result preview is now used as the effective payload for Mapping & Conditions below.') }}
+                  {{ __('This is the final payload on the wire — used for Transformed Conditions and URL/param templates below.') }}
                 </div>
               </div>
             </template>

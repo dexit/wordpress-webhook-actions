@@ -247,8 +247,9 @@ class WebhookRepository {
     $result = $wpdb->insert(
       $this->webhooksTable,
       [
-        'webhook_uuid'   => wp_generate_uuid4(),
+        'webhook_uuid'   => $data['webhook_uuid'] ?? wp_generate_uuid4(),
         'name'           => $data['name'],
+        'description'    => isset($data['description']) && $data['description'] !== '' ? $data['description'] : null,
         'endpoint_url'   => $data['endpoint_url'],
         'http_method'    => strtoupper($data['http_method'] ?? 'POST'),
         'custom_headers' => !empty($data['custom_headers']) ? wp_json_encode($data['custom_headers']) : null,
@@ -258,7 +259,7 @@ class WebhookRepository {
         'is_enabled'     => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
         'is_synchronous' => isset($data['is_synchronous']) ? (int)(bool)$data['is_synchronous'] : 0,
       ],
-      ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d']
+      ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d']
     );
 
     if (!$result) {
@@ -290,6 +291,11 @@ class WebhookRepository {
 
     if (isset($data['name'])) {
       $updateData['name'] = $data['name'];
+      $format[] = '%s';
+    }
+
+    if (array_key_exists('description', $data)) {
+      $updateData['description'] = ($data['description'] !== null && $data['description'] !== '') ? $data['description'] : null;
       $format[] = '%s';
     }
 

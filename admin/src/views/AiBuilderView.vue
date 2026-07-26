@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import {
   BrainCircuit,
   WandSparkles,
@@ -11,6 +11,7 @@ import {
   Settings2,
   RotateCcw,
   Sparkles,
+  Clock3,
 } from 'lucide-vue-next';
 import { Button, Input, Switch, Dialog } from '@/components/ui';
 import ProviderLogo from '@/components/ProviderLogo.vue';
@@ -22,7 +23,7 @@ import AiStepPanel from '@/components/AiStepPanel.vue';
 import AiBuildsBar from '@/components/AiBuildsBar.vue';
 import BuiltWebhookActions from '@/components/BuiltWebhookActions.vue';
 import { api } from '@/lib/api';
-import { __ } from '@/i18n';
+import { __, sprintf } from '@/i18n';
 
 // The dev trace panel always renders under the Vite dev server, and in
 // production when the site opts in via Settings → AI Builder (trace_enabled).
@@ -97,6 +98,27 @@ const creditsTooltip = computed(() => {
   if (!h?.resets_at) return '';
   const d = new Date(h.resets_at);
   return isNaN(d) ? '' : __('Monthly credits reset on %s.').replace('%s', d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }));
+});
+
+// Live "time until reset" counter. `now` ticks each minute so the chip counts
+// down without a page refresh.
+const now = ref(Date.now());
+let resetTimer = null;
+onMounted(() => { resetTimer = setInterval(() => { now.value = Date.now(); }, 60000); });
+onBeforeUnmount(() => { if (resetTimer) clearInterval(resetTimer); });
+
+const resetCountdown = computed(() => {
+  const iso = hostedCredits.value?.resets_at;
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return '';
+  const ms = then - now.value;
+  if (ms <= 0) return __('resets soon');
+  const mins = Math.floor(ms / 60000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  if (days >= 1) return sprintf(__('resets in %1$dd %2$dh'), days, hours);
+  return sprintf(__('resets in %1$dh %2$dm'), hours, mins % 60);
 });
 
 function applyHosted(res) {
@@ -673,7 +695,7 @@ async function scrollDown() {
       <div class="rounded-lg border border-border bg-card">
         <div class="flex items-center justify-between gap-3 px-4 py-3">
           <div class="flex items-center gap-2 min-w-0">
-            <ProviderLogo :provider="activeProvider" :size="20" />
+            <ProviderLogo :provider="activeProvider" :size="36" />
             <div class="min-w-0">
               <div class="text-sm font-medium text-foreground truncate">{{ activeProviderLabel }}</div>
               <div class="text-xs text-muted-foreground truncate font-mono">{{ activeModel }}</div>
@@ -684,6 +706,11 @@ async function scrollDown() {
                            : 'border-primary/30 bg-primary/10 text-primary']">
               <Sparkles class="w-3.5 h-3.5" />
               {{ __('%s credits left').replace('%s', creditsLeft.toLocaleString()) }}
+            </span>
+            <span v-if="hostedCredits && resetCountdown" :title="creditsTooltip"
+              class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground shrink-0">
+              <Clock3 class="w-3.5 h-3.5" />
+              {{ resetCountdown }}
             </span>
           </div>
           <div class="flex items-center gap-3 shrink-0">

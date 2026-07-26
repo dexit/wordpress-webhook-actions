@@ -6,6 +6,7 @@ import { RouterLink } from 'vue-router';
 import TriggerSelect from '@/components/TriggerSelect.vue';
 import ChainPicker from '@/components/ChainPicker.vue';
 import KeyValueEditor from '@/components/KeyValueEditor.vue';
+import MarkdownField from '@/components/MarkdownField.vue';
 import api from '@/lib/api';
 import { usePro } from '@/composables/usePro';
 import { useSyncWarning } from '@/composables/useSyncWarning';
@@ -52,6 +53,7 @@ const emit = defineEmits(['submit', 'cancel', 'change']);
 
 const form = ref({
   name: '',
+  description: '',
   endpoint_url: '',
   http_method: 'POST',
   auth_header: '',
@@ -168,6 +170,7 @@ const useChainTrigger = ref(false);
 const chainConfig = ref({
   chain_id: null,
   new_chain_name: '',
+  new_chain_description: '',
   source_webhook_ids: [],
 });
 
@@ -189,6 +192,7 @@ watch(() => props.webhook, async (webhook) => {
 
     form.value = {
       name:               webhook.name || '',
+      description:        webhook.description || '',
       endpoint_url:       webhook.endpoint_url || '',
       http_method:        webhook.http_method || 'POST',
       auth_header:        webhook.auth_header || '',
@@ -224,6 +228,7 @@ watch(() => props.webhook, async (webhook) => {
     chainConfig.value = {
       chain_id: targetChainId,
       new_chain_name: '',
+      new_chain_description: '',
       source_webhook_ids: Array.from(sourceIds),
     };
 
@@ -379,7 +384,7 @@ const toggleChainMode = (val) => {
       form.value.is_synchronous = true;
     }
   } else {
-    chainConfig.value = { chain_id: null, new_chain_name: '', source_webhook_ids: [] };
+    chainConfig.value = { chain_id: null, new_chain_name: '', new_chain_description: '', source_webhook_ids: [] };
   }
 };
 
@@ -450,6 +455,7 @@ const handleSubmit = () => {
           enabled: true,
           chain_id: chainConfig.value.chain_id,
           new_chain_name: chainConfig.value.new_chain_name?.trim() || '',
+          new_chain_description: chainConfig.value.new_chain_description?.trim() || '',
           source_webhook_ids: chainConfig.value.source_webhook_ids || [],
         }
       : { enabled: false };
@@ -487,6 +493,14 @@ const handleSubmit = () => {
       />
       <p v-if="errors.name" class="text-sm text-destructive">{{ errors.name }}</p>
     </div>
+
+    <!-- Description (markdown) -->
+    <MarkdownField
+      id="description"
+      v-model="form.description"
+      :label="__('Description (optional)')"
+      :placeholder="__('What does this webhook do? Markdown supported.')"
+    />
 
     <!-- Endpoint URL -->
     <div class="space-y-2">
