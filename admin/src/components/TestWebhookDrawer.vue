@@ -221,16 +221,16 @@ const formatJson = (data) => {
               <div v-if="hasPreGlue || !proActive" class="flex items-start gap-2">
                 <RadioGroupItem id="src-pre-glue" value="pre_glue" class="mt-0.5" :disabled="!proActive" />
                 <label for="src-pre-glue" class="cursor-pointer select-none flex flex-col items-start gap-0.5">
-                  <div class="text-sm font-medium">{{ __('Captured + Pre-dispatch Glue + Mapping') }}</div>
-                  <div class="text-xs text-muted-foreground">{{ __('Pre-dispatch Code Glue applied before field mapping') }}</div>
+                  <div class="text-sm font-medium">{{ __('Captured + Mapping + Pre-dispatch Glue') }}</div>
+                  <div class="text-xs text-muted-foreground">{{ __('Field mapping applied first, then pre-dispatch Code Glue — the dispatch order') }}</div>
                   <UpgradeBadge v-if="!proActive" />
                 </label>
               </div>
               <div v-if="(hasPreGlue && hasPostGlue) || !proActive" class="flex items-start gap-2">
                 <RadioGroupItem id="src-full-glue" value="full_glue" class="mt-0.5" :disabled="!proActive" />
                 <label for="src-full-glue" class="cursor-pointer select-none flex flex-col items-start gap-0.5">
-                  <div class="text-sm font-medium">{{ __('Captured + Pre-dispatch Glue + Mapping + Post-dispatch Glue') }}</div>
-                  <div class="text-xs text-muted-foreground">{{ __('Full pipeline — post-dispatch Code Glue fires after delivery') }}</div>
+                  <div class="text-sm font-medium">{{ __('Captured + Mapping + Pre-dispatch Glue + Post-dispatch Glue') }}</div>
+                  <div class="text-xs text-muted-foreground">{{ __('Full pipeline in dispatch order — post-dispatch Code Glue fires after delivery') }}</div>
                   <UpgradeBadge v-if="!proActive" />
                 </label>
               </div>

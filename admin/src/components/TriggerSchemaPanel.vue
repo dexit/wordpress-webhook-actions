@@ -92,11 +92,15 @@ const openGlueDrawer = (trigger, tab = 'pre') => {
   glueDrawer.value = { open: true, trigger, tab };
 };
 
-// Auto-apply saved pre-dispatch glue against the captured payload silently.
+// Auto-apply saved pre-dispatch glue against the MAPPED payload silently.
+// At dispatch the pre-glue snippet runs on the post-mapping payload
+// (Dispatcher applies PayloadTransformer::transform *before* the
+// fswa_webhook_payload filter), so the preview must feed it the mapped payload
+// too — not the raw captured example.
 // Marks result as saved so no warning is shown — same as if the user had run + saved manually.
 const autoApplyGluePreview = async (trigger, assignment) => {
   if (!assignment?.pre_enabled || !assignment?.pre_snippet?.code) return;
-  const payload = getParsedExamplePayload(trigger);
+  const payload = getMappedPayload(trigger);
   if (!payload) return;
   try {
     const { api } = await import('@/lib/api');
@@ -335,9 +339,11 @@ const handleConditionsEvaluateOnChange = (trigger, value) => {
   localConditionsEvaluateOn.value = { ...localConditionsEvaluateOn.value, [trigger]: value };
 };
 
-// Compute post-mapping payload for a trigger (for conditions field picker when mode = 'transformed')
-const getTransformedPayload = (trigger) => {
-  const payload = getExamplePayload(trigger);
+// Compute the post-mapping payload for a trigger — mirrors the backend
+// PayloadTransformer::transform applied to the RAW captured example. This is
+// exactly the payload the pre-dispatch Code Glue snippet receives at dispatch.
+const getMappedPayload = (trigger) => {
+  const payload = getParsedExamplePayload(trigger);
   if (!payload) return null;
   const mapping = getMappingValue(trigger);
   return applyMappingTransform(payload, {
@@ -347,10 +353,19 @@ const getTransformedPayload = (trigger) => {
   });
 };
 
-// Payload passed to ConditionsEditor — depends on evaluate_on setting
+// The final payload as it goes on the wire: pre-glue applied to the mapped
+// payload. Falls back to the mapped payload when no pre-glue preview is active.
+const getFinalPayload = (trigger) => {
+  return gluePreviewPayloads.value[trigger] ?? getMappedPayload(trigger);
+};
+
+// Payload passed to ConditionsEditor — mirrors the backend evaluate_on setting:
+//   'original'    → raw captured payload (before mapping)
+//   'transformed' → final payload (mapping + pre-glue), matching the
+//                   post-glue payload conditions are evaluated against at dispatch.
 const getConditionsPayload = (trigger) => {
   return getConditionsEvaluateOn(trigger) === 'transformed'
-    ? getTransformedPayload(trigger)
+    ? getFinalPayload(trigger)
     : getParsedExamplePayload(trigger);
 };
 
@@ -368,11 +383,6 @@ const getParsedExamplePayload = (trigger) => {
     try { return JSON.parse(raw); } catch { return null; }
   }
   return raw;
-};
-
-// Get effective example payload: glue preview if available, else raw captured (parsed)
-const getExamplePayload = (trigger) => {
-  return gluePreviewPayloads.value[trigger] ?? getParsedExamplePayload(trigger);
 };
 
 // Check if saving
@@ -638,7 +648,7 @@ watch(
             </button>
             <div v-if="isSectionExpanded(trigger, 'mapping')" class="pt-2">
               <MappingEditor
-                :examplePayload="getExamplePayload(trigger)"
+                :examplePayload="getParsedExamplePayload(trigger)"
                 :originalPayload="getParsedExamplePayload(trigger)"
                 :modelValue="getMappingValue(trigger)"
                 :includeUserData="getUserDataValue(trigger)"
@@ -807,6 +817,7 @@ watch(
     :webhookId="webhookId"
     :trigger="glueDrawer.trigger"
     :examplePayload="getParsedExamplePayload(glueDrawer.trigger)"
+    :mappedPayload="getMappedPayload(glueDrawer.trigger)"
     :initialTab="glueDrawer.tab"
     @close="onGlueDrawerClose"
     @glue-preview="onGluePreview"
