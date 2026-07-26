@@ -1,10 +1,11 @@
 <script setup>
-import { Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Unlink, Upload, Loader2 } from 'lucide-vue-next';
-import { Button, Badge, Switch } from '@/components/ui';
+import { computed } from 'vue';
+import { Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Unlink, Upload, Loader2, AlertTriangle } from 'lucide-vue-next';
+import { Button, Badge, Switch, Tooltip } from '@/components/ui';
 import MarkdownView from '@/components/MarkdownView.vue';
-import { __ } from '@/i18n';
+import { __, sprintf } from '@/i18n';
 
-defineProps({
+const props = defineProps({
   webhook: { type: Object, required: true },
   isOrphan: Boolean,
   wpTriggers: { type: Array, default: () => [] },
@@ -15,6 +16,22 @@ defineProps({
 });
 
 const emit = defineEmits(['copy', 'toggle', 'toggle-sync', 'logs', 'test', 'edit', 'delete', 'export']);
+
+// Pro-only features configured on this webhook that won't run because Pro is
+// inactive. The REST layer only populates this when Pro is not loaded.
+const dormantProLabels = {
+  pre_glue: () => __('Pre-dispatch Code Glue'),
+  post_glue: () => __('Post-dispatch Code Glue'),
+  url_template: () => __('URL templates ({{ }})'),
+};
+const dormantPro = computed(() => props.webhook.dormant_pro_features ?? []);
+const dormantProTooltip = computed(() => {
+  const names = dormantPro.value.map((f) => (dormantProLabels[f] ? dormantProLabels[f]() : f));
+  return sprintf(
+    __('Webhook Actions Pro is inactive, so this webhook dispatches without: %s. Reactivate Pro to restore it.'),
+    names.join(', '),
+  );
+});
 </script>
 
 <template>
@@ -36,6 +53,12 @@ const emit = defineEmits(['copy', 'toggle', 'toggle-sync', 'logs', 'test', 'edit
         >
           {{ __('Sync') }}
         </Badge>
+        <Tooltip v-if="dormantPro.length" :content="dormantProTooltip" side="top">
+          <Badge variant="destructive" class="text-xs gap-1 cursor-help">
+            <AlertTriangle class="h-3 w-3" />
+            {{ __('Pro inactive') }}
+          </Badge>
+        </Tooltip>
       </div>
 
       <MarkdownView v-if="webhook.description" :source="webhook.description" class="mb-2 text-xs" />

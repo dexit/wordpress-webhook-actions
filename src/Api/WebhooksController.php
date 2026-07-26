@@ -14,6 +14,7 @@ use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Services\QueueService;
 use FlowSystems\WebhookActions\Services\LogService;
 use FlowSystems\WebhookActions\Services\PayloadTransformer;
+use FlowSystems\WebhookActions\Services\DormantProFeatures;
 use FlowSystems\WebhookActions\Services\Dispatcher;
 use FlowSystems\WebhookActions\Services\WPHttpTransport;
 use FlowSystems\WebhookActions\Api\AuthHelper;
@@ -32,6 +33,7 @@ class WebhooksController extends WP_REST_Controller {
   private LogService $logService;
   private PayloadTransformer $payloadTransformer;
   private ActivityLogService $activityLog;
+  private DormantProFeatures $dormantPro;
 
   public function __construct() {
     $this->repository         = new WebhookRepository();
@@ -40,6 +42,7 @@ class WebhooksController extends WP_REST_Controller {
     $this->logService         = new LogService();
     $this->payloadTransformer = new PayloadTransformer();
     $this->activityLog        = new ActivityLogService();
+    $this->dormantPro         = new DormantProFeatures();
   }
 
   /**
@@ -166,6 +169,10 @@ class WebhooksController extends WP_REST_Controller {
     if (!AuthHelper::canRevealSecrets($request)) {
       $webhook['auth_header'] = __('You don\'t have permissions to see it.', 'flowsystems-webhook-actions');
     }
+
+    // Flag Pro-only features (Code Glue, {{ }} URL templates) configured on this
+    // webhook that will NOT run because Pro is inactive — [] when Pro is loaded.
+    $webhook['dormant_pro_features'] = $this->dormantPro->forWebhook($webhook);
 
     /**
      * Filter webhook data before it is returned in a REST response.
