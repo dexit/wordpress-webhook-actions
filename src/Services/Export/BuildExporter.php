@@ -40,12 +40,14 @@ class BuildExporter {
   /**
    * Build the export document.
    *
-   * @param int[] $webhookIds Explicit webhook IDs to export.
-   * @param int[] $chainIds   Chain IDs to export (member webhooks auto-included).
-   * @param bool  $all        Export every webhook and chain on the site.
+   * @param int[]                $webhookIds Explicit webhook IDs to export.
+   * @param int[]                $chainIds   Chain IDs to export (member webhooks auto-included).
+   * @param bool                 $all        Export every webhook and chain on the site.
+   * @param array<string, mixed> $options    Caller intent passed to extensions (e.g.
+   *                                         `include_ai_transcript`, `conversation_id`).
    * @return array The portable document.
    */
-  public function export(array $webhookIds = [], array $chainIds = [], bool $all = false): array {
+  public function export(array $webhookIds = [], array $chainIds = [], bool $all = false, array $options = []): array {
     $webhookIds = array_map('intval', $webhookIds);
     $chainIds   = array_map('intval', $chainIds);
 
@@ -102,8 +104,20 @@ class BuildExporter {
      * @param array $doc        The full export document.
      * @param int[] $webhookIds The webhook IDs included in this export.
      * @param int[] $chainIds   The chain IDs included in this export.
+     * @param array $options    Caller intent (e.g. `include_ai_transcript`,
+     *                          `conversation_id`). Added in 2.5.0 — existing
+     *                          three-argument callbacks keep working.
      */
-    return apply_filters('fswa_export_doc', $doc, $webhookIds, $chainIds);
+    $doc = apply_filters('fswa_export_doc', $doc, $webhookIds, $chainIds, $options);
+
+    // Last step, deliberately: a build meant for public sharing must have this
+    // site's address stripped out of extension blocks too (a Build-with-AI
+    // transcript quotes endpoint URLs back at the user).
+    if (!empty($options['anonymize_site_url'])) {
+      $doc = (new BuildAnonymizer())->anonymize($doc);
+    }
+
+    return $doc;
   }
 
   /**

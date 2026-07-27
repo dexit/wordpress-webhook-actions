@@ -48,14 +48,11 @@ class BuildSchemaValidator {
     ));
     // `ai_build` is a documented provenance block (Build-with-AI transcript). It
     // is display-only and never recreated on import, but must be tolerated so a
-    // build exported with a transcript still imports anywhere. Its inner shape is
-    // opaque (validated only as an object), like the captured payload blobs.
+    // build exported with a transcript still imports anywhere.
     $err = $this->allowOnly($document, array_merge(['fswa_export', 'credentials', 'webhooks', 'chains', 'ai_build'], $extraRoot), 'root');
     if ($err) return $err;
     if ($e = $this->requireKeys($document, ['fswa_export', 'webhooks'], 'root')) return $e;
-    if (isset($document['ai_build']) && $document['ai_build'] !== null && !$this->isObject($document['ai_build'])) {
-      return $this->err('ai_build', __('must be an object.', 'flowsystems-webhook-actions'));
-    }
+    if ($e = $this->validateAiBuild($document['ai_build'] ?? null)) return $e;
 
     // ---- fswa_export meta ---------------------------------------------------
     $meta = $document['fswa_export'];
@@ -116,6 +113,45 @@ class BuildSchemaValidator {
     }
 
     return true;
+  }
+
+  /**
+   * Validate the optional Build-with-AI provenance block. Known keys are typed;
+   * unknown ones are tolerated so a build exported by a newer Pro still imports
+   * here (the block is display-only — nothing in it is ever executed or created).
+   *
+   * @return WP_Error|null
+   */
+  private function validateAiBuild($aiBuild) {
+    if ($aiBuild === null) return null;
+    if (!$this->isObject($aiBuild)) return $this->err('ai_build', __('must be an object.', 'flowsystems-webhook-actions'));
+
+    foreach (['conversation_uuid', 'title', 'model', 'transport'] as $key) {
+      if (isset($aiBuild[$key]) && !is_string($aiBuild[$key])) {
+        return $this->err("ai_build.$key", __('must be a string.', 'flowsystems-webhook-actions'));
+      }
+    }
+
+    // transcript[] = the conversation; steps[] = the plan the agent applied.
+    // Both are lists of string-valued records.
+    foreach (['transcript' => ['role', 'content'], 'steps' => ['ability', 'summary', 'status']] as $key => $fields) {
+      if (!array_key_exists($key, $aiBuild)) continue;
+      if (!$this->isList($aiBuild[$key])) {
+        return $this->err("ai_build.$key", __('must be an array.', 'flowsystems-webhook-actions'));
+      }
+      foreach ($aiBuild[$key] as $i => $entry) {
+        if (!$this->isObject($entry)) {
+          return $this->err("ai_build.$key" . "[$i]", __('must be an object.', 'flowsystems-webhook-actions'));
+        }
+        foreach ($fields as $field) {
+          if (isset($entry[$field]) && !is_string($entry[$field])) {
+            return $this->err("ai_build.$key" . "[$i].$field", __('must be a string.', 'flowsystems-webhook-actions'));
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   /**

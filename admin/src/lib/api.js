@@ -208,6 +208,7 @@ export const api = {
   },
   builds: {
     export: (data) => post('export', data),
+    resolve: (data) => post('export/resolve', data),
     analyze: (document) => post('import/analyze', { document }),
     import: (data) => post('import', data),
   },

@@ -22,6 +22,7 @@ import AiPlanStepper from '@/components/AiPlanStepper.vue';
 import AiStepPanel from '@/components/AiStepPanel.vue';
 import AiBuildsBar from '@/components/AiBuildsBar.vue';
 import BuiltWebhookActions from '@/components/BuiltWebhookActions.vue';
+import ShareBuildDialog from '@/components/ShareBuildDialog.vue';
 import { api } from '@/lib/api';
 import { __, sprintf } from '@/i18n';
 
@@ -610,6 +611,16 @@ const hasRevertible = computed(() =>
   execSteps.value.some((s) => s.status === 'done' && REVERTIBLE_ABILITIES.includes(s.ability))
 );
 
+// Share = export what this conversation built (the server resolves the object
+// set from the run's applied steps), so it needs at least one applied step.
+const shareOpen = ref(false);
+const canShareBuild = computed(() =>
+  !!activeId.value && execSteps.value.some((s) => s.status === 'done')
+);
+const activeTitle = computed(() =>
+  conversations.value.find((c) => String(c.id) === String(activeId.value))?.title || ''
+);
+
 // Prop bundle for BuiltWebhookActions (used directly and via AiStepPanel).
 const builtProps = computed(() => ({
   webhookId: builtWebhookId.value,
@@ -621,6 +632,7 @@ const builtProps = computed(() => ({
   syncTooltip,
   hasRevertible: hasRevertible.value,
   running: running.value,
+  canShare: canShareBuild.value,
 }));
 
 async function revertLast() {
@@ -818,6 +830,7 @@ async function scrollDown() {
             @enable="enableBuiltWebhook"
             @toggle-sync="setBuiltWebhookSync"
             @revert="revertLast"
+            @share="shareOpen = true"
           />
 
           <!-- Finished, nothing focused -->
@@ -827,7 +840,8 @@ async function scrollDown() {
               <CheckCircle2 class="w-5 h-5" /> {{ __('Build complete.') }}
             </span>
             <BuiltWebhookActions v-bind="builtProps"
-              @enable="enableBuiltWebhook" @toggle-sync="setBuiltWebhookSync" @revert="revertLast" />
+              @enable="enableBuiltWebhook" @toggle-sync="setBuiltWebhookSync" @revert="revertLast"
+              @share="shareOpen = true" />
           </div>
         </template>
       </section>
@@ -841,6 +855,14 @@ async function scrollDown() {
         <RotateCcw class="w-4 h-4 mr-1.5" /> {{ __('Retry') }}
       </Button>
     </div>
+
+    <!-- Share/export this build -->
+    <ShareBuildDialog
+      :open="shareOpen"
+      :conversation-id="activeId"
+      :title="activeTitle"
+      @close="shareOpen = false"
+    />
 
     <!-- Delete-build confirmation -->
     <Dialog
