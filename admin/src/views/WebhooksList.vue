@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Netwo
 import { Button, Card, Badge, Switch, Dialog, Checkbox, Input, Label } from '@/components/ui'
 import TestWebhookDrawer from '@/components/TestWebhookDrawer.vue'
 import WebhookCardContent from '@/components/WebhookCardContent.vue'
-import MarkdownView from '@/components/MarkdownView.vue'
+import DescriptionDisclosure from '@/components/DescriptionDisclosure.vue'
 import MarkdownField from '@/components/MarkdownField.vue'
 import ExportDialog from '@/components/ExportDialog.vue'
 import ImportDialog from '@/components/ImportDialog.vue'
@@ -630,7 +630,7 @@ onMounted(loadWebhooks)
             </Button>
           </div>
         </div>
-        <MarkdownView v-if="group.chain.description" :source="group.chain.description" class="text-xs" />
+        <DescriptionDisclosure v-if="group.chain.description" :source="group.chain.description" markdown-class="text-xs" />
         <div class="space-y-3 sm:space-y-4">
           <Card
             v-for="webhook in group.webhooks"

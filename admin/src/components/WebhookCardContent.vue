@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Unlink, Upload, Loader2, AlertTriangle } from 'lucide-vue-next';
 import { Button, Badge, Switch, Tooltip } from '@/components/ui';
-import MarkdownView from '@/components/MarkdownView.vue';
+import DescriptionDisclosure from '@/components/DescriptionDisclosure.vue';
 import { __, sprintf } from '@/i18n';
 
 const props = defineProps({
@@ -61,7 +61,7 @@ const dormantProTooltip = computed(() => {
         </Tooltip>
       </div>
 
-      <MarkdownView v-if="webhook.description" :source="webhook.description" class="mb-2 text-xs" />
+      <DescriptionDisclosure v-if="webhook.description" :source="webhook.description" markdown-class="mb-2 text-xs" />
 
       <div class="flex items-center gap-1 mb-2">
         <p class="text-xs sm:text-sm text-muted-foreground font-mono truncate">
