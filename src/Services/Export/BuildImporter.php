@@ -109,12 +109,28 @@ class BuildImporter {
         'skipped'       => 0,
         'webhook_items' => [], // [{id, name}] of created webhooks, for the UI to link to.
         'chain_items'   => [], // [{id, name}] of created chains.
+        'problems'      => [], // Anything that could not be imported, in words.
       ];
 
       foreach ($document['webhooks'] as $webhook) {
         $newId = $this->importWebhook($webhook, $credentialMap, $onCollision, $created);
-        if ($newId > 0 && !empty($webhook['uuid'])) {
-          $uuidToNewId[$webhook['uuid']] = $newId;
+        $uuid  = (string) ($webhook['uuid'] ?? '');
+        if ($uuid === '') {
+          continue;
+        }
+
+        if ($newId > 0) {
+          $uuidToNewId[$uuid] = $newId;
+          continue;
+        }
+
+        // Skipped as a duplicate. The webhook is already here, so a chain in
+        // this document should wire to THAT one rather than lose the hop —
+        // "skip the duplicates" means do not create a second copy, not drop
+        // the chain that references it.
+        $existing = $this->webhooks->findByUuid($uuid);
+        if ($existing !== null) {
+          $uuidToNewId[$uuid] = (int) $existing['id'];
         }
       }
 
@@ -223,18 +239,19 @@ class BuildImporter {
   private function importChain(array $chain, array $uuidToNewId, array &$created): void {
     $name = (string) ($chain['name'] ?? '');
     if ($name === '') {
+      $created['problems'][] = __('A chain in this file has no name and was not imported.', 'flowsystems-webhook-actions');
       return;
     }
-    // Avoid the UNIQUE(name) collision by suffixing an existing name.
-    if ($this->chains->findByName($name) !== null) {
-      $name .= ' (' . gmdate('Y-m-d H:i') . ')';
-    }
+
+    $name = $this->freeChainName($name);
 
     $chainId = $this->chains->create([
       'name'        => $name,
       'description' => $chain['description'] ?? null,
     ]);
     if (!$chainId) {
+      /* translators: %s: chain name. */
+      $created['problems'][] = sprintf(__('The chain "%s" could not be created.', 'flowsystems-webhook-actions'), $name);
       return;
     }
     $chainId = (int) $chainId;
@@ -244,16 +261,55 @@ class BuildImporter {
     foreach ($chain['links'] ?? [] as $link) {
       $sourceId = (int) ($uuidToNewId[$link['source_uuid'] ?? ''] ?? 0);
       $targetId = (int) ($uuidToNewId[$link['target_uuid'] ?? ''] ?? 0);
+
+      // A hop is the whole point of a chain, so losing one is worth saying out
+      // loud rather than quietly counting one link fewer.
       if ($sourceId <= 0 || $targetId <= 0) {
+        /* translators: %s: chain name. */
+        $created['problems'][] = sprintf(__('A hop of "%s" points at a webhook that is not in this file, and was left out.', 'flowsystems-webhook-actions'), $name);
         continue;
       }
       if ($this->links->wouldCreateCycle($sourceId, $targetId)) {
+        /* translators: %s: chain name. */
+        $created['problems'][] = sprintf(__('A hop of "%s" was left out because it would have made the chain loop back on itself.', 'flowsystems-webhook-actions'), $name);
         continue;
       }
       if ($this->links->create($chainId, $sourceId, $targetId)) {
         $created['links']++;
       }
     }
+  }
+
+  /**
+   * A chain name nothing else is using.
+   *
+   * Chain names are UNIQUE in the database and a chain carries no uuid, so a
+   * re-import has to rename rather than match. The old suffix was the UTC
+   * minute, which is not unique at all: importing the same file twice inside
+   * one minute produced the same name, the insert failed, and the chain went
+   * missing without a word. A counter is appended until the name is genuinely
+   * free.
+   */
+  private function freeChainName(string $name): string {
+    if ($this->chains->findByName($name) === null) {
+      return $name;
+    }
+
+    $base = $name . ' (' . gmdate('Y-m-d H:i') . ')';
+    if ($this->chains->findByName($base) === null) {
+      return $base;
+    }
+
+    for ($n = 2; $n <= 50; $n++) {
+      $candidate = $base . ' ' . $n;
+      if ($this->chains->findByName($candidate) === null) {
+        return $candidate;
+      }
+    }
+
+    // Fifty same-minute imports of one build is not a real scenario; fall back
+    // to something unique rather than failing the insert.
+    return $base . ' ' . wp_generate_uuid4();
   }
 
   private function credentialMeta(array $document, ?string $ref, array $webhook): array {

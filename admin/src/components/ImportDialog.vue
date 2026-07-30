@@ -26,6 +26,7 @@ const result = ref(null)         // import summary once complete
 
 const importedWebhooks = computed(() => result.value?.webhook_items || [])
 const importedChains = computed(() => result.value?.chain_items || [])
+const problems = computed(() => result.value?.problems || [])
 const singleWebhook = computed(() => importedWebhooks.value.length === 1 && importedChains.value.length === 0)
 const singleChain = computed(() => importedChains.value.length === 1 && importedWebhooks.value.length === 0)
 
@@ -402,6 +403,21 @@ const runImport = async () => {
             {{ sprintf(__('Imported %1$d webhook(s) and %2$d chain(s).'), result.webhooks, result.chains) }}
             <span v-if="result.skipped">{{ sprintf(__('%d duplicate(s) skipped.'), result.skipped) }}</span>
           </p>
+        </div>
+      </div>
+
+      <!-- Anything the importer could not bring across. Silence here used to
+           mean a chain arrived with no hops and nobody was told. -->
+      <div
+        v-if="problems.length"
+        class="flex items-start gap-2 rounded-md border border-amber-400/40 bg-amber-50/50 p-3 dark:bg-amber-950/20"
+      >
+        <AlertTriangle class="h-4 w-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div class="text-sm">
+          <p class="font-medium text-amber-700 dark:text-amber-300">{{ __('Some parts were left out') }}</p>
+          <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+            <li v-for="(problem, i) in problems" :key="i">{{ problem }}</li>
+          </ul>
         </div>
       </div>
 
