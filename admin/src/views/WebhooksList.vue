@@ -20,7 +20,7 @@ import { __, _n, sprintf } from '@/i18n'
 const { fetchStats: refreshHealthStats } = useHealthStats()
 const { copiedKey, copy } = useCopyToClipboard()
 const { dontShowAgain, isWarningDismissed, applyDismiss, resetDontShowAgain } = useSyncWarning()
-const { chains, fetchChains, refresh: refreshChains, updateChain, deleteChain } = useChains()
+const { chains, refresh: refreshChains, updateChain, deleteChain } = useChains()
 
 const router = useRouter()
 const webhooks = ref([])
@@ -122,7 +122,11 @@ const loadWebhooks = async () => {
   loading.value = true
   error.value = null
   try {
-    const [list] = await Promise.all([api.webhooks.list(), fetchChains()])
+    // refreshChains, not fetchChains: the composable caches its in-flight
+    // promise, so a plain fetch after the first load returns the OLD chains —
+    // an imported chain (or one emptied by deleting a webhook) would not show
+    // up until the browser was reloaded.
+    const [list] = await Promise.all([api.webhooks.list(), refreshChains()])
     webhooks.value = list
   } catch (e) {
     error.value = e.message
