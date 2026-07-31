@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Webhook Actions - build automations and integrations "
-"with AI help 2.2.2\n"
+"with AI help 2.5.0\n"
 "Report-Msgid-Bugs-To: "
 "https://wordpress.org/support/plugin/flowsystems-webhook-actions\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
@@ -11,10 +11,14 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-21T21:54:54+00:00\n"
+"POT-Creation-Date: 2026-07-31T15:46:00+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: flowsystems-webhook-actions\n"
+
+#: admin/src/components/ImportDialog.vue
+msgid "%1$d webhook(s) and %2$d chain(s) to import."
+msgstr ""
 
 #: admin/src/views/ExternalCronView.vue
 msgid "%1$dh %2$dm"
@@ -93,6 +97,13 @@ msgid ""
 "once credentials are sealed with it, or they become unrecoverable."
 msgstr ""
 
+#: admin/src/components/PayloadGlueDrawer.vue
+msgid ""
+"%1$sOrder:%2$s field mapping runs first, then this snippet — so "
+"%3$s$payload%4$s here is the %5$spost-mapping%6$s payload, exactly as at "
+"dispatch."
+msgstr ""
+
 #: admin/src/views/ProView.vue
 msgid "%1$sPriority support%2$s — Pro subscribers get a direct response via email."
 msgstr ""
@@ -124,8 +135,16 @@ msgid ""
 "“That’s all” comment: %3$sdefine( 'DISABLE_WP_CRON', true );%4$s"
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "%d AI credits added to your balance."
+msgstr ""
+
 #: admin/src/components/TriggerSelect.vue
 msgid "%d available"
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue admin/src/components/MarkdownField.vue
+msgid "%d characters left"
 msgstr ""
 
 #: admin/src/views/VaultView.vue
@@ -139,6 +158,10 @@ msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "%d duplicate(s) skipped."
+msgstr ""
 
 #: admin/src/views/ActivityView.vue
 msgid "%d entry"
@@ -185,6 +208,20 @@ msgid "%d webhook"
 msgid_plural "%d webhooks"
 msgstr[0] ""
 msgstr[1] ""
+
+#: admin/src/views/WebhooksList.vue
+msgid "%d webhook uses Webhook Actions Pro features that are not running"
+msgid_plural "%d webhooks use Webhook Actions Pro features that are not running"
+msgstr[0] ""
+msgstr[1] ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "%d webhook(s) already exist here (same UUID)."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "%d without a description"
+msgstr ""
 
 #: admin/src/views/ExternalCronView.vue
 msgid "%dh"
@@ -242,8 +279,12 @@ msgstr ""
 msgid "5 (plugin default)"
 msgstr ""
 
-#: src/Api/ChainsController.php:134
-#: src/Api/ChainsController.php:167
+#: src/Services/Export/BuildImporter.php:242
+msgid "A chain in this file has no name and was not imported."
+msgstr ""
+
+#: src/Api/ChainsController.php:162
+#: src/Api/ChainsController.php:198
 msgid "A chain with that name already exists."
 msgstr ""
 
@@ -260,6 +301,22 @@ msgstr ""
 #: src/Api/CredentialsController.php:265
 #: src/Api/CredentialsController.php:314
 msgid "A credential with this name already exists."
+msgstr ""
+
+#: src/Services/Export/BuildImporter.php:269
+#. translators: %s: chain name.
+#, php-format
+msgid ""
+"A hop of \"%s\" points at a webhook that is not in this file, and was left "
+"out."
+msgstr ""
+
+#: src/Services/Export/BuildImporter.php:274
+#. translators: %s: chain name.
+#, php-format
+msgid ""
+"A hop of \"%s\" was left out because it would have made the chain loop back "
+"on itself."
 msgstr ""
 
 #: src/Api/AgentController.php:380
@@ -282,7 +339,7 @@ msgid ""
 "invalidated%2$s and all existing integrations using it will stop working."
 msgstr ""
 
-#: src/Api/WebhooksController.php:529
+#: src/Api/WebhooksController.php:572
 msgid "A payload object is required for custom source."
 msgstr ""
 
@@ -298,7 +355,7 @@ msgstr ""
 msgid "A url or webhook_id is required."
 msgstr ""
 
-#: src/Api/ChainsController.php:226
+#: src/Api/ChainsController.php:257
 msgid "A webhook cannot trigger itself."
 msgstr ""
 
@@ -382,7 +439,11 @@ msgstr ""
 msgid "Activate Plugin"
 msgstr ""
 
-#: admin/src/views/ProView.vue
+#: admin/src/views/WebhooksList.vue
+msgid "Activate Pro"
+msgstr ""
+
+#: admin/src/views/ProView.vue admin/src/views/WebhooksList.vue
 msgid "Activating…"
 msgstr ""
 
@@ -491,9 +552,16 @@ msgstr ""
 
 #: admin/src/views/SettingsView.vue
 msgid ""
-"Adds a diagnostic panel to Build with AI that records the exact prompts and "
-"raw responses exchanged with the AI model. Useful for troubleshooting. API "
-"keys are always redacted. Leave this off unless you are debugging."
+"Adds a diagnostic panel to Build with AI where you can read and export the "
+"recorded trace. Independent of logging above."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Adds your prompts and the assistant's replies so the recipient can see how "
+"this build was made. Read results are never included and obvious secrets "
+"are masked, but the conversation may still mention details about your site "
+"— review before sharing publicly."
 msgstr ""
 
 #: admin/src/views/SettingsView.vue
@@ -532,7 +600,7 @@ msgstr ""
 msgid "All logs have been cleared"
 msgstr ""
 
-#: src/Api/SettingsController.php:212
+#: src/Api/SettingsController.php:224
 msgid "All logs have been cleared."
 msgstr ""
 
@@ -558,6 +626,10 @@ msgstr ""
 
 #: src/Api/AgentController.php:188
 msgid "An API key is required to connect this provider."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Anonymize my site address"
 msgstr ""
 
 #: admin/src/components/ui/UpgradeBadge.vue
@@ -641,7 +713,7 @@ msgstr ""
 msgid "Authorization (optional)"
 msgstr ""
 
-#: src/Api/WebhooksController.php:723
+#: src/Api/WebhooksController.php:771
 msgid "Authorization header value."
 msgstr ""
 
@@ -661,6 +733,10 @@ msgstr ""
 
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid "Automatically enrich payload with user profile information"
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Automation"
 msgstr ""
 
 #: admin/src/views/ProView.vue
@@ -725,7 +801,7 @@ msgstr ""
 msgid "Bearer token (PAT)"
 msgstr ""
 
-#: src/Api/ChainsController.php:223
+#: src/Api/ChainsController.php:254
 msgid "Both source_webhook_id and target_webhook_id are required."
 msgstr ""
 
@@ -743,6 +819,10 @@ msgstr ""
 
 #: admin/src/components/AiPlanStepper.vue
 msgid "Build progress"
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Build title"
 msgstr ""
 
 #: admin/src/App.vue admin/src/views/AiBuilderView.vue
@@ -768,7 +848,7 @@ msgid ""
 "the key into %1$swp-config.php%2$s:"
 msgstr ""
 
-#: admin/src/components/AiProviderSettings.vue admin/src/components/ChangeExpiryDialog.vue admin/src/components/CreateTokenDialog.vue admin/src/components/LogsTable.vue admin/src/components/RotateTokenDialog.vue admin/src/components/WebhookForm.vue admin/src/components/ui/UpgradeBadge.vue admin/src/views/ActivityView.vue admin/src/views/AiBuilderView.vue admin/src/views/ApiTokensView.vue admin/src/views/ProView.vue admin/src/views/SettingsView.vue admin/src/views/VaultView.vue admin/src/views/WebhooksList.vue
+#: admin/src/components/AiProviderSettings.vue admin/src/components/ChangeExpiryDialog.vue admin/src/components/CreateTokenDialog.vue admin/src/components/ExportDialog.vue admin/src/components/ImportDialog.vue admin/src/components/LogsTable.vue admin/src/components/RotateTokenDialog.vue admin/src/components/ShareBuildDialog.vue admin/src/components/WebhookForm.vue admin/src/components/ui/UpgradeBadge.vue admin/src/views/ActivityView.vue admin/src/views/AiBuilderView.vue admin/src/views/ApiTokensView.vue admin/src/views/ProView.vue admin/src/views/SettingsView.vue admin/src/views/VaultView.vue admin/src/views/WebhooksList.vue
 msgid "Cancel"
 msgstr ""
 
@@ -806,11 +886,26 @@ msgid "Captured + Mapping"
 msgstr ""
 
 #: admin/src/components/TestWebhookDrawer.vue
-msgid "Captured + Pre-dispatch Glue + Mapping"
+msgid "Captured + Mapping + Pre-dispatch Glue"
 msgstr ""
 
 #: admin/src/components/TestWebhookDrawer.vue
-msgid "Captured + Pre-dispatch Glue + Mapping + Post-dispatch Glue"
+msgid "Captured + Mapping + Pre-dispatch Glue + Post-dispatch Glue"
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Captured example payloads are anonymized automatically: names, addresses, "
+"emails, phone numbers and IP addresses are replaced with placeholders, so "
+"the field mapping still previews without carrying anyone's data."
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid ""
+"Captured example payloads hold whatever a real visitor submitted — names, "
+"addresses, emails, phone numbers, IP addresses. They are replaced with "
+"placeholders unless you tick this, which you only want for a private backup "
+"of your own site."
 msgstr ""
 
 #: admin/src/components/TestWebhookDrawer.vue
@@ -821,8 +916,12 @@ msgstr ""
 msgid "Cast"
 msgstr ""
 
-#: admin/src/components/ChainPicker.vue
+#: admin/src/components/ChainPicker.vue admin/src/components/ShareBuildDialog.vue
 msgid "Chain"
+msgstr ""
+
+#: admin/src/components/ChainPicker.vue
+msgid "Chain description (optional)"
 msgstr ""
 
 #: admin/src/components/LogsTable.vue admin/src/views/QueueView.vue
@@ -833,7 +932,7 @@ msgstr ""
 msgid "Chain link #%s (deleted)"
 msgstr ""
 
-#: src/Api/ChainsController.php:255
+#: src/Api/ChainsController.php:286
 msgid "Chain link not found."
 msgstr ""
 
@@ -850,20 +949,24 @@ msgid "Chain name"
 msgstr ""
 
 #: src/Abilities/WriteAbilities.php:189
-#: src/Api/ChainsController.php:131
-#: src/Api/ChainsController.php:163
+#: src/Api/ChainsController.php:159
+#: src/Api/ChainsController.php:194
 msgid "Chain name is required."
 msgstr ""
 
-#: src/Api/ChainsController.php:117
-#: src/Api/ChainsController.php:156
-#: src/Api/ChainsController.php:196
-#: src/Api/ChainsController.php:217
+#: src/Api/ChainsController.php:120
+#: src/Api/ChainsController.php:187
+#: src/Api/ChainsController.php:227
+#: src/Api/ChainsController.php:248
 msgid "Chain not found."
 msgstr ""
 
 #: admin/src/views/ActivityView.vue
 msgid "Chains"
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid "Chains (member webhooks included automatically)"
 msgstr ""
 
 #: admin/src/views/ApiTokensView.vue
@@ -924,6 +1027,12 @@ msgstr ""
 msgid "Code Glue"
 msgstr ""
 
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"Code Glue is custom PHP that runs on your site when these webhooks fire. "
+"Only import builds from a source you trust — review each snippet below."
+msgstr ""
+
 #: src/Api/TriggersController.php:144
 msgid "Comments"
 msgstr ""
@@ -980,6 +1089,10 @@ msgstr ""
 
 #: admin/src/views/AiBuilderView.vue
 msgid "Connect an AI provider"
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Connects WordPress to a named service — a CRM, a spreadsheet, a chat app."
 msgstr ""
 
 #: admin/src/components/AiStepControls.vue
@@ -1055,12 +1168,30 @@ msgstr ""
 msgid "Copy trigger name"
 msgstr ""
 
+#: admin/src/views/WebhooksList.vue
+msgid "Could not activate Pro. Activate it from the Plugins screen."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Could not create the Application Password."
+msgstr ""
+
 #: admin/src/components/AiProviderSettings.vue
 msgid "Could not load models for this key — check that the key is valid."
 msgstr ""
 
 #: src/Api/QueueController.php:270
 msgid "Could not lock job for processing."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Could not read this build."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"Could not read this file. Make sure it is a build JSON exported from "
+"Webhook Actions."
 msgstr ""
 
 #: admin/src/components/AiStepControls.vue
@@ -1079,6 +1210,14 @@ msgstr ""
 msgid "Create Webhook"
 msgstr ""
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "Create a HubSpot deal when a WooCommerce order is placed"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Create a WP Application Password"
+msgstr ""
+
 #: admin/src/components/AiStepControls.vue
 msgid "Create a WP Application Password for me"
 msgstr ""
@@ -1091,6 +1230,10 @@ msgstr ""
 msgid ""
 "Create a named chain that wires 2xx completions of one webhook to "
 "downstream webhooks."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Create a new vault credential"
 msgstr ""
 
 #: src/Abilities/AbilityCatalog.php:118
@@ -1131,11 +1274,15 @@ msgstr ""
 msgid "Created"
 msgstr ""
 
-#: admin/src/components/CreateTokenDialog.vue
+#: admin/src/components/ImportDialog.vue
+msgid "Created “%s”"
+msgstr ""
+
+#: admin/src/components/CreateTokenDialog.vue admin/src/components/ImportDialog.vue
 msgid "Creating…"
 msgstr ""
 
-#: src/Api/WebhooksController.php:782
+#: src/Api/WebhooksController.php:830
 msgid "Creation date."
 msgstr ""
 
@@ -1143,7 +1290,7 @@ msgstr ""
 msgid "Credential could not be decrypted."
 msgstr ""
 
-#: admin/src/components/WebhookForm.vue
+#: admin/src/components/ImportDialog.vue admin/src/components/WebhookForm.vue
 msgid "Credential name"
 msgstr ""
 
@@ -1172,6 +1319,10 @@ msgstr ""
 
 #: admin/src/components/AiProviderSettings.vue
 msgid "Credentials source"
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Credit yourself (optional)"
 msgstr ""
 
 #: admin/src/components/AiProviderSettings.vue
@@ -1226,7 +1377,7 @@ msgstr ""
 msgid "Custom header"
 msgstr ""
 
-#: src/Api/WebhooksController.php:120
+#: src/Api/WebhooksController.php:126
 msgid "Custom payload JSON (required when payload_source is custom)."
 msgstr ""
 
@@ -1397,6 +1548,27 @@ msgid ""
 "tests your WordPress webhooks, integrations, and automations."
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Described"
+msgstr ""
+
+#: admin/src/components/WebhookForm.vue admin/src/views/WebhooksList.vue
+msgid "Description (optional)"
+msgstr ""
+
+#: src/Api/ChainsController.php:141
+#: src/Api/WebhooksController.php:318
+#. translators: %d: maximum character count
+#, php-format
+msgid "Description must be %d characters or fewer."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Descriptions travel with the build and are saved here too — they are what "
+"makes a shared build understandable to someone else."
+msgstr ""
+
 #: src/Abilities/TestAbilities.php:89
 msgid "Destructive probe methods (PUT, PATCH, DELETE) require confirmation."
 msgstr ""
@@ -1427,7 +1599,7 @@ msgstr ""
 msgid "Don't show this again"
 msgstr ""
 
-#: admin/src/components/AiStepPanel.vue admin/src/components/TokenCreatedDialog.vue
+#: admin/src/components/AiStepPanel.vue admin/src/components/ImportDialog.vue admin/src/components/ShareBuildDialog.vue admin/src/components/TokenCreatedDialog.vue
 msgid "Done"
 msgstr ""
 
@@ -1439,10 +1611,34 @@ msgstr ""
 msgid "Download Archive (ZIP)"
 msgstr ""
 
+#: admin/src/components/ExportDialog.vue admin/src/components/ShareBuildDialog.vue
+msgid "Download JSON"
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid ""
+"Download a portable JSON build. Secrets are never included — imported auth "
+"is re-linked to your vault."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Download everything this build created as a portable JSON file. Secrets are "
+"never included — whoever imports it re-links auth to their own vault."
+msgstr ""
+
 #: admin/src/views/WebhooksList.vue
 msgid ""
 "Downstream webhooks that lose their only trigger will be marked as orphans "
 "(no trigger assigned)."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Drop a build JSON here, or click to browse"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Drop to import"
 msgstr ""
 
 #: admin/src/views/QueueView.vue
@@ -1469,8 +1665,16 @@ msgstr ""
 msgid "Edit Webhook"
 msgstr ""
 
+#: admin/src/views/WebhooksList.vue
+msgid "Edit chain"
+msgstr ""
+
 #: admin/src/views/VaultView.vue
 msgid "Edit credential"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Edit “%s”"
 msgstr ""
 
 #: src/Abilities/AbilityCatalog.php:318
@@ -1479,10 +1683,6 @@ msgstr ""
 
 #: src/Abilities/AbilityCatalog.php:317
 msgid "Enable / disable a webhook"
-msgstr ""
-
-#: admin/src/views/SettingsView.vue
-msgid "Enable AI Dev Trace"
 msgstr ""
 
 #: admin/src/components/WebhookForm.vue admin/src/views/WebhooksList.vue
@@ -1517,7 +1717,7 @@ msgstr ""
 msgid "Endpoint URL is required"
 msgstr ""
 
-#: src/Api/WebhooksController.php:234
+#: src/Api/WebhooksController.php:248
 msgid "Endpoint URL is required."
 msgstr ""
 
@@ -1621,6 +1821,30 @@ msgstr ""
 msgid "Exponential — base 30 s, cap 3600 s"
 msgstr ""
 
+#: admin/src/components/WebhookCardContent.vue admin/src/views/WebhooksList.vue
+msgid "Export"
+msgstr ""
+
+#: admin/src/views/WebhooksList.vue
+msgid "Export chain"
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid "Export everything"
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue admin/src/components/ShareBuildDialog.vue admin/src/views/WebhooksList.vue
+msgid "Export failed."
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid "Export webhooks & chains"
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue admin/src/components/ShareBuildDialog.vue
+msgid "Exporting…"
+msgstr ""
+
 #: admin/src/App.vue admin/src/views/ExternalCronView.vue
 msgid "External Cron"
 msgstr ""
@@ -1637,7 +1861,7 @@ msgstr ""
 msgid "Extra credits (never expire)"
 msgstr ""
 
-#: src/Api/WebhooksController.php:740
+#: src/Api/WebhooksController.php:788
 msgid "Extra request headers as key-value pairs."
 msgstr ""
 
@@ -1653,7 +1877,7 @@ msgstr ""
 msgid "Failed to create API token."
 msgstr ""
 
-#: src/Api/ChainsController.php:241
+#: src/Api/ChainsController.php:272
 msgid "Failed to create chain link (it may already exist)."
 msgstr ""
 
@@ -1662,7 +1886,7 @@ msgid "Failed to create chain link."
 msgstr ""
 
 #: src/Abilities/WriteAbilities.php:197
-#: src/Api/ChainsController.php:139
+#: src/Api/ChainsController.php:167
 msgid "Failed to create chain."
 msgstr ""
 
@@ -1671,7 +1895,7 @@ msgid "Failed to create credential."
 msgstr ""
 
 #: src/Abilities/WriteAbilities.php:70
-#: src/Api/WebhooksController.php:260
+#: src/Api/WebhooksController.php:274
 msgid "Failed to create webhook."
 msgstr ""
 
@@ -1691,12 +1915,12 @@ msgstr ""
 msgid "Failed to delete queue job."
 msgstr ""
 
-#: src/Api/SchemasController.php:385
+#: src/Api/SchemasController.php:397
 msgid "Failed to delete schema."
 msgstr ""
 
 #: src/Abilities/WriteAbilities.php:242
-#: src/Api/WebhooksController.php:429
+#: src/Api/WebhooksController.php:472
 msgid "Failed to delete webhook."
 msgstr ""
 
@@ -1732,7 +1956,7 @@ msgstr ""
 msgid "Failed to rename chain."
 msgstr ""
 
-#: src/Api/SchemasController.php:417
+#: src/Api/SchemasController.php:429
 msgid "Failed to reset capture."
 msgstr ""
 
@@ -1768,7 +1992,7 @@ msgstr ""
 msgid "Failed to store the provider key."
 msgstr ""
 
-#: src/Api/WebhooksController.php:471
+#: src/Api/WebhooksController.php:514
 msgid "Failed to toggle webhook status."
 msgstr ""
 
@@ -1777,12 +2001,18 @@ msgid "Failed to update schema."
 msgstr ""
 
 #: src/Abilities/WriteAbilities.php:100
-#: src/Api/WebhooksController.php:371
+#: src/Api/WebhooksController.php:414
 msgid "Failed to update webhook."
 msgstr ""
 
 #: admin/src/components/MappingEditor.vue
 msgid "Field Mappings"
+msgstr ""
+
+#: admin/src/components/TestWebhookDrawer.vue
+msgid ""
+"Field mapping applied first, then pre-dispatch Code Glue — the dispatch "
+"order"
 msgstr ""
 
 #: src/Api/SchemasController.php:89
@@ -1862,6 +2092,10 @@ msgstr ""
 msgid "Fixed"
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Flagged: %s"
+msgstr ""
+
 #: admin/src/views/SettingsView.vue
 msgid ""
 "For reliable webhook delivery, set up a system cron job to process the "
@@ -1890,7 +2124,9 @@ msgid "Full REST API with API token authentication"
 msgstr ""
 
 #: admin/src/components/TestWebhookDrawer.vue
-msgid "Full pipeline — post-dispatch Code Glue fires after delivery"
+msgid ""
+"Full pipeline in dispatch order — post-dispatch Code Glue fires after "
+"delivery"
 msgstr ""
 
 #: admin/src/views/ApiTokensView.vue
@@ -1975,7 +2211,7 @@ msgstr ""
 msgid "HTTP Method"
 msgstr ""
 
-#: src/Api/WebhooksController.php:733
+#: src/Api/WebhooksController.php:781
 msgid "HTTP method used for delivery."
 msgstr ""
 
@@ -1991,7 +2227,7 @@ msgstr ""
 msgid "Header name"
 msgstr ""
 
-#: admin/src/components/AiStepControls.vue
+#: admin/src/components/AiStepControls.vue admin/src/components/ImportDialog.vue
 msgid "Header name (e.g. X-API-Key)"
 msgstr ""
 
@@ -2001,6 +2237,10 @@ msgstr ""
 
 #: admin/src/views/VaultView.vue
 msgid "Hide"
+msgstr ""
+
+#: admin/src/components/DescriptionDisclosure.vue
+msgid "Hide description"
 msgstr ""
 
 #: admin/src/views/VaultView.vue
@@ -2023,7 +2263,7 @@ msgstr ""
 msgid "How to calculate the wait between retries. Overrides the global setting."
 msgstr ""
 
-#: src/Api/WebhooksController.php:124
+#: src/Api/WebhooksController.php:130
 msgid "How to run the test: now (synchronous) or queue (async)."
 msgstr ""
 
@@ -2035,7 +2275,7 @@ msgstr ""
 msgid "I've saved it elsewhere"
 msgstr ""
 
-#: src/Api/WebhooksController.php:728
+#: src/Api/WebhooksController.php:776
 msgid ""
 "ID of a vault credential to use for authorization. Takes precedence over "
 "auth_header."
@@ -2049,12 +2289,44 @@ msgstr ""
 msgid "IP"
 msgstr ""
 
+#: admin/src/components/ImportDialog.vue admin/src/views/WebhooksList.vue
+msgid "Import"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import as new copies"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import complete"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import failed."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import webhooks & chains"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Imported %1$d webhook(s) and %2$d chain(s)."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Importing…"
+msgstr ""
+
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid "Include User Data"
 msgstr ""
 
 #: admin/src/components/MappingEditor.vue
 msgid "Include field"
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Include the AI conversation"
 msgstr ""
 
 #: admin/src/components/MappingEditor.vue
@@ -2069,6 +2341,10 @@ msgstr ""
 #. translators: %s: required scope name
 #, php-format
 msgid "Insufficient token scope. This endpoint requires \"%s\" scope or higher."
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Integration"
 msgstr ""
 
 #: admin/src/views/ExternalCronView.vue
@@ -2092,9 +2368,15 @@ msgstr ""
 msgid "Invalid cron token."
 msgstr ""
 
-#: src/Api/WebhooksController.php:242
-#: src/Api/WebhooksController.php:318
+#: src/Api/WebhooksController.php:256
+#: src/Api/WebhooksController.php:361
 msgid "Invalid endpoint URL."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:408
+#. translators: 1: JSON path, 2: reason
+#, php-format
+msgid "Invalid import file — %1$s %2$s"
 msgstr ""
 
 #: src/Api/ApiTokensController.php:146
@@ -2148,8 +2430,16 @@ msgstr ""
 msgid "Jobs processed per cron run."
 msgstr ""
 
+#: admin/src/components/ImportDialog.vue
+msgid "Jump to an imported item"
+msgstr ""
+
 #: admin/src/views/SettingsView.vue
 msgid "Keep activity log for"
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid "Keep the real captured values"
 msgstr ""
 
 #: admin/src/views/SettingsView.vue
@@ -2188,7 +2478,7 @@ msgstr ""
 msgid "Last successful response (used as preview context)"
 msgstr ""
 
-#: src/Api/WebhooksController.php:789
+#: src/Api/WebhooksController.php:837
 msgid "Last update date."
 msgstr ""
 
@@ -2212,6 +2502,10 @@ msgstr ""
 msgid "Linear"
 msgstr ""
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "LinkedIn"
+msgstr ""
+
 #: src/Abilities/AbilityCatalog.php:33
 msgid ""
 "List WordPress do_action hooks discovered on this site (runtime + static "
@@ -2233,7 +2527,7 @@ msgstr ""
 msgid "List credentials"
 msgstr ""
 
-#: src/Api/WebhooksController.php:776
+#: src/Api/WebhooksController.php:824
 msgid "List of trigger actions."
 msgstr ""
 
@@ -2249,6 +2543,10 @@ msgstr ""
 
 #: admin/src/components/PayloadGlueDrawer.vue
 msgid "Load"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Load a build JSON exported from Webhook Actions."
 msgstr ""
 
 #: admin/src/components/PayloadGlueDrawer.vue
@@ -2277,6 +2575,10 @@ msgstr ""
 
 #: admin/src/views/QueueView.vue
 msgid "Locked by: %s"
+msgstr ""
+
+#: admin/src/views/SettingsView.vue
+msgid "Log AI Dev Trace"
 msgstr ""
 
 #: admin/src/views/SettingsView.vue
@@ -2346,6 +2648,10 @@ msgstr ""
 msgid "Mapping Applied"
 msgstr ""
 
+#: admin/src/components/MarkdownField.vue
+msgid "Markdown supported."
+msgstr ""
+
 #: admin/src/components/ConditionsEditor.vue
 msgid "Match:"
 msgstr ""
@@ -2401,6 +2707,11 @@ msgstr ""
 
 #: src/Services/WpAppPasswordService.php:102
 msgid "Minted the Application Password but failed to store it in the vault."
+msgstr ""
+
+#: src/Api/ExportController.php:169
+#: src/Api/ExportController.php:183
+msgid "Missing import document."
 msgstr ""
 
 #: admin/src/components/AiProviderSettings.vue
@@ -2463,7 +2774,7 @@ msgstr ""
 msgid "Name is required."
 msgstr ""
 
-#: src/Api/WebhooksController.php:710
+#: src/Api/WebhooksController.php:753
 msgid "Name of the webhook."
 msgstr ""
 
@@ -2538,7 +2849,7 @@ msgstr ""
 msgid "No activity recorded yet."
 msgstr ""
 
-#: src/Api/SettingsController.php:183
+#: src/Api/SettingsController.php:195
 msgid "No archive files found or failed to create ZIP."
 msgstr ""
 
@@ -2546,13 +2857,21 @@ msgstr ""
 msgid "No archive files yet"
 msgstr ""
 
+#: admin/src/components/ImportDialog.vue
+msgid "No authorization"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "No authorization needed for this build."
+msgstr ""
+
 #: admin/src/components/TestWebhookDrawer.vue
 msgid "No body sent"
 msgstr ""
 
-#: src/Api/WebhooksController.php:543
-#: src/Api/WebhooksController.php:560
-#: src/Api/WebhooksController.php:579
+#: src/Api/WebhooksController.php:586
+#: src/Api/WebhooksController.php:603
+#: src/Api/WebhooksController.php:622
 msgid ""
 "No captured payload found for this trigger. Fire the trigger at least once "
 "first."
@@ -2560,6 +2879,10 @@ msgstr ""
 
 #: admin/src/components/WebhookForm.vue
 msgid "No captured payload — trigger the webhook once to preview the resolved URL."
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid "No chains match your search."
 msgstr ""
 
 #: src/Services/Ai/FallbackTransport.php:73
@@ -2677,6 +3000,10 @@ msgstr ""
 msgid "No webhooks configured yet"
 msgstr ""
 
+#: admin/src/components/ExportDialog.vue
+msgid "No webhooks match your search."
+msgstr ""
+
 #: admin/src/components/ChainPicker.vue
 msgid "No webhooks match “%s”."
 msgstr ""
@@ -2693,6 +3020,10 @@ msgstr ""
 msgid ""
 "Not sent as request body for GET / DELETE. Without URL parameters "
 "configured, the full payload is appended as %1$s?payload=&lt;json&gt;%2$s."
+msgstr ""
+
+#: admin/src/components/MarkdownField.vue
+msgid "Nothing to preview yet — switch to Write to add a description."
 msgstr ""
 
 #: src/Api/LogsController.php:127
@@ -2730,6 +3061,12 @@ msgid ""
 "payload available as %1$sargs[0]%2$s."
 msgstr ""
 
+#: admin/src/components/BuildPublishFields.vue
+msgid ""
+"One or two sentences — this is what people read on the listing before they "
+"open the build."
+msgstr ""
+
 #: src/Api/LogsController.php:334
 msgid "Only failed log entries can be retried."
 msgstr ""
@@ -2738,7 +3075,7 @@ msgstr ""
 msgid "Only pending or permanently failed jobs can be retried."
 msgstr ""
 
-#: src/Api/WebhooksController.php:683
+#: src/Api/WebhooksController.php:726
 msgid "Only return enabled webhooks."
 msgstr ""
 
@@ -2760,6 +3097,10 @@ msgstr ""
 
 #: admin/src/components/CreateTokenDialog.vue
 msgid "Operational + create/update/delete webhooks, schemas, queue jobs"
+msgstr ""
+
+#: src/Api/WebhooksController.php:759
+msgid "Optional markdown description documenting what this webhook does."
 msgstr ""
 
 #: admin/src/views/VaultView.vue
@@ -2836,7 +3177,7 @@ msgid_plural "Part of chains:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/src/components/AiStepControls.vue admin/src/views/VaultView.vue
+#: admin/src/components/AiStepControls.vue admin/src/components/ImportDialog.vue admin/src/views/VaultView.vue
 msgid "Password"
 msgstr ""
 
@@ -2910,6 +3251,10 @@ msgstr ""
 msgid "Pick date & time"
 msgstr ""
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "Pick the one that fits best — a build is listed in a single collection."
+msgstr ""
+
 #: admin/src/views/SettingsView.vue
 msgid "Plugin Info"
 msgstr ""
@@ -2938,7 +3283,7 @@ msgstr ""
 msgid "Post-dispatch"
 msgstr ""
 
-#: admin/src/components/TriggerSchemaPanel.vue
+#: admin/src/components/TriggerSchemaPanel.vue admin/src/components/WebhookCardContent.vue
 msgid "Post-dispatch Code Glue"
 msgstr ""
 
@@ -2960,18 +3305,18 @@ msgstr ""
 msgid "Pre-dispatch"
 msgstr ""
 
-#: admin/src/components/TriggerSchemaPanel.vue
+#: admin/src/components/TriggerSchemaPanel.vue admin/src/components/WebhookCardContent.vue
 msgid "Pre-dispatch Code Glue"
-msgstr ""
-
-#: admin/src/components/TestWebhookDrawer.vue
-msgid "Pre-dispatch Code Glue applied before field mapping"
 msgstr ""
 
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid ""
 "Pre-dispatch Code Glue preview is active. Save or discard it before saving "
 "Mapping & Conditions."
+msgstr ""
+
+#: admin/src/components/MarkdownField.vue
+msgid "Preview"
 msgstr ""
 
 #: admin/src/components/TriggerSchemaPanel.vue
@@ -3000,6 +3345,10 @@ msgstr ""
 
 #: admin/src/views/ProView.vue
 msgid "Pro Plugin Installed"
+msgstr ""
+
+#: admin/src/components/WebhookCardContent.vue
+msgid "Pro inactive"
 msgstr ""
 
 #: src/Api/ProStatusController.php:48
@@ -3032,11 +3381,44 @@ msgstr ""
 msgid "Provider"
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Publish build"
+msgstr ""
+
+#: admin/src/components/BuiltWebhookActions.vue
+msgid "Publish it on wpwebhooks.org — 50 AI credits, +20 for every like."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Publish this build on wpwebhooks.org so anyone can import it. Secrets are "
+"never included, and you keep 50 AI credits for publishing plus 20 every "
+"time someone likes it."
+msgstr ""
+
+#: admin/src/components/BuiltWebhookActions.vue admin/src/components/ShareBuildDialog.vue
+msgid "Publish your build"
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Published builds are checked automatically before they go live, and can be "
+"taken down later from your account."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Publishing failed."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Publishing…"
+msgstr ""
+
 #: admin/src/components/LogsTable.vue
 msgid "Query Parameters"
 msgstr ""
 
-#: src/Api/WebhooksController.php:752
+#: src/Api/WebhooksController.php:800
 msgid "Query parameters appended to the URL."
 msgstr ""
 
@@ -3112,8 +3494,24 @@ msgid ""
 "sent and how the endpoint responded."
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Reading this build…"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Reading…"
+msgstr ""
+
 #: admin/src/components/HealthStatusBar.vue
 msgid "Ready to send some data?"
+msgstr ""
+
+#: admin/src/views/SettingsView.vue
+msgid ""
+"Records the exact prompts and raw responses exchanged with the AI model to "
+"a protected log file, so support can diagnose a build you report. On by "
+"default; API keys are always redacted and entries older than 30 days are "
+"pruned automatically. Turn this off if you would rather not keep the log."
 msgstr ""
 
 #: admin/src/components/TestWebhookDrawer.vue
@@ -3168,6 +3566,13 @@ msgstr ""
 msgid "Renews / expires"
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Replaces your site URL with example.com everywhere it appears — the export "
+"header, endpoint URLs, Code Glue and the AI conversation. Whoever imports "
+"the build re-points those endpoints at their own site."
+msgstr ""
+
 #: admin/src/components/LogsTable.vue
 msgid "Replay"
 msgstr ""
@@ -3206,12 +3611,6 @@ msgstr ""
 
 #: admin/src/components/PayloadGlueDrawer.vue
 msgid "Result Preview"
-msgstr ""
-
-#: admin/src/components/PayloadGlueDrawer.vue
-msgid ""
-"Result preview is now used as the effective payload for Mapping & "
-"Conditions below."
 msgstr ""
 
 #: admin/src/views/ExternalCronView.vue
@@ -3321,6 +3720,10 @@ msgstr ""
 msgid "Running…"
 msgstr ""
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "Runs a process end to end — a chain of steps, a scheduled job, a workflow."
+msgstr ""
+
 #: admin/src/components/AiProviderSettings.vue
 msgid "Runs through the WP Webhooks AI service — no API keys needed."
 msgstr ""
@@ -3409,6 +3812,10 @@ msgstr ""
 msgid "Scope reference"
 msgstr ""
 
+#: admin/src/components/ExportDialog.vue
+msgid "Search chains…"
+msgstr ""
+
 #: admin/src/components/AiStepControls.vue
 msgid "Search credentials…"
 msgstr ""
@@ -3427,6 +3834,14 @@ msgstr ""
 
 #: admin/src/components/ChainPicker.vue
 msgid "Search webhooks by name or URL…"
+msgstr ""
+
+#: admin/src/components/ExportDialog.vue
+msgid "Search webhooks…"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Secret / token"
 msgstr ""
 
 #: admin/src/components/AiStepControls.vue admin/src/views/VaultView.vue
@@ -3465,6 +3880,10 @@ msgstr ""
 
 #: admin/src/components/ChainPicker.vue
 msgid "Select chain or create new"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Select credential"
 msgstr ""
 
 #: admin/src/components/FieldSelector.vue
@@ -3557,12 +3976,28 @@ msgstr ""
 msgid "Settings saved successfully"
 msgstr ""
 
+#: admin/src/components/BuiltWebhookActions.vue admin/src/components/ShareBuildDialog.vue
+msgid "Share this build"
+msgstr ""
+
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid "Shared Example"
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Sharing the AI conversation alongside a build is a Pro feature."
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Short summary"
+msgstr ""
+
 #: admin/src/views/VaultView.vue
 msgid "Show"
+msgstr ""
+
+#: admin/src/views/SettingsView.vue
+msgid "Show AI Dev Trace panel"
 msgstr ""
 
 #: admin/src/components/AiProviderSettings.vue
@@ -3571,6 +4006,10 @@ msgstr ""
 
 #: admin/src/components/MappingEditor.vue
 msgid "Show full"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Show in list"
 msgstr ""
 
 #: admin/src/components/MappingEditor.vue
@@ -3593,6 +4032,10 @@ msgstr ""
 msgid "Show secret"
 msgstr ""
 
+#: admin/src/components/ImportDialog.vue
+msgid "Show “%s” in list"
+msgstr ""
+
 #: admin/src/components/LogsTable.vue admin/src/views/QueueView.vue
 msgid "Showing %1$d to %2$d of %3$d"
 msgstr ""
@@ -3611,6 +4054,10 @@ msgstr ""
 
 #: admin/src/components/AiStepControls.vue
 msgid "Skip"
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "Skip the duplicates"
 msgstr ""
 
 #: admin/src/components/AiStepPanel.vue admin/src/views/LogsList.vue
@@ -3633,6 +4080,10 @@ msgstr ""
 msgid "Snippets"
 msgstr ""
 
+#: admin/src/components/ImportDialog.vue
+msgid "Some parts were left out"
+msgstr ""
+
 #: src/Services/Ai/AgentOrchestrator.php:173
 #. translators: %s: comma-separated ability names.
 #, php-format
@@ -3650,7 +4101,7 @@ msgstr ""
 msgid "Source path (e.g., args.0.user_id)"
 msgstr ""
 
-#: src/Api/ChainsController.php:229
+#: src/Api/ChainsController.php:260
 msgid "Source webhook does not exist."
 msgstr ""
 
@@ -3745,7 +4196,7 @@ msgstr ""
 msgid "Target path (e.g., user_id)"
 msgstr ""
 
-#: src/Api/ChainsController.php:232
+#: src/Api/ChainsController.php:263
 msgid "Target webhook does not exist."
 msgstr ""
 
@@ -3785,7 +4236,7 @@ msgstr ""
 msgid "That link would create a cycle across an existing chain."
 msgstr ""
 
-#: src/Api/ChainsController.php:236
+#: src/Api/ChainsController.php:267
 msgid "That link would create a cycle in the chain graph."
 msgstr ""
 
@@ -3845,6 +4296,12 @@ msgid ""
 "The base number of seconds used to calculate each retry delay. Exact role "
 "depends on the strategy: multiplier for exponential, interval for linear, "
 "constant for fixed."
+msgstr ""
+
+#: src/Services/Export/BuildImporter.php:254
+#. translators: %s: chain name.
+#, php-format
+msgid "The chain \"%s\" could not be created."
 msgstr ""
 
 #: admin/src/views/WebhooksList.vue
@@ -3955,6 +4412,32 @@ msgstr ""
 msgid "This action cannot be undone. All logs will be permanently deleted."
 msgstr ""
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "This becomes the page title and headline."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"This build calls this site’s own WP REST API. Reuse or create a WordPress "
+"Application Password — there is no secret to paste."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "This build contains %d Code Glue snippet"
+msgid_plural "This build contains %d Code Glue snippets"
+msgstr[0] ""
+msgstr[1] ""
+
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"This build includes a Build-with-AI transcript, shown for reference on the "
+"source — it is not imported."
+msgstr ""
+
+#: admin/src/components/ImportDialog.vue
+msgid "This build needs authorization credentials"
+msgstr ""
+
 #: src/Api/CredentialsController.php:379
 #. translators: %d: number of webhooks using this credential
 #, php-format
@@ -3962,6 +4445,12 @@ msgid "This credential is used by %d webhook. Detach it or delete with force."
 msgid_plural "This credential is used by %d webhooks. Detach them or delete with force."
 msgstr[0] ""
 msgstr[1] ""
+
+#: admin/src/components/PayloadGlueDrawer.vue
+msgid ""
+"This is the final payload on the wire — used for Transformed Conditions and "
+"URL/param templates below."
+msgstr ""
 
 #: admin/src/components/WebhookForm.vue
 msgid ""
@@ -4183,7 +4672,7 @@ msgstr ""
 msgid "Trigger"
 msgstr ""
 
-#: src/Api/WebhooksController.php:116
+#: src/Api/WebhooksController.php:122
 msgid "Trigger name to use for the test."
 msgstr ""
 
@@ -4226,7 +4715,11 @@ msgstr ""
 msgid "URL must be HTTP or HTTPS"
 msgstr ""
 
-#: src/Api/WebhooksController.php:716
+#: admin/src/components/WebhookCardContent.vue
+msgid "URL templates ({{ }})"
+msgstr ""
+
+#: src/Api/WebhooksController.php:764
 msgid "URL to send the webhook to."
 msgstr ""
 
@@ -4242,10 +4735,10 @@ msgstr ""
 msgid "Undo last change"
 msgstr ""
 
-#: src/Api/WebhooksController.php:69
-#: src/Api/WebhooksController.php:94
-#: src/Api/WebhooksController.php:106
-#: src/Api/WebhooksController.php:704
+#: src/Api/WebhooksController.php:75
+#: src/Api/WebhooksController.php:100
+#: src/Api/WebhooksController.php:112
+#: src/Api/WebhooksController.php:747
 msgid "Unique identifier for the webhook."
 msgstr ""
 
@@ -4342,6 +4835,10 @@ msgid ""
 "encrypted in your Credentials Vault and never returned over the API."
 msgstr ""
 
+#: admin/src/components/ImportDialog.vue
+msgid "Use an existing vault credential"
+msgstr ""
+
 #: admin/src/components/AiStepControls.vue
 msgid "Use credential & continue"
 msgstr ""
@@ -4374,7 +4871,7 @@ msgstr ""
 msgid "User trigger"
 msgstr ""
 
-#: admin/src/components/AiStepControls.vue admin/src/views/VaultView.vue
+#: admin/src/components/AiStepControls.vue admin/src/components/ImportDialog.vue admin/src/views/VaultView.vue
 msgid "Username"
 msgstr ""
 
@@ -4453,7 +4950,7 @@ msgstr ""
 msgid "Waiting for trigger to capture example payload..."
 msgstr ""
 
-#: admin/src/components/LogsTable.vue
+#: admin/src/components/LogsTable.vue admin/src/components/ShareBuildDialog.vue
 msgid "Webhook"
 msgstr ""
 
@@ -4462,10 +4959,10 @@ msgid "Webhook #%s"
 msgstr ""
 
 #: src/Abilities/AbilityRegistrar.php:41
-#: src/Controllers/AdminController.php:37
 #: src/Controllers/AdminController.php:38
-#: src/Controllers/AdminController.php:45
+#: src/Controllers/AdminController.php:39
 #: src/Controllers/AdminController.php:46
+#: src/Controllers/AdminController.php:47
 msgid "Webhook Actions"
 msgstr ""
 
@@ -4474,7 +4971,20 @@ msgstr ""
 msgid "Webhook Actions - build automations and integrations with AI help"
 msgstr ""
 
-#: src/Controllers/AdminController.php:216
+#: admin/src/views/WebhooksList.vue
+msgid ""
+"Webhook Actions Pro is inactive, so assigned Code Glue snippets are skipped "
+"and {{ }} URL templates are sent literally. Field mapping and conditions "
+"still work. Reactivate Pro to restore these — no data is lost."
+msgstr ""
+
+#: admin/src/components/WebhookCardContent.vue
+msgid ""
+"Webhook Actions Pro is inactive, so this webhook dispatches without: %s. "
+"Reactivate Pro to restore it."
+msgstr ""
+
+#: src/Controllers/AdminController.php:218
 msgid ""
 "Webhook Actions by Flow Systems: Your webhooks have been migrated to the "
 "new database format."
@@ -4496,7 +5006,7 @@ msgstr ""
 msgid "Webhook delivery logs older than this will be automatically deleted."
 msgstr ""
 
-#: src/Api/WebhooksController.php:508
+#: src/Api/WebhooksController.php:551
 msgid "Webhook has no triggers configured."
 msgstr ""
 
@@ -4504,7 +5014,7 @@ msgstr ""
 msgid "Webhook is live."
 msgstr ""
 
-#: src/Api/WebhooksController.php:226
+#: src/Api/WebhooksController.php:240
 msgid "Webhook name is required."
 msgstr ""
 
@@ -4512,18 +5022,38 @@ msgstr ""
 #: src/Api/SchemasController.php:171
 #: src/Api/SchemasController.php:231
 #: src/Api/SchemasController.php:276
-#: src/Api/SchemasController.php:375
-#: src/Api/SchemasController.php:407
-#: src/Api/WebhooksController.php:197
-#: src/Api/WebhooksController.php:301
-#: src/Api/WebhooksController.php:407
-#: src/Api/WebhooksController.php:459
-#: src/Api/WebhooksController.php:499
+#: src/Api/SchemasController.php:387
+#: src/Api/SchemasController.php:419
+#: src/Api/WebhooksController.php:207
+#: src/Api/WebhooksController.php:340
+#: src/Api/WebhooksController.php:450
+#: src/Api/WebhooksController.php:502
+#: src/Api/WebhooksController.php:542
 msgid "Webhook not found."
 msgstr ""
 
-#: admin/src/App.vue admin/src/views/ActivityView.vue admin/src/views/WebhooksList.vue
+#: admin/src/App.vue admin/src/components/ExportDialog.vue admin/src/views/ActivityView.vue admin/src/views/WebhooksList.vue
 msgid "Webhooks"
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Website"
+msgstr ""
+
+#: admin/src/components/ChainPicker.vue admin/src/views/WebhooksList.vue
+msgid "What does this chain automate? Markdown supported."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "What does this do, and what does someone need before importing it?"
+msgstr ""
+
+#: admin/src/components/WebhookForm.vue
+msgid "What does this webhook do? Markdown supported."
+msgstr ""
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "What this build contains"
 msgstr ""
 
 #: admin/src/views/SettingsView.vue
@@ -4541,15 +5071,19 @@ msgstr ""
 msgid "When webhooks are triggered, jobs will appear here for processing."
 msgstr ""
 
-#: src/Api/WebhooksController.php:110
+#: admin/src/components/BuildPublishFields.vue
+msgid "Where does this belong?"
+msgstr ""
+
+#: src/Api/WebhooksController.php:116
 msgid "Where to source the test payload from."
 msgstr ""
 
-#: src/Api/WebhooksController.php:770
+#: src/Api/WebhooksController.php:818
 msgid "Whether the webhook executes synchronously (blocking, bypasses queue)."
 msgstr ""
 
-#: src/Api/WebhooksController.php:764
+#: src/Api/WebhooksController.php:812
 msgid "Whether the webhook is enabled."
 msgstr ""
 
@@ -4585,6 +5119,10 @@ msgstr ""
 msgid "Working…"
 msgstr ""
 
+#: admin/src/components/MarkdownField.vue
+msgid "Write"
+msgstr ""
+
 #: admin/src/components/TestWebhookDrawer.vue
 msgid "Write your own JSON payload"
 msgstr ""
@@ -4597,7 +5135,7 @@ msgstr ""
 msgid "Yes"
 msgstr ""
 
-#: src/Api/WebhooksController.php:164
+#: src/Api/WebhooksController.php:170
 msgid "You don't have permissions to see it."
 msgstr ""
 
@@ -4617,12 +5155,24 @@ msgstr ""
 msgid "Your WordPress AI connectors are no longer available."
 msgstr ""
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Your build is published."
+msgstr ""
+
 #: admin/src/components/AiBuildsBar.vue
 msgid "Your builds"
 msgstr ""
 
 #: admin/src/views/ProView.vue
 msgid "Your license is active on this site."
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Your links appear on the build page. They are published as nofollow."
+msgstr ""
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Your name"
 msgstr ""
 
 #: src/Services/Ai/AgentOrchestrator.php:230
@@ -4663,6 +5213,10 @@ msgstr ""
 
 #: admin/src/components/ConditionsEditor.vue
 msgid "contains"
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:97
+msgid "contains no webhooks."
 msgstr ""
 
 #: admin/src/components/ConditionsEditor.vue
@@ -4707,6 +5261,12 @@ msgstr ""
 msgid "equals"
 msgstr ""
 
+#: src/Services/Export/BuildSchemaValidator.php:386
+#. translators: %d: max length
+#, php-format
+msgid "exceeds the maximum length of %d bytes."
+msgstr ""
+
 #: admin/src/components/MappingEditor.vue
 msgid "excluded via parent"
 msgstr ""
@@ -4721,6 +5281,12 @@ msgstr ""
 
 #: admin/src/components/ConditionsEditor.vue
 msgid "has item"
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:376
+#. translators: %s: comma-separated key names
+#, php-format
+msgid "has unexpected key(s): %s."
 msgstr ""
 
 #: admin/src/components/ConditionsEditor.vue
@@ -4745,6 +5311,12 @@ msgstr ""
 msgid "instead."
 msgstr ""
 
+#: src/Services/Export/BuildSchemaValidator.php:69
+#. translators: 1: found version, 2: supported version
+#, php-format
+msgid "is %1$d; this plugin imports version %2$d builds."
+msgstr ""
+
 #: admin/src/components/ConditionsEditor.vue
 msgid "is empty"
 msgstr ""
@@ -4753,8 +5325,22 @@ msgstr ""
 msgid "is false"
 msgstr ""
 
+#: src/Services/Export/BuildSchemaValidator.php:366
+#. translators: %s: key name
+#, php-format
+msgid "is missing required key \"%s\"."
+msgstr ""
+
 #: admin/src/components/ConditionsEditor.vue
 msgid "is not empty"
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:62
+msgid "is required and must be an integer."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:227
+msgid "is required when mode is \"vault\"."
 msgstr ""
 
 #: admin/src/components/ConditionsEditor.vue
@@ -4767,6 +5353,81 @@ msgstr ""
 
 #: admin/src/components/MappingEditor.vue
 msgid "mapped"
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:350
+msgid "may only contain letters, numbers, hyphens and underscores."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:393
+msgid "must be a boolean."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:80
+#: src/Services/Export/BuildSchemaValidator.php:230
+msgid "must be a string or null."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:77
+#: src/Services/Export/BuildSchemaValidator.php:131
+#: src/Services/Export/BuildSchemaValidator.php:148
+#: src/Services/Export/BuildSchemaValidator.php:301
+#: src/Services/Export/BuildSchemaValidator.php:383
+msgid "must be a string."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:345
+msgid "must be a {key, value} object."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:299
+msgid "must be an array of strings."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:342
+msgid "must be an array of {key, value} pairs."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:86
+#: src/Services/Export/BuildSchemaValidator.php:95
+#: src/Services/Export/BuildSchemaValidator.php:108
+#: src/Services/Export/BuildSchemaValidator.php:140
+#: src/Services/Export/BuildSchemaValidator.php:206
+#: src/Services/Export/BuildSchemaValidator.php:318
+msgid "must be an array."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:190
+msgid "must be an http:// or https:// URL."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:59
+#: src/Services/Export/BuildSchemaValidator.php:127
+#: src/Services/Export/BuildSchemaValidator.php:144
+#: src/Services/Export/BuildSchemaValidator.php:161
+#: src/Services/Export/BuildSchemaValidator.php:178
+#: src/Services/Export/BuildSchemaValidator.php:219
+#: src/Services/Export/BuildSchemaValidator.php:239
+#: src/Services/Export/BuildSchemaValidator.php:263
+#: src/Services/Export/BuildSchemaValidator.php:277
+#: src/Services/Export/BuildSchemaValidator.php:292
+#: src/Services/Export/BuildSchemaValidator.php:312
+#: src/Services/Export/BuildSchemaValidator.php:321
+msgid "must be an object."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:399
+#. translators: %s: comma-separated allowed values
+#, php-format
+msgid "must be one of: %s."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:384
+msgid "must not be empty."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:354
+msgid "must not contain line breaks."
 msgstr ""
 
 #: src/Abilities/WriteAbilities.php:52
@@ -4811,6 +5472,26 @@ msgstr ""
 
 #: src/Services/Ai/AgentOrchestrator.php:233
 msgid "provider unavailable"
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:228
+msgid "references a credential that is not listed in credentials[]."
+msgstr ""
+
+#: src/Services/Export/BuildSchemaValidator.php:327
+msgid "references a webhook UUID not present in webhooks[]."
+msgstr ""
+
+#: admin/src/views/AiBuilderView.vue
+msgid "resets in %1$dd %2$dh"
+msgstr ""
+
+#: admin/src/views/AiBuilderView.vue
+msgid "resets in %1$dh %2$dm"
+msgstr ""
+
+#: admin/src/views/AiBuilderView.vue
+msgid "resets soon"
 msgstr ""
 
 #: admin/src/components/AiPlanStepper.vue

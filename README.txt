@@ -4,7 +4,7 @@ Tags: ai, webhooks, automation, integration, n8n
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 2.4.0
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -127,10 +127,11 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.4.0 — 2026-07-26 =
-- New: Import & Export — download any webhook or chain (with its triggers, field mapping, conditions, and, with Pro, Code Glue) as a portable JSON file and import it into another site, with strict validation and a per-item result summary
-- New: Markdown descriptions for webhooks and chains, with a Write/Preview toggle so you see the rendered result while editing
-- New: heads-up when Webhook Actions Pro is inactive but a webhook still relies on Pro features — a per-webhook badge and a list banner flag that Code Glue and `{{ }}` URL templates will not run (field mapping and conditions still do), with a one-click Activate Pro
-- Improved: the Build with AI model bar now shows the WP Webhooks AI logo and a live countdown until your monthly credits reset
-- Fixed: the Pre-dispatch Code Glue preview and the Test drawer now resolve the payload in the real dispatch order (field mapping first, then Code Glue), so the preview matches what is actually sent
-- Fixed: saving Payload Mapping or Conditions no longer blanks the live preview for webhooks that reuse a shared example payload
+= 2.5.0 — 2026-07-31 =
+- New: Publish a build to wpwebhooks.org straight from Build with AI (Pro) — your webhooks and chains become a public page other people can import, and you earn 50 AI credits for publishing plus 20 for every like
+- New: Share a build from Build with AI, optionally with the AI conversation that produced it, so whoever imports it can see how it was made
+- New: captured example payloads are anonymized by default in every export and every published build — names, addresses, emails, phone numbers, IP addresses and user agents are replaced with placeholders, while product names, totals and structure are kept so field mapping still previews correctly
+- New: "Anonymize my site address" replaces your site URL with example.com everywhere it appears, including endpoint URLs and the AI conversation
+- Improved: long descriptions on the webhooks list now collapse behind their first line
+- Fixed: re-importing a build into the site it came from no longer loses the chain, and skipping duplicate webhooks no longer produces an empty one — imports also report what they had to drop instead of failing quietly
+- Fixed: an imported chain now appears in the list without reloading the browser

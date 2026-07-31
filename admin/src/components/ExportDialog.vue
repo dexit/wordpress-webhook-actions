@@ -15,6 +15,9 @@ const emit = defineEmits(['close'])
 const { exportBuild } = useBuildExport()
 
 const exportAll = ref(false)
+// Captured example payloads are redacted unless this is ticked — see
+// Services/Export/PayloadRedactor. Off by default, deliberately.
+const keepCapturedValues = ref(false)
 const selectedWebhookIds = ref(new Set())
 const selectedChainIds = ref(new Set())
 const webhookSearch = ref('')
@@ -26,6 +29,7 @@ const error = ref('')
 watch(() => props.open, (open) => {
   if (open) {
     exportAll.value = false
+    keepCapturedValues.value = false
     selectedWebhookIds.value = new Set()
     selectedChainIds.value = new Set()
     webhookSearch.value = ''
@@ -70,6 +74,7 @@ const runExport = async () => {
     const webhookIds = Array.from(selectedWebhookIds.value)
     const chainIds = Array.from(selectedChainIds.value)
     const payload = exportAll.value ? { all: true } : { webhook_ids: webhookIds, chain_ids: chainIds }
+    payload.options = { keep_captured_values: keepCapturedValues.value }
 
     // Name the file after the single selected item when there is exactly one.
     let hint = ''
@@ -128,6 +133,16 @@ const runExport = async () => {
             <p v-if="!filteredChains.length" class="px-2 py-1 text-xs text-muted-foreground">{{ __('No chains match your search.') }}</p>
           </div>
         </div>
+      </div>
+
+      <div class="space-y-2 border-t pt-4">
+        <label class="flex items-start gap-2 cursor-pointer">
+          <Checkbox class="mt-0.5" :model-value="keepCapturedValues" @update:model-value="keepCapturedValues = $event" />
+          <span class="text-sm font-medium">{{ __('Keep the real captured values') }}</span>
+        </label>
+        <p class="text-xs text-muted-foreground pl-6">
+          {{ __('Captured example payloads hold whatever a real visitor submitted — names, addresses, emails, phone numbers, IP addresses. They are replaced with placeholders unless you tick this, which you only want for a private backup of your own site.') }}
+        </p>
       </div>
 
       <p v-if="error" class="text-sm text-destructive">{{ error }}</p>

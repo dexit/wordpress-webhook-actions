@@ -5,7 +5,7 @@ import { Plus, Pencil, Trash2, ScrollText, FlaskConical, Copy, Check, Zap, Netwo
 import { Button, Card, Badge, Switch, Dialog, Checkbox, Input, Label } from '@/components/ui'
 import TestWebhookDrawer from '@/components/TestWebhookDrawer.vue'
 import WebhookCardContent from '@/components/WebhookCardContent.vue'
-import MarkdownView from '@/components/MarkdownView.vue'
+import DescriptionDisclosure from '@/components/DescriptionDisclosure.vue'
 import MarkdownField from '@/components/MarkdownField.vue'
 import ExportDialog from '@/components/ExportDialog.vue'
 import ImportDialog from '@/components/ImportDialog.vue'
@@ -20,7 +20,7 @@ import { __, _n, sprintf } from '@/i18n'
 const { fetchStats: refreshHealthStats } = useHealthStats()
 const { copiedKey, copy } = useCopyToClipboard()
 const { dontShowAgain, isWarningDismissed, applyDismiss, resetDontShowAgain } = useSyncWarning()
-const { chains, fetchChains, refresh: refreshChains, updateChain, deleteChain } = useChains()
+const { chains, refresh: refreshChains, updateChain, deleteChain } = useChains()
 
 const router = useRouter()
 const webhooks = ref([])
@@ -122,7 +122,11 @@ const loadWebhooks = async () => {
   loading.value = true
   error.value = null
   try {
-    const [list] = await Promise.all([api.webhooks.list(), fetchChains()])
+    // refreshChains, not fetchChains: the composable caches its in-flight
+    // promise, so a plain fetch after the first load returns the OLD chains —
+    // an imported chain (or one emptied by deleting a webhook) would not show
+    // up until the browser was reloaded.
+    const [list] = await Promise.all([api.webhooks.list(), refreshChains()])
     webhooks.value = list
   } catch (e) {
     error.value = e.message
@@ -630,7 +634,7 @@ onMounted(loadWebhooks)
             </Button>
           </div>
         </div>
-        <MarkdownView v-if="group.chain.description" :source="group.chain.description" class="text-xs" />
+        <DescriptionDisclosure v-if="group.chain.description" :source="group.chain.description" markdown-class="text-xs" />
         <div class="space-y-3 sm:space-y-4">
           <Card
             v-for="webhook in group.webhooks"
