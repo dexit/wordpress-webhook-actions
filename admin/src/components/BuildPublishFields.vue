@@ -5,7 +5,7 @@
 //
 // The author block is remembered in localStorage: someone who publishes a second
 // build should not retype their own name and links.
-import { computed } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { Input, Label, RadioGroup, RadioGroupItem } from '@/components/ui'
 import { __, sprintf } from '@/i18n'
 
@@ -18,9 +18,20 @@ const emit = defineEmits(['update:modelValue'])
 
 const SUMMARY_MAX = 400
 
-const set = (key, value) => emit('update:modelValue', { ...props.modelValue, [key]: value })
+// Each field emits the whole object, so it must spread the LATEST state, not
+// the prop — that only catches up on re-render. Two fields changing in one tick
+// (autofill, a password manager, paste) would otherwise both spread the same
+// stale copy and the first edit would vanish.
+const local = reactive({ ...props.modelValue })
 
-const summaryLeft = computed(() => SUMMARY_MAX - (props.modelValue.summary || '').length)
+watch(() => props.modelValue, (value) => Object.assign(local, value))
+
+const set = (key, value) => {
+  local[key] = value
+  emit('update:modelValue', { ...local })
+}
+
+const summaryLeft = computed(() => SUMMARY_MAX - (local.summary || '').length)
 </script>
 
 <template>
@@ -29,7 +40,7 @@ const summaryLeft = computed(() => SUMMARY_MAX - (props.modelValue.summary || ''
       <Label for="publish-title">{{ __('Build title') }}</Label>
       <Input
         id="publish-title"
-        :model-value="modelValue.title"
+        :model-value="local.title"
         :disabled="disabled"
         :placeholder="__('Create a HubSpot deal when a WooCommerce order is placed')"
         maxlength="255"
@@ -41,12 +52,12 @@ const summaryLeft = computed(() => SUMMARY_MAX - (props.modelValue.summary || ''
     <div class="space-y-2">
       <Label>{{ __('Where does this belong?') }}</Label>
       <RadioGroup
-        :model-value="modelValue.collection"
+        :model-value="local.collection"
         :disabled="disabled"
         @update:model-value="set('collection', $event)"
       >
         <label class="flex items-start gap-2 rounded-md border p-3 cursor-pointer"
-          :class="modelValue.collection === 'integrations' ? 'border-primary' : ''">
+          :class="local.collection === 'integrations' ? 'border-primary' : ''">
           <RadioGroupItem id="publish-integrations" value="integrations" class="mt-0.5" />
           <span class="space-y-0.5">
             <span class="block text-sm font-medium">{{ __('Integration') }}</span>
@@ -54,7 +65,7 @@ const summaryLeft = computed(() => SUMMARY_MAX - (props.modelValue.summary || ''
           </span>
         </label>
         <label class="flex items-start gap-2 rounded-md border p-3 cursor-pointer"
-          :class="modelValue.collection === 'automations' ? 'border-primary' : ''">
+          :class="local.collection === 'automations' ? 'border-primary' : ''">
           <RadioGroupItem id="publish-automations" value="automations" class="mt-0.5" />
           <span class="space-y-0.5">
             <span class="block text-sm font-medium">{{ __('Automation') }}</span>
@@ -69,7 +80,7 @@ const summaryLeft = computed(() => SUMMARY_MAX - (props.modelValue.summary || ''
       <Label for="publish-summary">{{ __('Short summary') }}</Label>
       <textarea
         id="publish-summary"
-        :value="modelValue.summary"
+        :value="local.summary"
         :disabled="disabled"
         :placeholder="__('One or two sentences — this is what people read on the listing before they open the build.')"
         rows="3"
@@ -84,18 +95,18 @@ const summaryLeft = computed(() => SUMMARY_MAX - (props.modelValue.summary || ''
       <p class="text-sm font-medium">{{ __('Credit yourself (optional)') }}</p>
       <div class="space-y-1.5">
         <Label for="publish-author">{{ __('Your name') }}</Label>
-        <Input id="publish-author" :model-value="modelValue.author_name" :disabled="disabled" maxlength="120"
+        <Input id="publish-author" :model-value="local.author_name" :disabled="disabled" maxlength="120"
           @update:model-value="set('author_name', $event)" />
       </div>
       <div class="grid gap-3 sm:grid-cols-2">
         <div class="space-y-1.5">
           <Label for="publish-website">{{ __('Website') }}</Label>
-          <Input id="publish-website" type="url" :model-value="modelValue.author_url" :disabled="disabled"
+          <Input id="publish-website" type="url" :model-value="local.author_url" :disabled="disabled"
             placeholder="https://" maxlength="255" @update:model-value="set('author_url', $event)" />
         </div>
         <div class="space-y-1.5">
           <Label for="publish-linkedin">{{ __('LinkedIn') }}</Label>
-          <Input id="publish-linkedin" type="url" :model-value="modelValue.author_linkedin" :disabled="disabled"
+          <Input id="publish-linkedin" type="url" :model-value="local.author_linkedin" :disabled="disabled"
             placeholder="https://www.linkedin.com/in/…" maxlength="255"
             @update:model-value="set('author_linkedin', $event)" />
         </div>
