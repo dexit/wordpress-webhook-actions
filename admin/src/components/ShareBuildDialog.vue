@@ -8,10 +8,16 @@
 // a description in place — saved to the webhook/chain itself, not just to the
 // exported copy. Two privacy controls sit below it: attaching the AI
 // conversation (Pro, off by default) and anonymizing the site address.
+//
+// The same dialog runs in `publish` mode (Pro): identical document, but instead
+// of downloading it we send it to wpwebhooks.org, where it becomes a public page
+// and pays the author in AI credits. Publishing adds the listing fields and ends
+// on a live URL rather than a file.
 import { ref, computed, watch } from 'vue'
-import { AlertCircle, CheckCircle2, Pencil } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, Pencil, ExternalLink, Sparkles } from 'lucide-vue-next'
 import { Dialog, Button, Checkbox } from '@/components/ui'
 import MarkdownField from '@/components/MarkdownField.vue'
+import BuildPublishFields from '@/components/BuildPublishFields.vue'
 import { useBuildExport } from '@/composables/useBuildExport'
 import { usePro } from '@/composables/usePro'
 import api from '@/lib/api'
@@ -21,6 +27,7 @@ const props = defineProps({
   open: { type: Boolean, default: false },
   conversationId: { type: [Number, String], default: null },
   title: { type: String, default: '' },
+  mode: { type: String, default: 'export' }, // 'export' | 'publish'
 })
 
 const emit = defineEmits(['close'])
@@ -33,10 +40,18 @@ const anonymizeSiteUrl = ref(false)
 const exporting = ref(false)
 const loading = ref(false)
 const error = ref('')
+const rejectedCategories = ref([])
+const published = ref(null)     // API payload once the build is live
 
 const items = ref([])          // [{ kind, id, name, description }]
 const drafts = ref({})         // key -> edited description
 const expanded = ref(new Set()) // keys whose editor is open
+
+const AUTHOR_STORAGE_KEY = 'fswa_build_author'
+const emptyForm = () => ({ title: '', collection: '', summary: '', author_name: '', author_url: '', author_linkedin: '' })
+const form = ref(emptyForm())
+
+const publishing = computed(() => props.mode === 'publish')
 
 const keyOf = (item) => `${item.kind}-${item.id}`
 
@@ -69,14 +84,36 @@ const loadItems = async () => {
   }
 }
 
+// The author block is the one thing worth remembering between builds.
+const loadAuthor = () => {
+  try {
+    return JSON.parse(localStorage.getItem(AUTHOR_STORAGE_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+const rememberAuthor = () => {
+  try {
+    localStorage.setItem(AUTHOR_STORAGE_KEY, JSON.stringify({
+      author_name: form.value.author_name,
+      author_url: form.value.author_url,
+      author_linkedin: form.value.author_linkedin,
+    }))
+  } catch { /* private mode — publishing still works */ }
+}
+
 watch(() => props.open, (open) => {
   if (!open) return
   includeTranscript.value = false
   anonymizeSiteUrl.value = false
   error.value = ''
+  rejectedCategories.value = []
+  published.value = null
   items.value = []
   drafts.value = {}
   expanded.value = new Set()
+  form.value = { ...emptyForm(), ...loadAuthor(), title: props.title || '' }
   loadItems()
 })
 
@@ -123,16 +160,82 @@ const runExport = async () => {
     exporting.value = false
   }
 }
+
+const canPublish = computed(() => !!form.value.title.trim() && !!form.value.collection)
+
+const runPublish = async () => {
+  if (exporting.value || !props.conversationId || !canPublish.value) return
+  exporting.value = true
+  error.value = ''
+  rejectedCategories.value = []
+  try {
+    // Descriptions become the body of the published page, so they are saved to
+    // the objects first — exactly as in export mode.
+    await saveDescriptions()
+    const res = await api.builds.publish({
+      conversation_id: Number(props.conversationId),
+      title: form.value.title.trim(),
+      summary: form.value.summary,
+      author_name: form.value.author_name,
+      author_url: form.value.author_url,
+      author_linkedin: form.value.author_linkedin,
+      collection: form.value.collection,
+      include_ai_transcript: includeTranscript.value,
+      anonymize_site_url: anonymizeSiteUrl.value,
+    })
+    rememberAuthor()
+    published.value = res
+  } catch (e) {
+    error.value = e?.message || __('Publishing failed.')
+    rejectedCategories.value = e?.data?.data?.categories || []
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
   <Dialog
     :open="open"
-    :title="__('Share this build')"
-    :description="__('Download everything this build created as a portable JSON file. Secrets are never included — whoever imports it re-links auth to their own vault.')"
+    :title="publishing ? __('Publish your build') : __('Share this build')"
+    :description="publishing
+      ? __('Publish this build on wpwebhooks.org so anyone can import it. Secrets are never included, and you keep 50 AI credits for publishing plus 20 every time someone likes it.')
+      : __('Download everything this build created as a portable JSON file. Secrets are never included — whoever imports it re-links auth to their own vault.')"
     @close="emit('close')"
   >
-    <div class="space-y-5">
+    <!-- Published: the only thing left to do is look at it -->
+    <div v-if="published" class="space-y-4">
+      <div class="flex items-start gap-2">
+        <CheckCircle2 class="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <div class="space-y-1">
+          <p class="text-sm font-medium">{{ published.message || __('Your build is published.') }}</p>
+          <a
+            v-if="published.url"
+            :href="published.url"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
+          >
+            {{ published.url }} <ExternalLink class="w-3.5 h-3.5 shrink-0" />
+          </a>
+        </div>
+      </div>
+
+      <p v-if="published.credits_awarded" class="flex items-center gap-2 text-sm text-muted-foreground">
+        <Sparkles class="w-4 h-4 text-primary" />
+        {{ sprintf(__('%d AI credits added to your balance.'), published.credits_awarded) }}
+      </p>
+    </div>
+
+    <div v-else class="space-y-5">
+      <!-- Listing details (publish only) -->
+      <BuildPublishFields
+        v-if="publishing"
+        :model-value="form"
+        :disabled="exporting"
+        @update:model-value="form = $event"
+      />
+
       <!-- Describe what travels with the build -->
       <div v-if="loading" class="text-sm text-muted-foreground">{{ __('Reading this build…') }}</div>
 
@@ -206,15 +309,35 @@ const runExport = async () => {
         </div>
       </div>
 
-      <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
+      <p v-if="publishing" class="text-xs text-muted-foreground">
+        {{ __('Published builds are checked automatically before they go live, and can be taken down later from your account.') }}
+      </p>
+
+      <div v-if="error" class="space-y-1">
+        <p class="text-sm text-destructive">{{ error }}</p>
+        <p v-if="rejectedCategories.length" class="text-xs text-destructive/80">
+          {{ sprintf(__('Flagged: %s'), rejectedCategories.join(', ')) }}
+        </p>
+      </div>
     </div>
 
     <template #footer>
       <div class="flex gap-2">
-        <Button :disabled="exporting || loading || !conversationId" @click="runExport">
-          {{ exporting ? __('Exporting…') : __('Download JSON') }}
-        </Button>
-        <Button variant="outline" :disabled="exporting" @click="emit('close')">{{ __('Cancel') }}</Button>
+        <template v-if="published">
+          <Button @click="emit('close')">{{ __('Done') }}</Button>
+        </template>
+        <template v-else-if="publishing">
+          <Button :disabled="exporting || loading || !conversationId || !canPublish" @click="runPublish">
+            {{ exporting ? __('Publishing…') : __('Publish build') }}
+          </Button>
+          <Button variant="outline" :disabled="exporting" @click="emit('close')">{{ __('Cancel') }}</Button>
+        </template>
+        <template v-else>
+          <Button :disabled="exporting || loading || !conversationId" @click="runExport">
+            {{ exporting ? __('Exporting…') : __('Download JSON') }}
+          </Button>
+          <Button variant="outline" :disabled="exporting" @click="emit('close')">{{ __('Cancel') }}</Button>
+        </template>
       </div>
     </template>
   </Dialog>

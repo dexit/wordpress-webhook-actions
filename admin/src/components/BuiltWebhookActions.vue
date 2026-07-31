@@ -5,7 +5,7 @@
 // the single source of truth. Purely presentational — the parent owns the state
 // and handlers and reacts to the emitted events.
 import { RouterLink } from 'vue-router';
-import { Power, ExternalLink, Undo2, Info, Share2 } from 'lucide-vue-next';
+import { Power, ExternalLink, Undo2, Info, Share2, Globe } from 'lucide-vue-next';
 import { Button, Switch, Tooltip } from '@/components/ui';
 import { __ } from '@/i18n';
 
@@ -20,9 +20,10 @@ defineProps({
   hasRevertible: { type: Boolean, default: false },
   running: { type: Boolean, default: false },
   canShare: { type: Boolean, default: false },  // export this build as portable JSON
+  canPublish: { type: Boolean, default: false }, // publish it on wpwebhooks.org (Pro)
 });
 
-defineEmits(['enable', 'toggle-sync', 'revert', 'share']);
+defineEmits(['enable', 'toggle-sync', 'revert', 'share', 'publish']);
 </script>
 
 <template>
@@ -50,6 +51,12 @@ defineEmits(['enable', 'toggle-sync', 'revert', 'share']);
   <Button v-if="canShare" size="sm" variant="outline" :disabled="running" @click="$emit('share')">
     <Share2 class="w-4 h-4 mr-1.5" /> {{ __('Share this build') }}
   </Button>
+
+  <Tooltip v-if="canPublish" :content="__('Publish it on wpwebhooks.org — 50 AI credits, +20 for every like.')">
+    <Button size="sm" variant="outline" :disabled="running" @click="$emit('publish')">
+      <Globe class="w-4 h-4 mr-1.5" /> {{ __('Publish your build') }}
+    </Button>
+  </Tooltip>
 
   <Button v-if="hasRevertible" size="sm" variant="outline" :disabled="running" @click="$emit('revert')">
     <Undo2 class="w-4 h-4 mr-1.5" /> {{ __('Undo last change') }}

@@ -211,6 +211,8 @@ export const api = {
     resolve: (data) => post('export/resolve', data),
     analyze: (document) => post('import/analyze', { document }),
     import: (data) => post('import', data),
+    // Pro route: the license key never leaves the Pro plugin.
+    publish: (data) => post('pro/publish', data),
   },
   chains: {
     list: () => get('chains'),

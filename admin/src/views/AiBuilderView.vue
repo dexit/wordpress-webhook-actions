@@ -24,7 +24,10 @@ import AiBuildsBar from '@/components/AiBuildsBar.vue';
 import BuiltWebhookActions from '@/components/BuiltWebhookActions.vue';
 import ShareBuildDialog from '@/components/ShareBuildDialog.vue';
 import { api } from '@/lib/api';
+import { usePro } from '@/composables/usePro';
 import { __, sprintf } from '@/i18n';
+
+const { proActive } = usePro();
 
 // The dev trace panel always renders under the Vite dev server, and in
 // production when the site opts in via Settings → AI Builder (trace_enabled).
@@ -613,10 +616,19 @@ const hasRevertible = computed(() =>
 
 // Share = export what this conversation built (the server resolves the object
 // set from the run's applied steps), so it needs at least one applied step.
+// Publishing is the same document going to wpwebhooks.org instead of to disk,
+// and needs an active Pro license.
 const shareOpen = ref(false);
+const shareMode = ref('export');
 const canShareBuild = computed(() =>
   !!activeId.value && execSteps.value.some((s) => s.status === 'done')
 );
+const canPublishBuild = computed(() => canShareBuild.value && proActive.value);
+
+function openShare(mode) {
+  shareMode.value = mode;
+  shareOpen.value = true;
+}
 const activeTitle = computed(() =>
   conversations.value.find((c) => String(c.id) === String(activeId.value))?.title || ''
 );
@@ -633,6 +645,7 @@ const builtProps = computed(() => ({
   hasRevertible: hasRevertible.value,
   running: running.value,
   canShare: canShareBuild.value,
+  canPublish: canPublishBuild.value,
 }));
 
 async function revertLast() {
@@ -830,7 +843,8 @@ async function scrollDown() {
             @enable="enableBuiltWebhook"
             @toggle-sync="setBuiltWebhookSync"
             @revert="revertLast"
-            @share="shareOpen = true"
+            @share="openShare('export')"
+            @publish="openShare('publish')"
           />
 
           <!-- Finished, nothing focused -->
@@ -841,7 +855,7 @@ async function scrollDown() {
             </span>
             <BuiltWebhookActions v-bind="builtProps"
               @enable="enableBuiltWebhook" @toggle-sync="setBuiltWebhookSync" @revert="revertLast"
-              @share="shareOpen = true" />
+              @share="openShare('export')" @publish="openShare('publish')" />
           </div>
         </template>
       </section>
@@ -859,6 +873,7 @@ async function scrollDown() {
     <!-- Share/export this build -->
     <ShareBuildDialog
       :open="shareOpen"
+      :mode="shareMode"
       :conversation-id="activeId"
       :title="activeTitle"
       @close="shareOpen = false"

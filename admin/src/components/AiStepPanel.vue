@@ -29,7 +29,7 @@ const props = defineProps({
 const emit = defineEmits([
   'advance', 'confirm', 'retry', 'skip', 'probe-fix',
   'create-credential', 'provision-app-password',
-  'enable', 'toggle-sync', 'revert', 'share',
+  'enable', 'toggle-sync', 'revert', 'share', 'publish',
 ]);
 </script>
 
@@ -108,7 +108,7 @@ const emit = defineEmits([
         </span>
         <BuiltWebhookActions v-bind="built"
           @enable="emit('enable')" @toggle-sync="(v) => emit('toggle-sync', v)" @revert="emit('revert')"
-          @share="emit('share')" />
+          @share="emit('share')" @publish="emit('publish')" />
       </template>
       <span v-else-if="running" class="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 class="w-4 h-4 animate-spin" /> {{ __('Working…') }}
