@@ -86,6 +86,7 @@ class ExportController {
       'chains'        => count($document['chains']),
       'ai_transcript' => isset($document['ai_build']),
       'anonymized'    => !empty($options['anonymize_site_url']),
+      'raw_examples'  => !empty($options['keep_captured_values']),
     ]);
 
     return rest_ensure_response($document);
@@ -153,7 +154,7 @@ class ExportController {
       unset($options['conversation_id']);
     }
 
-    foreach (['include_ai_transcript', 'anonymize_site_url'] as $flag) {
+    foreach (['include_ai_transcript', 'anonymize_site_url', 'keep_captured_values'] as $flag) {
       if (array_key_exists($flag, $options)) {
         $options[$flag] = rest_sanitize_boolean($options[$flag]);
       }

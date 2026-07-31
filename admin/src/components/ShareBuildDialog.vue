@@ -14,7 +14,7 @@
 // and pays the author in AI credits. Publishing adds the listing fields and ends
 // on a live URL rather than a file.
 import { ref, computed, watch } from 'vue'
-import { AlertCircle, CheckCircle2, Pencil, ExternalLink, Sparkles } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, Pencil, ExternalLink, Sparkles, ShieldCheck } from 'lucide-vue-next'
 import { Dialog, Button, Checkbox } from '@/components/ui'
 import MarkdownField from '@/components/MarkdownField.vue'
 import BuildPublishFields from '@/components/BuildPublishFields.vue'
@@ -305,6 +305,14 @@ const runPublish = async () => {
           </label>
           <p class="text-xs text-muted-foreground pl-6">
             {{ __('Replaces your site URL with example.com everywhere it appears — the export header, endpoint URLs, Code Glue and the AI conversation. Whoever imports the build re-points those endpoints at their own site.') }}
+          </p>
+        </div>
+
+        <!-- Not a choice: personal data never travels with a shared build. -->
+        <div class="flex items-start gap-2">
+          <ShieldCheck class="mt-0.5 w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <p class="text-xs text-muted-foreground">
+            {{ __('Captured example payloads are anonymized automatically: names, addresses, emails, phone numbers and IP addresses are replaced with placeholders, so the field mapping still previews without carrying anyone\'s data.') }}
           </p>
         </div>
       </div>

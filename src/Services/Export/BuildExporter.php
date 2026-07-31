@@ -65,10 +65,15 @@ class BuildExporter {
     }
     $webhookIds = array_values(array_unique(array_filter($webhookIds)));
 
+    // Captured example payloads hold whatever a real visitor submitted, so they
+    // are redacted unless the caller explicitly asks for their own raw values
+    // back (a private, same-site backup). Publishing never asks.
+    $redactExamples = empty($options['keep_captured_values']);
+
     $credentials = [];
     $webhookDocs = [];
     foreach ($webhookIds as $webhookId) {
-      $doc = $this->exportWebhook($webhookId, $credentials);
+      $doc = $this->exportWebhook($webhookId, $credentials, $redactExamples);
       if ($doc !== null) {
         $webhookDocs[] = $doc;
       }
@@ -123,7 +128,7 @@ class BuildExporter {
   /**
    * @param array<string, array> $credentials Accumulator keyed by ref, mutated in place.
    */
-  private function exportWebhook(int $webhookId, array &$credentials): ?array {
+  private function exportWebhook(int $webhookId, array &$credentials, bool $redactExamples = true): ?array {
     $webhook = $this->webhooks->find($webhookId);
     if ($webhook === null) {
       return null;
@@ -137,7 +142,7 @@ class BuildExporter {
       if (strncmp((string) $triggerName, 'fswa_chain_link:', 16) === 0) {
         continue;
       }
-      $triggerDocs[] = $this->exportTrigger($webhookId, (string) $triggerName);
+      $triggerDocs[] = $this->exportTrigger($webhookId, (string) $triggerName, $redactExamples);
     }
 
     return [
@@ -193,13 +198,18 @@ class BuildExporter {
     ];
   }
 
-  private function exportTrigger(int $webhookId, string $triggerName): array {
+  private function exportTrigger(int $webhookId, string $triggerName, bool $redactExamples = true): array {
     $schema = $this->schemas->findByWebhookAndTrigger($webhookId, $triggerName);
 
     $schemaDoc = null;
     if ($schema !== null) {
+      $example = $schema['example_payload'] ?? null;
+      if ($redactExamples && $example !== null) {
+        $example = (new PayloadRedactor())->redact($example);
+      }
+
       $schemaDoc = [
-        'example_payload'        => $schema['example_payload'] ?? null,
+        'example_payload'        => $example,
         'field_mapping'          => $schema['field_mapping'] ?? null,
         'conditions'             => $schema['conditions'] ?? null,
         'conditions_evaluate_on' => $schema['conditions_evaluate_on'] ?? 'original',
