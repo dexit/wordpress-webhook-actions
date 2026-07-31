@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Webhook Actions - build automations and integrations "
-"with AI help 2.2.2\n"
+"with AI help 2.5.0\n"
 "Report-Msgid-Bugs-To: "
 "https://wordpress.org/support/plugin/flowsystems-webhook-actions\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
@@ -11,12 +11,16 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-21T21:54:54+00:00\n"
+"POT-Creation-Date: 2026-07-31T15:46:00+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: flowsystems-webhook-actions\n"
 "Language: zh_CN\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+
+#: admin/src/components/ImportDialog.vue
+msgid "%1$d webhook(s) and %2$d chain(s) to import."
+msgstr "待导入 %1$d 个 Webhook 和 %2$d 条链。"
 
 #: admin/src/views/ExternalCronView.vue
 msgid "%1$dh %2$dm"
@@ -104,6 +108,15 @@ msgid ""
 "once credentials are sealed with it, or they become unrecoverable."
 msgstr "%1$s保持稳定并备份：%2$s 一旦凭据用此值封存，请勿更改或丢失它，否则将无法恢复。"
 
+#: admin/src/components/PayloadGlueDrawer.vue
+msgid ""
+"%1$sOrder:%2$s field mapping runs first, then this snippet — so "
+"%3$s$payload%4$s here is the %5$spost-mapping%6$s payload, exactly as at "
+"dispatch."
+msgstr ""
+"%1$s顺序：%2$s先执行字段映射，再运行此代码片段——因此这里的 %3$s$payload%4$s "
+"是%5$s映射之后%6$s的数据，与发送时完全一致。"
+
 #: admin/src/views/ProView.vue
 msgid "%1$sPriority support%2$s — Pro subscribers get a direct response via email."
 msgstr "%1$s优先支持%2$s — Pro 订阅者可通过电子邮件获得直接回复。"
@@ -142,9 +155,17 @@ msgstr ""
 "%1$swp-config.php%2$s 不可写。请在“That’s all”注释之前手动添加这一行：%3$sdefine( "
 "'DISABLE_WP_CRON', true );%4$s"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "%d AI credits added to your balance."
+msgstr "已向你的余额添加 %d 个 AI 额度。"
+
 #: admin/src/components/TriggerSelect.vue
 msgid "%d available"
 msgstr "%d 个可用"
+
+#: admin/src/components/BuildPublishFields.vue admin/src/components/MarkdownField.vue
+msgid "%d characters left"
+msgstr "还可输入 %d 个字符"
 
 #: admin/src/views/VaultView.vue
 msgid "%d credential cannot be decrypted with the current key."
@@ -155,6 +176,10 @@ msgstr[0] "有 %d 个凭据无法用当前密钥解密。"
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] "%d 天"
+
+#: admin/src/components/ImportDialog.vue
+msgid "%d duplicate(s) skipped."
+msgstr "已跳过 %d 个重复项。"
 
 #: admin/src/views/ActivityView.vue
 msgid "%d entry"
@@ -194,6 +219,19 @@ msgstr[0] "已选择 %d 个触发器"
 msgid "%d webhook"
 msgid_plural "%d webhooks"
 msgstr[0] "%d 个 Webhook"
+
+#: admin/src/views/WebhooksList.vue
+msgid "%d webhook uses Webhook Actions Pro features that are not running"
+msgid_plural "%d webhooks use Webhook Actions Pro features that are not running"
+msgstr[0] "%d 个 Webhook 使用了未运行的 Webhook Actions Pro 功能"
+
+#: admin/src/components/ImportDialog.vue
+msgid "%d webhook(s) already exist here (same UUID)."
+msgstr "此处已存在 %d 个 Webhook（UUID 相同）。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "%d without a description"
+msgstr "%d 项缺少说明"
 
 #: admin/src/views/ExternalCronView.vue
 msgid "%dh"
@@ -251,8 +289,12 @@ msgstr "+ 新建凭据"
 msgid "5 (plugin default)"
 msgstr "5（插件默认）"
 
-#: src/Api/ChainsController.php:134
-#: src/Api/ChainsController.php:167
+#: src/Services/Export/BuildImporter.php:242
+msgid "A chain in this file has no name and was not imported."
+msgstr "此文件中有一条链没有名称，未被导入。"
+
+#: src/Api/ChainsController.php:162
+#: src/Api/ChainsController.php:198
 msgid "A chain with that name already exists."
 msgstr "已存在同名的链。"
 
@@ -270,6 +312,22 @@ msgstr "条件规则缺少 \"field\"——指向触发器数据的点路径（�
 #: src/Api/CredentialsController.php:314
 msgid "A credential with this name already exists."
 msgstr "已存在同名的凭据。"
+
+#: src/Services/Export/BuildImporter.php:269
+#. translators: %s: chain name.
+#, php-format
+msgid ""
+"A hop of \"%s\" points at a webhook that is not in this file, and was left "
+"out."
+msgstr "“%s”中的一跳指向了不在此文件中的 Webhook，已被略过。"
+
+#: src/Services/Export/BuildImporter.php:274
+#. translators: %s: chain name.
+#, php-format
+msgid ""
+"A hop of \"%s\" was left out because it would have made the chain loop back "
+"on itself."
+msgstr "“%s”中的一跳已被略过，因为它会让链形成循环。"
 
 #: src/Api/AgentController.php:380
 msgid "A message is required."
@@ -291,7 +349,7 @@ msgid ""
 "invalidated%2$s and all existing integrations using it will stop working."
 msgstr "将生成一个新令牌。当前令牌将%1$s立即失效%2$s，所有使用它的现有集成都将停止工作。"
 
-#: src/Api/WebhooksController.php:529
+#: src/Api/WebhooksController.php:572
 msgid "A payload object is required for custom source."
 msgstr "自定义源需要一个数据对象。"
 
@@ -307,7 +365,7 @@ msgstr "密钥值为必填项。"
 msgid "A url or webhook_id is required."
 msgstr "必须提供 url 或 webhook_id。"
 
-#: src/Api/ChainsController.php:226
+#: src/Api/ChainsController.php:257
 msgid "A webhook cannot trigger itself."
 msgstr "Webhook 不能触发自身。"
 
@@ -391,7 +449,11 @@ msgstr "激活许可证"
 msgid "Activate Plugin"
 msgstr "启用插件"
 
-#: admin/src/views/ProView.vue
+#: admin/src/views/WebhooksList.vue
+msgid "Activate Pro"
+msgstr "激活 Pro"
+
+#: admin/src/views/ProView.vue admin/src/views/WebhooksList.vue
 msgid "Activating…"
 msgstr "正在启用…"
 
@@ -499,12 +561,17 @@ msgstr "额外的 URL 查询参数"
 
 #: admin/src/views/SettingsView.vue
 msgid ""
-"Adds a diagnostic panel to Build with AI that records the exact prompts and "
-"raw responses exchanged with the AI model. Useful for troubleshooting. API "
-"keys are always redacted. Leave this off unless you are debugging."
-msgstr ""
-"在“用 AI 构建”中添加一个诊断面板，记录与 AI 模型交换的确切提示词和原始响应。便于排查问题。API "
-"密钥始终会被隐去。除非在调试，否则请保持关闭。"
+"Adds a diagnostic panel to Build with AI where you can read and export the "
+"recorded trace. Independent of logging above."
+msgstr "在“用 AI 构建”中添加诊断面板，可查看并导出已记录的追踪信息。与上面的日志开关相互独立。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Adds your prompts and the assistant's replies so the recipient can see how "
+"this build was made. Read results are never included and obvious secrets "
+"are masked, but the conversation may still mention details about your site "
+"— review before sharing publicly."
+msgstr "附上你的提示词与助手的回复，让接收方了解此配置的构建过程。读取结果从不包含在内，明显的密钥会被遮蔽，但对话仍可能提到你站点的细节——公开分享前请先检查。"
 
 #: admin/src/views/SettingsView.vue
 msgid "Admin Menu"
@@ -542,7 +609,7 @@ msgstr "所有链"
 msgid "All logs have been cleared"
 msgstr "所有日志已清除"
 
-#: src/Api/SettingsController.php:212
+#: src/Api/SettingsController.php:224
 msgid "All logs have been cleared."
 msgstr "所有日志已清除。"
 
@@ -571,6 +638,10 @@ msgstr "%1$sagent%2$s API 令牌可以将凭据分配给 Webhook，但绝不能�
 #: src/Api/AgentController.php:188
 msgid "An API key is required to connect this provider."
 msgstr "连接此提供商需要 API 密钥。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Anonymize my site address"
+msgstr "匿名化我的站点地址"
 
 #: admin/src/components/ui/UpgradeBadge.vue
 msgid "Any unsaved changes on this form will be lost."
@@ -656,7 +727,7 @@ msgstr ""
 msgid "Authorization (optional)"
 msgstr "授权（可选）"
 
-#: src/Api/WebhooksController.php:723
+#: src/Api/WebhooksController.php:771
 msgid "Authorization header value."
 msgstr "Authorization 标头值。"
 
@@ -677,6 +748,10 @@ msgstr "“自动”优先使用可用的 WordPress 连接器，否则使用您�
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid "Automatically enrich payload with user profile information"
 msgstr "自动用用户资料信息丰富数据"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Automation"
+msgstr "自动化"
 
 #: admin/src/views/ProView.vue
 msgid "Automation Chains"
@@ -740,7 +815,7 @@ msgstr "Bearer 令牌"
 msgid "Bearer token (PAT)"
 msgstr "Bearer 令牌（PAT）"
 
-#: src/Api/ChainsController.php:223
+#: src/Api/ChainsController.php:254
 msgid "Both source_webhook_id and target_webhook_id are required."
 msgstr "source_webhook_id 和 target_webhook_id 均为必填项。"
 
@@ -759,6 +834,10 @@ msgstr "构建完成。"
 #: admin/src/components/AiPlanStepper.vue
 msgid "Build progress"
 msgstr "构建进度"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Build title"
+msgstr "配置标题"
 
 #: admin/src/App.vue admin/src/views/AiBuilderView.vue
 msgid "Build with AI"
@@ -785,7 +864,7 @@ msgstr ""
 "默认情况下，加密密钥会生成并存储在数据库中。为获得更强的保护 — 使仅有数据库转储无法解密密钥 — 请将密钥移入 "
 "%1$swp-config.php%2$s："
 
-#: admin/src/components/AiProviderSettings.vue admin/src/components/ChangeExpiryDialog.vue admin/src/components/CreateTokenDialog.vue admin/src/components/LogsTable.vue admin/src/components/RotateTokenDialog.vue admin/src/components/WebhookForm.vue admin/src/components/ui/UpgradeBadge.vue admin/src/views/ActivityView.vue admin/src/views/AiBuilderView.vue admin/src/views/ApiTokensView.vue admin/src/views/ProView.vue admin/src/views/SettingsView.vue admin/src/views/VaultView.vue admin/src/views/WebhooksList.vue
+#: admin/src/components/AiProviderSettings.vue admin/src/components/ChangeExpiryDialog.vue admin/src/components/CreateTokenDialog.vue admin/src/components/ExportDialog.vue admin/src/components/ImportDialog.vue admin/src/components/LogsTable.vue admin/src/components/RotateTokenDialog.vue admin/src/components/ShareBuildDialog.vue admin/src/components/WebhookForm.vue admin/src/components/ui/UpgradeBadge.vue admin/src/views/ActivityView.vue admin/src/views/AiBuilderView.vue admin/src/views/ApiTokensView.vue admin/src/views/ProView.vue admin/src/views/SettingsView.vue admin/src/views/VaultView.vue admin/src/views/WebhooksList.vue
 msgid "Cancel"
 msgstr "取消"
 
@@ -823,12 +902,29 @@ msgid "Captured + Mapping"
 msgstr "已捕获 + 映射"
 
 #: admin/src/components/TestWebhookDrawer.vue
-msgid "Captured + Pre-dispatch Glue + Mapping"
-msgstr "已捕获 + 投递前 Glue + 映射"
+msgid "Captured + Mapping + Pre-dispatch Glue"
+msgstr "捕获数据 + 字段映射 + 发送前 Glue"
 
 #: admin/src/components/TestWebhookDrawer.vue
-msgid "Captured + Pre-dispatch Glue + Mapping + Post-dispatch Glue"
-msgstr "已捕获 + 投递前 Glue + 映射 + 投递后 Glue"
+msgid "Captured + Mapping + Pre-dispatch Glue + Post-dispatch Glue"
+msgstr "捕获数据 + 字段映射 + 发送前 Glue + 发送后 Glue"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Captured example payloads are anonymized automatically: names, addresses, "
+"emails, phone numbers and IP addresses are replaced with placeholders, so "
+"the field mapping still previews without carrying anyone's data."
+msgstr "捕获的示例数据会自动匿名化：姓名、地址、邮箱、电话号码和 IP 地址都会替换为占位值，字段映射仍可正常预览，但不会带走任何人的数据。"
+
+#: admin/src/components/ExportDialog.vue
+msgid ""
+"Captured example payloads hold whatever a real visitor submitted — names, "
+"addresses, emails, phone numbers, IP addresses. They are replaced with "
+"placeholders unless you tick this, which you only want for a private backup "
+"of your own site."
+msgstr ""
+"捕获的示例数据包含真实访客提交的一切内容——姓名、地址、邮箱、电话号码、IP "
+"地址。除非勾选此项，否则它们会被替换为占位值；只有为自己站点做私人备份时才需要保留原值。"
 
 #: admin/src/components/TestWebhookDrawer.vue
 msgid "Captured payload with field mapping applied"
@@ -838,9 +934,13 @@ msgstr "应用了字段映射的已捕获数据"
 msgid "Cast"
 msgstr "转换"
 
-#: admin/src/components/ChainPicker.vue
+#: admin/src/components/ChainPicker.vue admin/src/components/ShareBuildDialog.vue
 msgid "Chain"
 msgstr "链"
+
+#: admin/src/components/ChainPicker.vue
+msgid "Chain description (optional)"
+msgstr "链说明（可选）"
 
 #: admin/src/components/LogsTable.vue admin/src/views/QueueView.vue
 msgid "Chain link #%1$s — %2$s"
@@ -850,7 +950,7 @@ msgstr "链接 #%1$s — %2$s"
 msgid "Chain link #%s (deleted)"
 msgstr "链接 #%s（已删除）"
 
-#: src/Api/ChainsController.php:255
+#: src/Api/ChainsController.php:286
 msgid "Chain link not found."
 msgstr "未找到链接。"
 
@@ -869,21 +969,25 @@ msgid "Chain name"
 msgstr "链名称"
 
 #: src/Abilities/WriteAbilities.php:189
-#: src/Api/ChainsController.php:131
-#: src/Api/ChainsController.php:163
+#: src/Api/ChainsController.php:159
+#: src/Api/ChainsController.php:194
 msgid "Chain name is required."
 msgstr "链名称为必填项。"
 
-#: src/Api/ChainsController.php:117
-#: src/Api/ChainsController.php:156
-#: src/Api/ChainsController.php:196
-#: src/Api/ChainsController.php:217
+#: src/Api/ChainsController.php:120
+#: src/Api/ChainsController.php:187
+#: src/Api/ChainsController.php:227
+#: src/Api/ChainsController.php:248
 msgid "Chain not found."
 msgstr "未找到链。"
 
 #: admin/src/views/ActivityView.vue
 msgid "Chains"
 msgstr "链"
+
+#: admin/src/components/ExportDialog.vue
+msgid "Chains (member webhooks included automatically)"
+msgstr "链（自动包含其中的 Webhook）"
 
 #: admin/src/views/ApiTokensView.vue
 msgid "Change expiry"
@@ -943,6 +1047,12 @@ msgstr "关闭"
 msgid "Code Glue"
 msgstr "Code Glue"
 
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"Code Glue is custom PHP that runs on your site when these webhooks fire. "
+"Only import builds from a source you trust — review each snippet below."
+msgstr "Code Glue 是这些 Webhook 触发时在你站点上运行的自定义 PHP 代码。只导入你信任来源的配置——请先查看下面的每个代码片段。"
+
 #: src/Api/TriggersController.php:144
 msgid "Comments"
 msgstr "评论"
@@ -1000,6 +1110,10 @@ msgstr "连接"
 #: admin/src/views/AiBuilderView.vue
 msgid "Connect an AI provider"
 msgstr "连接 AI 提供商"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Connects WordPress to a named service — a CRM, a spreadsheet, a chat app."
+msgstr "把 WordPress 连接到某个具体服务——CRM、电子表格或聊天工具。"
 
 #: admin/src/components/AiStepControls.vue
 msgid "Continue"
@@ -1074,6 +1188,14 @@ msgstr "复制到剪贴板"
 msgid "Copy trigger name"
 msgstr "复制触发器名称"
 
+#: admin/src/views/WebhooksList.vue
+msgid "Could not activate Pro. Activate it from the Plugins screen."
+msgstr "无法激活 Pro。请在“插件”页面中激活。"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Could not create the Application Password."
+msgstr "无法创建应用程序密码。"
+
 #: admin/src/components/AiProviderSettings.vue
 msgid "Could not load models for this key — check that the key is valid."
 msgstr "无法加载此密钥的模型——请检查密钥是否有效。"
@@ -1081,6 +1203,16 @@ msgstr "无法加载此密钥的模型——请检查密钥是否有效。"
 #: src/Api/QueueController.php:270
 msgid "Could not lock job for processing."
 msgstr "无法锁定任务以进行处理。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Could not read this build."
+msgstr "无法读取此配置。"
+
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"Could not read this file. Make sure it is a build JSON exported from "
+"Webhook Actions."
+msgstr "无法读取此文件。请确认它是从 Webhook Actions 导出的配置 JSON。"
 
 #: admin/src/components/AiStepControls.vue
 msgid "Create & assign"
@@ -1098,6 +1230,14 @@ msgstr "创建 API 令牌"
 msgid "Create Webhook"
 msgstr "创建 Webhook"
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "Create a HubSpot deal when a WooCommerce order is placed"
+msgstr "WooCommerce 下单时在 HubSpot 中创建交易"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Create a WP Application Password"
+msgstr "创建 WP 应用程序密码"
+
 #: admin/src/components/AiStepControls.vue
 msgid "Create a WP Application Password for me"
 msgstr "为我创建 WP 应用程序密码"
@@ -1111,6 +1251,10 @@ msgid ""
 "Create a named chain that wires 2xx completions of one webhook to "
 "downstream webhooks."
 msgstr "创建一个命名链，将一个 Webhook 的 2xx 完成结果接入下游 Webhook。"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Create a new vault credential"
+msgstr "在保险库中新建凭据"
 
 #: src/Abilities/AbilityCatalog.php:118
 msgid ""
@@ -1152,11 +1296,15 @@ msgstr "创建你的第一个 Webhook"
 msgid "Created"
 msgstr "创建时间"
 
-#: admin/src/components/CreateTokenDialog.vue
+#: admin/src/components/ImportDialog.vue
+msgid "Created “%s”"
+msgstr "已创建“%s”"
+
+#: admin/src/components/CreateTokenDialog.vue admin/src/components/ImportDialog.vue
 msgid "Creating…"
 msgstr "正在创建…"
 
-#: src/Api/WebhooksController.php:782
+#: src/Api/WebhooksController.php:830
 msgid "Creation date."
 msgstr "创建日期。"
 
@@ -1164,7 +1312,7 @@ msgstr "创建日期。"
 msgid "Credential could not be decrypted."
 msgstr "无法解密凭据。"
 
-#: admin/src/components/WebhookForm.vue
+#: admin/src/components/ImportDialog.vue admin/src/components/WebhookForm.vue
 msgid "Credential name"
 msgstr "凭据名称"
 
@@ -1194,6 +1342,10 @@ msgstr "凭据保险库"
 #: admin/src/components/AiProviderSettings.vue
 msgid "Credentials source"
 msgstr "凭据来源"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Credit yourself (optional)"
+msgstr "署名（可选）"
 
 #: admin/src/components/AiProviderSettings.vue
 msgid "Credits this month"
@@ -1247,7 +1399,7 @@ msgstr "自定义退避策略（指数、线性、固定）"
 msgid "Custom header"
 msgstr "自定义标头"
 
-#: src/Api/WebhooksController.php:120
+#: src/Api/WebhooksController.php:126
 msgid "Custom payload JSON (required when payload_source is custom)."
 msgstr "自定义数据 JSON（当 payload_source 为 custom 时必填）。"
 
@@ -1422,6 +1574,27 @@ msgid ""
 "tests your WordPress webhooks, integrations, and automations."
 msgstr "在聊天中描述您的需求 — 内置 AI 代理会规划、构建并测试您的 WordPress Webhook、集成和自动化。"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Described"
+msgstr "已填写说明"
+
+#: admin/src/components/WebhookForm.vue admin/src/views/WebhooksList.vue
+msgid "Description (optional)"
+msgstr "说明（可选）"
+
+#: src/Api/ChainsController.php:141
+#: src/Api/WebhooksController.php:318
+#. translators: %d: maximum character count
+#, php-format
+msgid "Description must be %d characters or fewer."
+msgstr "说明不得超过 %d 个字符。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Descriptions travel with the build and are saved here too — they are what "
+"makes a shared build understandable to someone else."
+msgstr "说明会随配置一同传递，也会保存在这里——正是它让别人能看懂你分享的配置。"
+
 #: src/Abilities/TestAbilities.php:89
 msgid "Destructive probe methods (PUT, PATCH, DELETE) require confirmation."
 msgstr "破坏性探测方法（PUT、PATCH、DELETE）需要确认。"
@@ -1452,7 +1625,7 @@ msgstr "还没有许可证？"
 msgid "Don't show this again"
 msgstr "不再显示"
 
-#: admin/src/components/AiStepPanel.vue admin/src/components/TokenCreatedDialog.vue
+#: admin/src/components/AiStepPanel.vue admin/src/components/ImportDialog.vue admin/src/components/ShareBuildDialog.vue admin/src/components/TokenCreatedDialog.vue
 msgid "Done"
 msgstr "完成"
 
@@ -1464,11 +1637,35 @@ msgstr "点号路径（例如 event.id）或静态文本"
 msgid "Download Archive (ZIP)"
 msgstr "下载归档（ZIP）"
 
+#: admin/src/components/ExportDialog.vue admin/src/components/ShareBuildDialog.vue
+msgid "Download JSON"
+msgstr "下载 JSON"
+
+#: admin/src/components/ExportDialog.vue
+msgid ""
+"Download a portable JSON build. Secrets are never included — imported auth "
+"is re-linked to your vault."
+msgstr "下载可移植的 JSON 配置。密钥从不包含在内——导入时授权会重新关联到你的保险库。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Download everything this build created as a portable JSON file. Secrets are "
+"never included — whoever imports it re-links auth to their own vault."
+msgstr "把此配置创建的所有内容下载为可移植的 JSON 文件。密钥从不包含在内——导入者会把授权关联到自己的保险库。"
+
 #: admin/src/views/WebhooksList.vue
 msgid ""
 "Downstream webhooks that lose their only trigger will be marked as orphans "
 "(no trigger assigned)."
 msgstr "失去唯一触发器的下游 Webhook 将被标记为孤立（未分配触发器）。"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Drop a build JSON here, or click to browse"
+msgstr "将配置 JSON 拖到此处，或点击浏览"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Drop to import"
+msgstr "松开以导入"
 
 #: admin/src/views/QueueView.vue
 msgid "Due"
@@ -1494,9 +1691,17 @@ msgstr "编辑"
 msgid "Edit Webhook"
 msgstr "编辑 Webhook"
 
+#: admin/src/views/WebhooksList.vue
+msgid "Edit chain"
+msgstr "编辑链"
+
 #: admin/src/views/VaultView.vue
 msgid "Edit credential"
 msgstr "编辑凭据"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Edit “%s”"
+msgstr "编辑“%s”"
 
 #: src/Abilities/AbilityCatalog.php:318
 msgid "Enable (go live) or disable a webhook. Enabling requires confirmation."
@@ -1505,10 +1710,6 @@ msgstr "启用（上线）或禁用 Webhook。启用需要确认。"
 #: src/Abilities/AbilityCatalog.php:317
 msgid "Enable / disable a webhook"
 msgstr "启用 / 禁用 Webhook"
-
-#: admin/src/views/SettingsView.vue
-msgid "Enable AI Dev Trace"
-msgstr "启用 AI 开发跟踪"
 
 #: admin/src/components/WebhookForm.vue admin/src/views/WebhooksList.vue
 msgid "Enable Anyway"
@@ -1542,7 +1743,7 @@ msgstr "端点 URL"
 msgid "Endpoint URL is required"
 msgstr "端点 URL 为必填项"
 
-#: src/Api/WebhooksController.php:234
+#: src/Api/WebhooksController.php:248
 msgid "Endpoint URL is required."
 msgstr "端点 URL 为必填项。"
 
@@ -1646,6 +1847,30 @@ msgstr "指数"
 msgid "Exponential — base 30 s, cap 3600 s"
 msgstr "指数 — 基础 30 秒，上限 3600 秒"
 
+#: admin/src/components/WebhookCardContent.vue admin/src/views/WebhooksList.vue
+msgid "Export"
+msgstr "导出"
+
+#: admin/src/views/WebhooksList.vue
+msgid "Export chain"
+msgstr "导出链"
+
+#: admin/src/components/ExportDialog.vue
+msgid "Export everything"
+msgstr "导出全部"
+
+#: admin/src/components/ExportDialog.vue admin/src/components/ShareBuildDialog.vue admin/src/views/WebhooksList.vue
+msgid "Export failed."
+msgstr "导出失败。"
+
+#: admin/src/components/ExportDialog.vue
+msgid "Export webhooks & chains"
+msgstr "导出 Webhook 与链"
+
+#: admin/src/components/ExportDialog.vue admin/src/components/ShareBuildDialog.vue
+msgid "Exporting…"
+msgstr "正在导出…"
+
 #: admin/src/App.vue admin/src/views/ExternalCronView.vue
 msgid "External Cron"
 msgstr "外部 Cron"
@@ -1662,7 +1887,7 @@ msgstr "外部 Cron 历史"
 msgid "Extra credits (never expire)"
 msgstr "额外积分（永不过期）"
 
-#: src/Api/WebhooksController.php:740
+#: src/Api/WebhooksController.php:788
 msgid "Extra request headers as key-value pairs."
 msgstr "作为键值对的额外请求标头。"
 
@@ -1678,7 +1903,7 @@ msgstr "失败"
 msgid "Failed to create API token."
 msgstr "创建 API 令牌失败。"
 
-#: src/Api/ChainsController.php:241
+#: src/Api/ChainsController.php:272
 msgid "Failed to create chain link (it may already exist)."
 msgstr "创建链接失败（它可能已存在）。"
 
@@ -1687,7 +1912,7 @@ msgid "Failed to create chain link."
 msgstr "创建链环节失败。"
 
 #: src/Abilities/WriteAbilities.php:197
-#: src/Api/ChainsController.php:139
+#: src/Api/ChainsController.php:167
 msgid "Failed to create chain."
 msgstr "创建链失败。"
 
@@ -1696,7 +1921,7 @@ msgid "Failed to create credential."
 msgstr "创建凭据失败。"
 
 #: src/Abilities/WriteAbilities.php:70
-#: src/Api/WebhooksController.php:260
+#: src/Api/WebhooksController.php:274
 msgid "Failed to create webhook."
 msgstr "创建 Webhook 失败。"
 
@@ -1716,12 +1941,12 @@ msgstr "删除日志失败。"
 msgid "Failed to delete queue job."
 msgstr "删除队列任务失败。"
 
-#: src/Api/SchemasController.php:385
+#: src/Api/SchemasController.php:397
 msgid "Failed to delete schema."
 msgstr "删除架构失败。"
 
 #: src/Abilities/WriteAbilities.php:242
-#: src/Api/WebhooksController.php:429
+#: src/Api/WebhooksController.php:472
 msgid "Failed to delete webhook."
 msgstr "删除 Webhook 失败。"
 
@@ -1757,7 +1982,7 @@ msgstr "获取用户触发器失败"
 msgid "Failed to rename chain."
 msgstr "重命名链失败。"
 
-#: src/Api/SchemasController.php:417
+#: src/Api/SchemasController.php:429
 msgid "Failed to reset capture."
 msgstr "重置捕获失败。"
 
@@ -1793,7 +2018,7 @@ msgstr "启动对话失败。"
 msgid "Failed to store the provider key."
 msgstr "存储提供商密钥失败。"
 
-#: src/Api/WebhooksController.php:471
+#: src/Api/WebhooksController.php:514
 msgid "Failed to toggle webhook status."
 msgstr "切换 Webhook 状态失败。"
 
@@ -1802,13 +2027,19 @@ msgid "Failed to update schema."
 msgstr "更新架构失败。"
 
 #: src/Abilities/WriteAbilities.php:100
-#: src/Api/WebhooksController.php:371
+#: src/Api/WebhooksController.php:414
 msgid "Failed to update webhook."
 msgstr "更新 Webhook 失败。"
 
 #: admin/src/components/MappingEditor.vue
 msgid "Field Mappings"
 msgstr "字段映射"
+
+#: admin/src/components/TestWebhookDrawer.vue
+msgid ""
+"Field mapping applied first, then pre-dispatch Code Glue — the dispatch "
+"order"
+msgstr "先应用字段映射，再运行发送前 Code Glue——即实际发送顺序"
 
 #: src/Api/SchemasController.php:89
 msgid "Field mapping configuration."
@@ -1887,6 +2118,10 @@ msgstr "完成将密钥移入 wp-config.php"
 msgid "Fixed"
 msgstr "固定"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Flagged: %s"
+msgstr "标记为：%s"
+
 #: admin/src/views/SettingsView.vue
 msgid ""
 "For reliable webhook delivery, set up a system cron job to process the "
@@ -1915,8 +2150,10 @@ msgid "Full REST API with API token authentication"
 msgstr "完整的 REST API，支持 API 令牌身份验证"
 
 #: admin/src/components/TestWebhookDrawer.vue
-msgid "Full pipeline — post-dispatch Code Glue fires after delivery"
-msgstr "完整流程 — 投递后 Code Glue 在投递后触发"
+msgid ""
+"Full pipeline in dispatch order — post-dispatch Code Glue fires after "
+"delivery"
+msgstr "按发送顺序的完整流程——发送后 Code Glue 在投递完成后触发"
 
 #: admin/src/views/ApiTokensView.vue
 msgid ""
@@ -1999,7 +2236,7 @@ msgstr "HTTP 代码"
 msgid "HTTP Method"
 msgstr "HTTP 方法"
 
-#: src/Api/WebhooksController.php:733
+#: src/Api/WebhooksController.php:781
 msgid "HTTP method used for delivery."
 msgstr "用于投递的 HTTP 方法。"
 
@@ -2015,7 +2252,7 @@ msgstr "标头"
 msgid "Header name"
 msgstr "标头名称"
 
-#: admin/src/components/AiStepControls.vue
+#: admin/src/components/AiStepControls.vue admin/src/components/ImportDialog.vue
 msgid "Header name (e.g. X-API-Key)"
 msgstr "标头名称（例如 X-API-Key）"
 
@@ -2026,6 +2263,10 @@ msgstr "标头"
 #: admin/src/views/VaultView.vue
 msgid "Hide"
 msgstr "隐藏"
+
+#: admin/src/components/DescriptionDisclosure.vue
+msgid "Hide description"
+msgstr "隐藏说明"
 
 #: admin/src/views/VaultView.vue
 msgid "Hide password"
@@ -2047,7 +2288,7 @@ msgstr "密钥如何受保护"
 msgid "How to calculate the wait between retries. Overrides the global setting."
 msgstr "如何计算重试之间的等待时间。覆盖全局设置。"
 
-#: src/Api/WebhooksController.php:124
+#: src/Api/WebhooksController.php:130
 msgid "How to run the test: now (synchronous) or queue (async)."
 msgstr "如何运行测试：now（同步）或 queue（异步）。"
 
@@ -2059,7 +2300,7 @@ msgstr "我已发送测试——重试"
 msgid "I've saved it elsewhere"
 msgstr "我已将其保存到别处"
 
-#: src/Api/WebhooksController.php:728
+#: src/Api/WebhooksController.php:776
 msgid ""
 "ID of a vault credential to use for authorization. Takes precedence over "
 "auth_header."
@@ -2073,6 +2314,34 @@ msgstr "如果"
 msgid "IP"
 msgstr "IP"
 
+#: admin/src/components/ImportDialog.vue admin/src/views/WebhooksList.vue
+msgid "Import"
+msgstr "导入"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import as new copies"
+msgstr "作为新副本导入"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import complete"
+msgstr "导入完成"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import failed."
+msgstr "导入失败。"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Import webhooks & chains"
+msgstr "导入 Webhook 与链"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Imported %1$d webhook(s) and %2$d chain(s)."
+msgstr "已导入 %1$d 个 Webhook 和 %2$d 条链。"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Importing…"
+msgstr "正在导入…"
+
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid "Include User Data"
 msgstr "包含用户数据"
@@ -2080,6 +2349,10 @@ msgstr "包含用户数据"
 #: admin/src/components/MappingEditor.vue
 msgid "Include field"
 msgstr "包含字段"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Include the AI conversation"
+msgstr "附上 AI 对话"
 
 #: admin/src/components/MappingEditor.vue
 msgid "Include unmapped fields"
@@ -2094,6 +2367,10 @@ msgstr "已包含"
 #, php-format
 msgid "Insufficient token scope. This endpoint requires \"%s\" scope or higher."
 msgstr "令牌作用域不足。此端点需要“%s”作用域或更高。"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Integration"
+msgstr "集成"
 
 #: admin/src/views/ExternalCronView.vue
 msgid "Interval"
@@ -2116,10 +2393,16 @@ msgstr "无效的凭据类型。"
 msgid "Invalid cron token."
 msgstr "无效的 cron 令牌。"
 
-#: src/Api/WebhooksController.php:242
-#: src/Api/WebhooksController.php:318
+#: src/Api/WebhooksController.php:256
+#: src/Api/WebhooksController.php:361
 msgid "Invalid endpoint URL."
 msgstr "无效的端点 URL。"
+
+#: src/Services/Export/BuildSchemaValidator.php:408
+#. translators: 1: JSON path, 2: reason
+#, php-format
+msgid "Invalid import file — %1$s %2$s"
+msgstr "导入文件无效 — %1$s %2$s"
 
 #: src/Api/ApiTokensController.php:146
 msgid "Invalid scope. Must be read, operational, full, or agent."
@@ -2172,9 +2455,17 @@ msgstr "任务由 WP-Cron 每分钟处理一次。失败的任务会以指数退
 msgid "Jobs processed per cron run."
 msgstr "每次 cron 运行处理的任务数。"
 
+#: admin/src/components/ImportDialog.vue
+msgid "Jump to an imported item"
+msgstr "跳转到已导入的项目"
+
 #: admin/src/views/SettingsView.vue
 msgid "Keep activity log for"
 msgstr "活动日志保留时长"
+
+#: admin/src/components/ExportDialog.vue
+msgid "Keep the real captured values"
+msgstr "保留真实的捕获数据"
 
 #: admin/src/views/SettingsView.vue
 msgid "Keep webhook logs for"
@@ -2212,7 +2503,7 @@ msgstr "上次拉取统计：%s"
 msgid "Last successful response (used as preview context)"
 msgstr "上次成功的响应（用作预览上下文）"
 
-#: src/Api/WebhooksController.php:789
+#: src/Api/WebhooksController.php:837
 msgid "Last update date."
 msgstr "上次更新日期。"
 
@@ -2235,6 +2526,10 @@ msgstr "许可证密钥"
 #: admin/src/components/WebhookForm.vue admin/src/views/SettingsView.vue
 msgid "Linear"
 msgstr "线性"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "LinkedIn"
+msgstr "LinkedIn"
 
 #: src/Abilities/AbilityCatalog.php:33
 msgid ""
@@ -2260,7 +2555,7 @@ msgstr "列出可用触发器"
 msgid "List credentials"
 msgstr "列出凭据"
 
-#: src/Api/WebhooksController.php:776
+#: src/Api/WebhooksController.php:824
 msgid "List of trigger actions."
 msgstr "触发器操作列表。"
 
@@ -2277,6 +2572,10 @@ msgstr "列出 Webhook"
 #: admin/src/components/PayloadGlueDrawer.vue
 msgid "Load"
 msgstr "加载"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Load a build JSON exported from Webhook Actions."
+msgstr "载入从 Webhook Actions 导出的配置 JSON。"
 
 #: admin/src/components/PayloadGlueDrawer.vue
 msgid "Loading last log…"
@@ -2305,6 +2604,10 @@ msgstr "正在加载…"
 #: admin/src/views/QueueView.vue
 msgid "Locked by: %s"
 msgstr "锁定者：%s"
+
+#: admin/src/views/SettingsView.vue
+msgid "Log AI Dev Trace"
+msgstr "记录 AI 开发追踪"
 
 #: admin/src/views/SettingsView.vue
 msgid "Log Archive"
@@ -2377,6 +2680,10 @@ msgstr "映射与条件"
 msgid "Mapping Applied"
 msgstr "已应用映射"
 
+#: admin/src/components/MarkdownField.vue
+msgid "Markdown supported."
+msgstr "支持 Markdown。"
+
 #: admin/src/components/ConditionsEditor.vue
 msgid "Match:"
 msgstr "匹配："
@@ -2438,6 +2745,11 @@ msgstr ""
 msgid "Minted the Application Password but failed to store it in the vault."
 msgstr "已生成应用程序密码，但存入保险库失败。"
 
+#: src/Api/ExportController.php:169
+#: src/Api/ExportController.php:183
+msgid "Missing import document."
+msgstr "缺少导入文档。"
+
 #: admin/src/components/AiProviderSettings.vue
 msgid "Model"
 msgstr "模型"
@@ -2498,7 +2810,7 @@ msgstr "名称为必填项"
 msgid "Name is required."
 msgstr "名称为必填项。"
 
-#: src/Api/WebhooksController.php:710
+#: src/Api/WebhooksController.php:753
 msgid "Name of the webhook."
 msgstr "Webhook 的名称。"
 
@@ -2575,7 +2887,7 @@ msgstr "当前未配置任何 WordPress AI 连接器。请在“设置 → 连�
 msgid "No activity recorded yet."
 msgstr "尚未记录任何活动。"
 
-#: src/Api/SettingsController.php:183
+#: src/Api/SettingsController.php:195
 msgid "No archive files found or failed to create ZIP."
 msgstr "未找到归档文件或创建 ZIP 失败。"
 
@@ -2583,13 +2895,21 @@ msgstr "未找到归档文件或创建 ZIP 失败。"
 msgid "No archive files yet"
 msgstr "尚无归档文件"
 
+#: admin/src/components/ImportDialog.vue
+msgid "No authorization"
+msgstr "无需授权"
+
+#: admin/src/components/ImportDialog.vue
+msgid "No authorization needed for this build."
+msgstr "此配置无需授权。"
+
 #: admin/src/components/TestWebhookDrawer.vue
 msgid "No body sent"
 msgstr "未发送主体"
 
-#: src/Api/WebhooksController.php:543
-#: src/Api/WebhooksController.php:560
-#: src/Api/WebhooksController.php:579
+#: src/Api/WebhooksController.php:586
+#: src/Api/WebhooksController.php:603
+#: src/Api/WebhooksController.php:622
 msgid ""
 "No captured payload found for this trigger. Fire the trigger at least once "
 "first."
@@ -2598,6 +2918,10 @@ msgstr "未找到该触发器的已捕获数据。请先至少触发一次。"
 #: admin/src/components/WebhookForm.vue
 msgid "No captured payload — trigger the webhook once to preview the resolved URL."
 msgstr "未捕获数据 — 触发一次 Webhook 以预览解析后的 URL。"
+
+#: admin/src/components/ExportDialog.vue
+msgid "No chains match your search."
+msgstr "没有匹配的链。"
 
 #: src/Services/Ai/FallbackTransport.php:73
 #: src/Services/Ai/WpAiClientTransport.php:101
@@ -2714,6 +3038,10 @@ msgstr "未找到触发器"
 msgid "No webhooks configured yet"
 msgstr "尚未配置任何 Webhook"
 
+#: admin/src/components/ExportDialog.vue
+msgid "No webhooks match your search."
+msgstr "没有匹配的 Webhook。"
+
 #: admin/src/components/ChainPicker.vue
 msgid "No webhooks match “%s”."
 msgstr "没有 Webhook 匹配“%s”。"
@@ -2733,6 +3061,10 @@ msgid ""
 msgstr ""
 "对于 GET / DELETE 不作为请求主体发送。在未配置 URL 参数的情况下，完整数据会以 "
 "%1$s?payload=&lt;json&gt;%2$s 形式附加。"
+
+#: admin/src/components/MarkdownField.vue
+msgid "Nothing to preview yet — switch to Write to add a description."
+msgstr "暂无可预览的内容——切换到“撰写”添加说明。"
 
 #: src/Api/LogsController.php:127
 msgid "Number of days to look back."
@@ -2771,6 +3103,12 @@ msgstr ""
 "当这些 Webhook 中任意一个返回成功（2xx）响应时，该 Webhook 将被触发，上游响应、已发送数据和原始映射前数据均可通过 "
 "%1$sargs[0]%2$s 获得。"
 
+#: admin/src/components/BuildPublishFields.vue
+msgid ""
+"One or two sentences — this is what people read on the listing before they "
+"open the build."
+msgstr "一两句话——别人在打开配置前会在列表中看到它。"
+
 #: src/Api/LogsController.php:334
 msgid "Only failed log entries can be retried."
 msgstr "只有失败的日志条目才能重试。"
@@ -2779,7 +3117,7 @@ msgstr "只有失败的日志条目才能重试。"
 msgid "Only pending or permanently failed jobs can be retried."
 msgstr "只有待处理或永久失败的任务才能重试。"
 
-#: src/Api/WebhooksController.php:683
+#: src/Api/WebhooksController.php:726
 msgid "Only return enabled webhooks."
 msgstr "仅返回已启用的 Webhook。"
 
@@ -2802,6 +3140,10 @@ msgstr "操作 + 创建/更新/删除 Webhook、架构和队列任务"
 #: admin/src/components/CreateTokenDialog.vue
 msgid "Operational + create/update/delete webhooks, schemas, queue jobs"
 msgstr "操作 + 创建/更新/删除 Webhook、架构、队列任务"
+
+#: src/Api/WebhooksController.php:759
+msgid "Optional markdown description documenting what this webhook does."
+msgstr "可选的 Markdown 说明，用于记录此 Webhook 的作用。"
 
 #: admin/src/views/VaultView.vue
 msgid "Optional: harden with %1$sFSWA_SECRET_KEY%2$s"
@@ -2876,7 +3218,7 @@ msgid "Part of chain:"
 msgid_plural "Part of chains:"
 msgstr[0] "属于链："
 
-#: admin/src/components/AiStepControls.vue admin/src/views/VaultView.vue
+#: admin/src/components/AiStepControls.vue admin/src/components/ImportDialog.vue admin/src/views/VaultView.vue
 msgid "Password"
 msgstr "密码"
 
@@ -2950,6 +3292,10 @@ msgstr "永久删除 Webhook 及其触发器/映射。需要确认。"
 msgid "Pick date & time"
 msgstr "选择日期和时间"
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "Pick the one that fits best — a build is listed in a single collection."
+msgstr "选择最合适的一个——每个配置只会出现在一个合集中。"
+
 #: admin/src/views/SettingsView.vue
 msgid "Plugin Info"
 msgstr "插件信息"
@@ -2978,7 +3324,7 @@ msgstr "投递后 Glue"
 msgid "Post-dispatch"
 msgstr "投递后"
 
-#: admin/src/components/TriggerSchemaPanel.vue
+#: admin/src/components/TriggerSchemaPanel.vue admin/src/components/WebhookCardContent.vue
 msgid "Post-dispatch Code Glue"
 msgstr "投递后 Code Glue"
 
@@ -3000,19 +3346,19 @@ msgstr "投递前 Glue"
 msgid "Pre-dispatch"
 msgstr "投递前"
 
-#: admin/src/components/TriggerSchemaPanel.vue
+#: admin/src/components/TriggerSchemaPanel.vue admin/src/components/WebhookCardContent.vue
 msgid "Pre-dispatch Code Glue"
 msgstr "投递前 Code Glue"
-
-#: admin/src/components/TestWebhookDrawer.vue
-msgid "Pre-dispatch Code Glue applied before field mapping"
-msgstr "投递前 Code Glue 在字段映射之前应用"
 
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid ""
 "Pre-dispatch Code Glue preview is active. Save or discard it before saving "
 "Mapping & Conditions."
 msgstr "投递前 Code Glue 预览处于活动状态。请在保存映射与条件前保存或放弃它。"
+
+#: admin/src/components/MarkdownField.vue
+msgid "Preview"
+msgstr "预览"
 
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid "Preview active"
@@ -3041,6 +3387,10 @@ msgstr "Pro 许可证"
 #: admin/src/views/ProView.vue
 msgid "Pro Plugin Installed"
 msgstr "已安装 Pro 插件"
+
+#: admin/src/components/WebhookCardContent.vue
+msgid "Pro inactive"
+msgstr "Pro 未激活"
 
 #: src/Api/ProStatusController.php:48
 msgid "Pro plugin not found."
@@ -3072,11 +3422,44 @@ msgstr "正在处理…"
 msgid "Provider"
 msgstr "提供商"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Publish build"
+msgstr "发布配置"
+
+#: admin/src/components/BuiltWebhookActions.vue
+msgid "Publish it on wpwebhooks.org — 50 AI credits, +20 for every like."
+msgstr "把它发布到 wpwebhooks.org——50 个 AI 额度，每个点赞再加 20。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Publish this build on wpwebhooks.org so anyone can import it. Secrets are "
+"never included, and you keep 50 AI credits for publishing plus 20 every "
+"time someone likes it."
+msgstr "把此配置发布到 wpwebhooks.org，任何人都能导入。密钥从不包含在内；发布可获得 50 个 AI 额度，每次有人点赞再得 20 个。"
+
+#: admin/src/components/BuiltWebhookActions.vue admin/src/components/ShareBuildDialog.vue
+msgid "Publish your build"
+msgstr "发布你的配置"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Published builds are checked automatically before they go live, and can be "
+"taken down later from your account."
+msgstr "已发布的配置在上线前会自动审核，之后也可以从你的账户中撤下。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Publishing failed."
+msgstr "发布失败。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Publishing…"
+msgstr "正在发布…"
+
 #: admin/src/components/LogsTable.vue
 msgid "Query Parameters"
 msgstr "查询参数"
 
-#: src/Api/WebhooksController.php:752
+#: src/Api/WebhooksController.php:800
 msgid "Query parameters appended to the URL."
 msgstr "附加到 URL 的查询参数。"
 
@@ -3152,9 +3535,27 @@ msgid ""
 "sent and how the endpoint responded."
 msgstr "读取最近的投递日志（可选仅针对一个 Webhook），以核实发送了什么以及端点如何响应。"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Reading this build…"
+msgstr "正在读取此配置…"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Reading…"
+msgstr "正在读取…"
+
 #: admin/src/components/HealthStatusBar.vue
 msgid "Ready to send some data?"
 msgstr "准备好发送一些数据了吗？"
+
+#: admin/src/views/SettingsView.vue
+msgid ""
+"Records the exact prompts and raw responses exchanged with the AI model to "
+"a protected log file, so support can diagnose a build you report. On by "
+"default; API keys are always redacted and entries older than 30 days are "
+"pruned automatically. Turn this off if you would rather not keep the log."
+msgstr ""
+"把与 AI 模型往来的完整提示词和原始响应记录到受保护的日志文件，便于支持人员诊断你反馈的问题。默认开启；API 密钥始终会被遮蔽，超过 30 "
+"天的记录会自动清理。若不希望保留日志，可关闭此项。"
 
 #: admin/src/components/TestWebhookDrawer.vue
 msgid "Redirect"
@@ -3208,6 +3609,15 @@ msgstr "重命名链"
 msgid "Renews / expires"
 msgstr "续订 / 到期"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Replaces your site URL with example.com everywhere it appears — the export "
+"header, endpoint URLs, Code Glue and the AI conversation. Whoever imports "
+"the build re-points those endpoints at their own site."
+msgstr ""
+"把出现过站点网址的地方全部替换为 example.com——包括导出头信息、端点地址、Code Glue 和 AI "
+"对话。导入者会把这些端点改指向自己的站点。"
+
 #: admin/src/components/LogsTable.vue
 msgid "Replay"
 msgstr "重放"
@@ -3247,12 +3657,6 @@ msgstr "响应主体"
 #: admin/src/components/PayloadGlueDrawer.vue
 msgid "Result Preview"
 msgstr "结果预览"
-
-#: admin/src/components/PayloadGlueDrawer.vue
-msgid ""
-"Result preview is now used as the effective payload for Mapping & "
-"Conditions below."
-msgstr "结果预览现在用作下方映射与条件的有效数据。"
 
 #: admin/src/views/ExternalCronView.vue
 msgid "Resume"
@@ -3368,6 +3772,10 @@ msgstr "运行计划"
 msgid "Running…"
 msgstr "正在运行…"
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "Runs a process end to end — a chain of steps, a scheduled job, a workflow."
+msgstr "端到端地跑完一个流程——一串步骤、一个定时任务或一条工作流。"
+
 #: admin/src/components/AiProviderSettings.vue
 msgid "Runs through the WP Webhooks AI service — no API keys needed."
 msgstr "通过 WP Webhooks AI 服务运行 — 无需 API 密钥。"
@@ -3456,6 +3864,10 @@ msgstr "作用域"
 msgid "Scope reference"
 msgstr "作用域参考"
 
+#: admin/src/components/ExportDialog.vue
+msgid "Search chains…"
+msgstr "搜索链…"
+
 #: admin/src/components/AiStepControls.vue
 msgid "Search credentials…"
 msgstr "搜索凭据…"
@@ -3475,6 +3887,14 @@ msgstr "搜索触发器…"
 #: admin/src/components/ChainPicker.vue
 msgid "Search webhooks by name or URL…"
 msgstr "按名称或 URL 搜索 Webhook…"
+
+#: admin/src/components/ExportDialog.vue
+msgid "Search webhooks…"
+msgstr "搜索 Webhook…"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Secret / token"
+msgstr "密钥 / 令牌"
 
 #: admin/src/components/AiStepControls.vue admin/src/views/VaultView.vue
 msgid "Secret value"
@@ -3513,6 +3933,10 @@ msgstr "至少选择一个上游 Webhook 以触发该 Webhook"
 #: admin/src/components/ChainPicker.vue
 msgid "Select chain or create new"
 msgstr "选择链或新建"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Select credential"
+msgstr "选择凭据"
 
 #: admin/src/components/FieldSelector.vue
 msgid "Select field…"
@@ -3622,13 +4046,29 @@ msgstr "设置"
 msgid "Settings saved successfully"
 msgstr "设置已成功保存"
 
+#: admin/src/components/BuiltWebhookActions.vue admin/src/components/ShareBuildDialog.vue
+msgid "Share this build"
+msgstr "分享此配置"
+
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid "Shared Example"
 msgstr "共享示例"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Sharing the AI conversation alongside a build is a Pro feature."
+msgstr "随配置一起分享 AI 对话是 Pro 功能。"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Short summary"
+msgstr "简短摘要"
+
 #: admin/src/views/VaultView.vue
 msgid "Show"
 msgstr "显示"
+
+#: admin/src/views/SettingsView.vue
+msgid "Show AI Dev Trace panel"
+msgstr "显示 AI 开发追踪面板"
 
 #: admin/src/components/AiProviderSettings.vue
 msgid "Show all compatible (%d)"
@@ -3637,6 +4077,10 @@ msgstr "显示所有兼容项（%d）"
 #: admin/src/components/MappingEditor.vue
 msgid "Show full"
 msgstr "显示完整"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Show in list"
+msgstr "在列表中显示"
 
 #: admin/src/components/MappingEditor.vue
 msgid "Show less"
@@ -3658,6 +4102,10 @@ msgstr "显示推荐项"
 msgid "Show secret"
 msgstr "显示密钥"
 
+#: admin/src/components/ImportDialog.vue
+msgid "Show “%s” in list"
+msgstr "在列表中显示“%s”"
+
 #: admin/src/components/LogsTable.vue admin/src/views/QueueView.vue
 msgid "Showing %1$d to %2$d of %3$d"
 msgstr "显示第 %1$d 至 %2$d 项，共 %3$d 项"
@@ -3677,6 +4125,10 @@ msgstr "大小"
 #: admin/src/components/AiStepControls.vue
 msgid "Skip"
 msgstr "跳过"
+
+#: admin/src/components/ImportDialog.vue
+msgid "Skip the duplicates"
+msgstr "跳过重复项"
 
 #: admin/src/components/AiStepPanel.vue admin/src/views/LogsList.vue
 msgid "Skipped"
@@ -3698,6 +4150,10 @@ msgstr "代码片段已保存并分配。"
 msgid "Snippets"
 msgstr "代码片段"
 
+#: admin/src/components/ImportDialog.vue
+msgid "Some parts were left out"
+msgstr "部分内容已被略过"
+
 #: src/Services/Ai/AgentOrchestrator.php:173
 #. translators: %s: comma-separated ability names.
 #, php-format
@@ -3717,7 +4173,7 @@ msgstr "源"
 msgid "Source path (e.g., args.0.user_id)"
 msgstr "源路径（例如 args.0.user_id）"
 
-#: src/Api/ChainsController.php:229
+#: src/Api/ChainsController.php:260
 msgid "Source webhook does not exist."
 msgstr "源 Webhook 不存在。"
 
@@ -3812,7 +4268,7 @@ msgstr "目标 URL"
 msgid "Target path (e.g., user_id)"
 msgstr "目标路径（例如 user_id）"
 
-#: src/Api/ChainsController.php:232
+#: src/Api/ChainsController.php:263
 msgid "Target webhook does not exist."
 msgstr "目标 Webhook 不存在。"
 
@@ -3852,7 +4308,7 @@ msgstr "不允许该 URL（私有、保留或无效的主机）。"
 msgid "That link would create a cycle across an existing chain."
 msgstr "该环节会在现有链中产生循环。"
 
-#: src/Api/ChainsController.php:236
+#: src/Api/ChainsController.php:267
 msgid "That link would create a cycle in the chain graph."
 msgstr "该连接会在链图中形成循环。"
 
@@ -3915,6 +4371,12 @@ msgid ""
 "depends on the strategy: multiplier for exponential, interval for linear, "
 "constant for fixed."
 msgstr "用于计算每次重试延迟的基础秒数。具体作用取决于策略：指数策略为倍数，线性策略为间隔，固定策略为常量。"
+
+#: src/Services/Export/BuildImporter.php:254
+#. translators: %s: chain name.
+#, php-format
+msgid "The chain \"%s\" could not be created."
+msgstr "无法创建链“%s”。"
 
 #: admin/src/views/WebhooksList.vue
 msgid ""
@@ -4026,12 +4488,43 @@ msgstr "此操作无法撤销。"
 msgid "This action cannot be undone. All logs will be permanently deleted."
 msgstr "此操作无法撤销。所有日志将被永久删除。"
 
+#: admin/src/components/BuildPublishFields.vue
+msgid "This becomes the page title and headline."
+msgstr "它将成为页面标题和大标题。"
+
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"This build calls this site’s own WP REST API. Reuse or create a WordPress "
+"Application Password — there is no secret to paste."
+msgstr "此配置会调用本站自身的 WP REST API。复用或新建一个 WordPress 应用程序密码即可——无需粘贴任何密钥。"
+
+#: admin/src/components/ImportDialog.vue
+msgid "This build contains %d Code Glue snippet"
+msgid_plural "This build contains %d Code Glue snippets"
+msgstr[0] "此配置包含 %d 个 Code Glue 代码片段"
+
+#: admin/src/components/ImportDialog.vue
+msgid ""
+"This build includes a Build-with-AI transcript, shown for reference on the "
+"source — it is not imported."
+msgstr "此配置附有“用 AI 构建”的对话记录，仅在来源处供参考——不会被导入。"
+
+#: admin/src/components/ImportDialog.vue
+msgid "This build needs authorization credentials"
+msgstr "此配置需要授权凭据"
+
 #: src/Api/CredentialsController.php:379
 #. translators: %d: number of webhooks using this credential
 #, php-format
 msgid "This credential is used by %d webhook. Detach it or delete with force."
 msgid_plural "This credential is used by %d webhooks. Detach them or delete with force."
 msgstr[0] "该凭据被 %d 个 Webhook 使用。请将其分离或强制删除。"
+
+#: admin/src/components/PayloadGlueDrawer.vue
+msgid ""
+"This is the final payload on the wire — used for Transformed Conditions and "
+"URL/param templates below."
+msgstr "这是实际发送的最终数据——用于下面的转换后条件以及网址/参数模板。"
 
 #: admin/src/components/WebhookForm.vue
 msgid ""
@@ -4257,7 +4750,7 @@ msgstr "转换后数据预览"
 msgid "Trigger"
 msgstr "触发器"
 
-#: src/Api/WebhooksController.php:116
+#: src/Api/WebhooksController.php:122
 msgid "Trigger name to use for the test."
 msgstr "用于测试的触发器名称。"
 
@@ -4300,7 +4793,11 @@ msgstr "URL 查询参数"
 msgid "URL must be HTTP or HTTPS"
 msgstr "URL 必须是 HTTP 或 HTTPS"
 
-#: src/Api/WebhooksController.php:716
+#: admin/src/components/WebhookCardContent.vue
+msgid "URL templates ({{ }})"
+msgstr "网址模板（{{ }}）"
+
+#: src/Api/WebhooksController.php:764
 msgid "URL to send the webhook to."
 msgstr "发送 Webhook 的目标 URL。"
 
@@ -4316,10 +4813,10 @@ msgstr "未链接"
 msgid "Undo last change"
 msgstr "撤销上次更改"
 
-#: src/Api/WebhooksController.php:69
-#: src/Api/WebhooksController.php:94
-#: src/Api/WebhooksController.php:106
-#: src/Api/WebhooksController.php:704
+#: src/Api/WebhooksController.php:75
+#: src/Api/WebhooksController.php:100
+#: src/Api/WebhooksController.php:112
+#: src/Api/WebhooksController.php:747
 msgid "Unique identifier for the webhook."
 msgstr "Webhook 的唯一标识符。"
 
@@ -4416,6 +4913,10 @@ msgid ""
 "encrypted in your Credentials Vault and never returned over the API."
 msgstr "使用在 WordPress 中配置的提供商，或添加您自己的 API 密钥。密钥加密存储在您的凭据保险库中，绝不会通过 API 返回。"
 
+#: admin/src/components/ImportDialog.vue
+msgid "Use an existing vault credential"
+msgstr "使用保险库中已有的凭据"
+
 #: admin/src/components/AiStepControls.vue
 msgid "Use credential & continue"
 msgstr "使用凭据并继续"
@@ -4448,7 +4949,7 @@ msgstr "用户提示"
 msgid "User trigger"
 msgstr "用户触发器"
 
-#: admin/src/components/AiStepControls.vue admin/src/views/VaultView.vue
+#: admin/src/components/AiStepControls.vue admin/src/components/ImportDialog.vue admin/src/views/VaultView.vue
 msgid "Username"
 msgstr "用户名"
 
@@ -4529,7 +5030,7 @@ msgstr "等待前面的步骤…"
 msgid "Waiting for trigger to capture example payload..."
 msgstr "正在等待触发器以捕获示例数据…"
 
-#: admin/src/components/LogsTable.vue
+#: admin/src/components/LogsTable.vue admin/src/components/ShareBuildDialog.vue
 msgid "Webhook"
 msgstr "Webhook"
 
@@ -4538,10 +5039,10 @@ msgid "Webhook #%s"
 msgstr "Webhook #%s"
 
 #: src/Abilities/AbilityRegistrar.php:41
-#: src/Controllers/AdminController.php:37
 #: src/Controllers/AdminController.php:38
-#: src/Controllers/AdminController.php:45
+#: src/Controllers/AdminController.php:39
 #: src/Controllers/AdminController.php:46
+#: src/Controllers/AdminController.php:47
 msgid "Webhook Actions"
 msgstr ""
 
@@ -4550,7 +5051,22 @@ msgstr ""
 msgid "Webhook Actions - build automations and integrations with AI help"
 msgstr "Webhook Actions — 借助 AI 构建自动化与集成"
 
-#: src/Controllers/AdminController.php:216
+#: admin/src/views/WebhooksList.vue
+msgid ""
+"Webhook Actions Pro is inactive, so assigned Code Glue snippets are skipped "
+"and {{ }} URL templates are sent literally. Field mapping and conditions "
+"still work. Reactivate Pro to restore these — no data is lost."
+msgstr ""
+"Webhook Actions Pro 未激活，因此已分配的 Code Glue 代码片段会被跳过，{{ }} "
+"网址模板将按原样发送。字段映射和条件仍然有效。重新激活 Pro 即可恢复——数据不会丢失。"
+
+#: admin/src/components/WebhookCardContent.vue
+msgid ""
+"Webhook Actions Pro is inactive, so this webhook dispatches without: %s. "
+"Reactivate Pro to restore it."
+msgstr "Webhook Actions Pro 未激活，因此此 Webhook 在发送时缺少：%s。重新激活 Pro 即可恢复。"
+
+#: src/Controllers/AdminController.php:218
 msgid ""
 "Webhook Actions by Flow Systems: Your webhooks have been migrated to the "
 "new database format."
@@ -4572,7 +5088,7 @@ msgstr "Webhook 认证"
 msgid "Webhook delivery logs older than this will be automatically deleted."
 msgstr "早于此期限的 Webhook 投递日志将被自动删除。"
 
-#: src/Api/WebhooksController.php:508
+#: src/Api/WebhooksController.php:551
 msgid "Webhook has no triggers configured."
 msgstr "该 Webhook 未配置触发器。"
 
@@ -4580,7 +5096,7 @@ msgstr "该 Webhook 未配置触发器。"
 msgid "Webhook is live."
 msgstr "Webhook 已上线。"
 
-#: src/Api/WebhooksController.php:226
+#: src/Api/WebhooksController.php:240
 msgid "Webhook name is required."
 msgstr "Webhook 名称为必填项。"
 
@@ -4588,19 +5104,39 @@ msgstr "Webhook 名称为必填项。"
 #: src/Api/SchemasController.php:171
 #: src/Api/SchemasController.php:231
 #: src/Api/SchemasController.php:276
-#: src/Api/SchemasController.php:375
-#: src/Api/SchemasController.php:407
-#: src/Api/WebhooksController.php:197
-#: src/Api/WebhooksController.php:301
-#: src/Api/WebhooksController.php:407
-#: src/Api/WebhooksController.php:459
-#: src/Api/WebhooksController.php:499
+#: src/Api/SchemasController.php:387
+#: src/Api/SchemasController.php:419
+#: src/Api/WebhooksController.php:207
+#: src/Api/WebhooksController.php:340
+#: src/Api/WebhooksController.php:450
+#: src/Api/WebhooksController.php:502
+#: src/Api/WebhooksController.php:542
 msgid "Webhook not found."
 msgstr "未找到 Webhook。"
 
-#: admin/src/App.vue admin/src/views/ActivityView.vue admin/src/views/WebhooksList.vue
+#: admin/src/App.vue admin/src/components/ExportDialog.vue admin/src/views/ActivityView.vue admin/src/views/WebhooksList.vue
 msgid "Webhooks"
 msgstr "Webhook"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Website"
+msgstr "网站"
+
+#: admin/src/components/ChainPicker.vue admin/src/views/WebhooksList.vue
+msgid "What does this chain automate? Markdown supported."
+msgstr "这条链自动化了什么？支持 Markdown。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "What does this do, and what does someone need before importing it?"
+msgstr "它的作用是什么？导入前需要准备什么？"
+
+#: admin/src/components/WebhookForm.vue
+msgid "What does this webhook do? Markdown supported."
+msgstr "这个 Webhook 有什么作用？支持 Markdown。"
+
+#: admin/src/components/ShareBuildDialog.vue
+msgid "What this build contains"
+msgstr "此配置包含的内容"
 
 #: admin/src/views/SettingsView.vue
 msgid "When enabled, logs are exported to JSON files before being deleted."
@@ -4617,15 +5153,19 @@ msgstr "启用后，该 Webhook 会在触发它的 WordPress 请求中内联触�
 msgid "When webhooks are triggered, jobs will appear here for processing."
 msgstr "当 Webhook 被触发时，任务将显示在此处以供处理。"
 
-#: src/Api/WebhooksController.php:110
+#: admin/src/components/BuildPublishFields.vue
+msgid "Where does this belong?"
+msgstr "它属于哪一类？"
+
+#: src/Api/WebhooksController.php:116
 msgid "Where to source the test payload from."
 msgstr "测试数据的来源。"
 
-#: src/Api/WebhooksController.php:770
+#: src/Api/WebhooksController.php:818
 msgid "Whether the webhook executes synchronously (blocking, bypasses queue)."
 msgstr "Webhook 是否同步执行（阻塞，绕过队列）。"
 
-#: src/Api/WebhooksController.php:764
+#: src/Api/WebhooksController.php:812
 msgid "Whether the webhook is enabled."
 msgstr "Webhook 是否已启用。"
 
@@ -4661,6 +5201,10 @@ msgstr "WordPress 用户名或 API 用户"
 msgid "Working…"
 msgstr "处理中…"
 
+#: admin/src/components/MarkdownField.vue
+msgid "Write"
+msgstr "撰写"
+
 #: admin/src/components/TestWebhookDrawer.vue
 msgid "Write your own JSON payload"
 msgstr "编写你自己的 JSON 数据"
@@ -4673,7 +5217,7 @@ msgstr "X-Webhook-Id："
 msgid "Yes"
 msgstr "是"
 
-#: src/Api/WebhooksController.php:164
+#: src/Api/WebhooksController.php:170
 msgid "You don't have permissions to see it."
 msgstr "你没有查看它的权限。"
 
@@ -4693,6 +5237,10 @@ msgstr "你可能需要在 WAF 或服务器安全中将外部 Cron IP 加入白�
 msgid "Your WordPress AI connectors are no longer available."
 msgstr "您的 WordPress AI 连接器已不再可用。"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid "Your build is published."
+msgstr "你的配置已发布。"
+
 #: admin/src/components/AiBuildsBar.vue
 msgid "Your builds"
 msgstr "您的构建"
@@ -4700,6 +5248,14 @@ msgstr "您的构建"
 #: admin/src/views/ProView.vue
 msgid "Your license is active on this site."
 msgstr "你的许可证已在本站点激活。"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Your links appear on the build page. They are published as nofollow."
+msgstr "你的链接会显示在配置页面上，并以 nofollow 方式发布。"
+
+#: admin/src/components/BuildPublishFields.vue
+msgid "Your name"
+msgstr "你的名字"
 
 #: src/Services/Ai/AgentOrchestrator.php:230
 #. translators: 1: selected provider/model, 2: fallback provider/model, 3: error reason
@@ -4740,6 +5296,10 @@ msgstr "conditions.rules 必须是规则对象数组。"
 #: admin/src/components/ConditionsEditor.vue
 msgid "contains"
 msgstr "包含"
+
+#: src/Services/Export/BuildSchemaValidator.php:97
+msgid "contains no webhooks."
+msgstr "不包含任何 Webhook。"
 
 #: admin/src/components/ConditionsEditor.vue
 msgid "dispatch"
@@ -4783,6 +5343,12 @@ msgstr "为空"
 msgid "equals"
 msgstr "等于"
 
+#: src/Services/Export/BuildSchemaValidator.php:386
+#. translators: %d: max length
+#, php-format
+msgid "exceeds the maximum length of %d bytes."
+msgstr "超过了 %d 字节的最大长度。"
+
 #: admin/src/components/MappingEditor.vue
 msgid "excluded via parent"
 msgstr "通过父级排除"
@@ -4798,6 +5364,12 @@ msgstr "大于"
 #: admin/src/components/ConditionsEditor.vue
 msgid "has item"
 msgstr "含项"
+
+#: src/Services/Export/BuildSchemaValidator.php:376
+#. translators: %s: comma-separated key names
+#, php-format
+msgid "has unexpected key(s): %s."
+msgstr "包含意外的键：%s。"
 
 #: admin/src/components/ConditionsEditor.vue
 msgid "has value"
@@ -4821,6 +5393,12 @@ msgstr "https://your-endpoint.example/webhook"
 msgid "instead."
 msgstr "。"
 
+#: src/Services/Export/BuildSchemaValidator.php:69
+#. translators: 1: found version, 2: supported version
+#, php-format
+msgid "is %1$d; this plugin imports version %2$d builds."
+msgstr "为 %1$d；此插件可导入版本 %2$d 的配置。"
+
 #: admin/src/components/ConditionsEditor.vue
 msgid "is empty"
 msgstr "为空"
@@ -4829,9 +5407,23 @@ msgstr "为空"
 msgid "is false"
 msgstr "为假"
 
+#: src/Services/Export/BuildSchemaValidator.php:366
+#. translators: %s: key name
+#, php-format
+msgid "is missing required key \"%s\"."
+msgstr "缺少必需的键“%s”。"
+
 #: admin/src/components/ConditionsEditor.vue
 msgid "is not empty"
 msgstr "不为空"
+
+#: src/Services/Export/BuildSchemaValidator.php:62
+msgid "is required and must be an integer."
+msgstr "为必填项，且必须是整数。"
+
+#: src/Services/Export/BuildSchemaValidator.php:227
+msgid "is required when mode is \"vault\"."
+msgstr "当模式为“vault”时为必填项。"
 
 #: admin/src/components/ConditionsEditor.vue
 msgid "is true"
@@ -4844,6 +5436,81 @@ msgstr "小于"
 #: admin/src/components/MappingEditor.vue
 msgid "mapped"
 msgstr "已映射"
+
+#: src/Services/Export/BuildSchemaValidator.php:350
+msgid "may only contain letters, numbers, hyphens and underscores."
+msgstr "只能包含字母、数字、连字符和下划线。"
+
+#: src/Services/Export/BuildSchemaValidator.php:393
+msgid "must be a boolean."
+msgstr "必须是布尔值。"
+
+#: src/Services/Export/BuildSchemaValidator.php:80
+#: src/Services/Export/BuildSchemaValidator.php:230
+msgid "must be a string or null."
+msgstr "必须是字符串或 null。"
+
+#: src/Services/Export/BuildSchemaValidator.php:77
+#: src/Services/Export/BuildSchemaValidator.php:131
+#: src/Services/Export/BuildSchemaValidator.php:148
+#: src/Services/Export/BuildSchemaValidator.php:301
+#: src/Services/Export/BuildSchemaValidator.php:383
+msgid "must be a string."
+msgstr "必须是字符串。"
+
+#: src/Services/Export/BuildSchemaValidator.php:345
+msgid "must be a {key, value} object."
+msgstr "必须是 {key, value} 对象。"
+
+#: src/Services/Export/BuildSchemaValidator.php:299
+msgid "must be an array of strings."
+msgstr "必须是字符串数组。"
+
+#: src/Services/Export/BuildSchemaValidator.php:342
+msgid "must be an array of {key, value} pairs."
+msgstr "必须是 {key, value} 键值对数组。"
+
+#: src/Services/Export/BuildSchemaValidator.php:86
+#: src/Services/Export/BuildSchemaValidator.php:95
+#: src/Services/Export/BuildSchemaValidator.php:108
+#: src/Services/Export/BuildSchemaValidator.php:140
+#: src/Services/Export/BuildSchemaValidator.php:206
+#: src/Services/Export/BuildSchemaValidator.php:318
+msgid "must be an array."
+msgstr "必须是数组。"
+
+#: src/Services/Export/BuildSchemaValidator.php:190
+msgid "must be an http:// or https:// URL."
+msgstr "必须是 http:// 或 https:// 网址。"
+
+#: src/Services/Export/BuildSchemaValidator.php:59
+#: src/Services/Export/BuildSchemaValidator.php:127
+#: src/Services/Export/BuildSchemaValidator.php:144
+#: src/Services/Export/BuildSchemaValidator.php:161
+#: src/Services/Export/BuildSchemaValidator.php:178
+#: src/Services/Export/BuildSchemaValidator.php:219
+#: src/Services/Export/BuildSchemaValidator.php:239
+#: src/Services/Export/BuildSchemaValidator.php:263
+#: src/Services/Export/BuildSchemaValidator.php:277
+#: src/Services/Export/BuildSchemaValidator.php:292
+#: src/Services/Export/BuildSchemaValidator.php:312
+#: src/Services/Export/BuildSchemaValidator.php:321
+msgid "must be an object."
+msgstr "必须是对象。"
+
+#: src/Services/Export/BuildSchemaValidator.php:399
+#. translators: %s: comma-separated allowed values
+#, php-format
+msgid "must be one of: %s."
+msgstr "必须是以下之一：%s。"
+
+#: src/Services/Export/BuildSchemaValidator.php:384
+msgid "must not be empty."
+msgstr "不能为空。"
+
+#: src/Services/Export/BuildSchemaValidator.php:354
+msgid "must not contain line breaks."
+msgstr "不能包含换行符。"
 
 #: src/Abilities/WriteAbilities.php:52
 msgid "name and endpoint_url are required."
@@ -4888,6 +5555,26 @@ msgstr "属性名称（可选）"
 #: src/Services/Ai/AgentOrchestrator.php:233
 msgid "provider unavailable"
 msgstr "提供商不可用"
+
+#: src/Services/Export/BuildSchemaValidator.php:228
+msgid "references a credential that is not listed in credentials[]."
+msgstr "引用了未列在 credentials[] 中的凭据。"
+
+#: src/Services/Export/BuildSchemaValidator.php:327
+msgid "references a webhook UUID not present in webhooks[]."
+msgstr "引用了 webhooks[] 中不存在的 Webhook UUID。"
+
+#: admin/src/views/AiBuilderView.vue
+msgid "resets in %1$dd %2$dh"
+msgstr "%1$d 天 %2$d 小时后重置"
+
+#: admin/src/views/AiBuilderView.vue
+msgid "resets in %1$dh %2$dm"
+msgstr "%1$d 小时 %2$d 分钟后重置"
+
+#: admin/src/views/AiBuilderView.vue
+msgid "resets soon"
+msgstr "即将重置"
 
 #: admin/src/components/AiPlanStepper.vue
 msgid "reused"
