@@ -1289,5 +1289,13 @@
   "references a webhook UUID not present in webhooks[].": "verwijst naar een webhook-UUID die niet in webhooks[] voorkomt.",
   "resets in %1$dd %2$dh": "reset over %1$dd %2$du",
   "resets in %1$dh %2$dm": "reset over %1$du %2$dm",
-  "resets soon": "reset binnenkort"
+  "resets soon": "reset binnenkort",
+  "Building your page…": "Je pagina wordt gebouwd…",
+  "Change what this build contains — add or remove a webhook — to publish it as a separate page.": "Wijzig wat deze build bevat — voeg een webhook toe of verwijder er een — om hem als aparte pagina te publiceren.",
+  "Checking whether the page is live…": "Controleren of de pagina live is…",
+  "It will appear at this address once it has been reviewed.": "Hij verschijnt op dit adres zodra hij is beoordeeld.",
+  "Published — your build is live.": "Gepubliceerd — je build is live.",
+  "The page appears at this address once the website finishes rebuilding — it is safe to close this.": "De pagina verschijnt op dit adres zodra de website klaar is met bouwen — je kunt dit gerust sluiten.",
+  "Your build was received.": "Je build is ontvangen.",
+  "wpwebhooks.org rebuilds after every publish — about %d seconds left. The address becomes a link the moment the page is live.": "wpwebhooks.org wordt na elke publicatie opnieuw opgebouwd — nog ongeveer %d seconden. Het adres wordt een link zodra de pagina live is."
 }

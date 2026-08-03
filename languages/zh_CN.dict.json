@@ -1232,5 +1232,13 @@
   "references a webhook UUID not present in webhooks[].": "引用了 webhooks[] 中不存在的 Webhook UUID。",
   "resets in %1$dd %2$dh": "%1$d 天 %2$d 小时后重置",
   "resets in %1$dh %2$dm": "%1$d 小时 %2$d 分钟后重置",
-  "resets soon": "即将重置"
+  "resets soon": "即将重置",
+  "Building your page…": "正在生成你的页面…",
+  "Change what this build contains — add or remove a webhook — to publish it as a separate page.": "更改此配置的内容（添加或移除 webhook），即可将其作为独立页面发布。",
+  "Checking whether the page is live…": "正在检查页面是否已上线…",
+  "It will appear at this address once it has been reviewed.": "通过审核后将出现在此地址。",
+  "Published — your build is live.": "已发布 — 你的配置已上线。",
+  "The page appears at this address once the website finishes rebuilding — it is safe to close this.": "网站重新构建完成后，页面就会出现在此地址 — 你可以放心关闭此窗口。",
+  "Your build was received.": "已收到你的配置。",
+  "wpwebhooks.org rebuilds after every publish — about %d seconds left. The address becomes a link the moment the page is live.": "每次发布后 wpwebhooks.org 都会重新构建 — 大约还需 %d 秒。页面一上线，该地址就会变成链接。"
 }

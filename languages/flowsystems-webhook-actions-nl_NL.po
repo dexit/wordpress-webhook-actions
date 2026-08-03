@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Webhook Actions - build automations and integrations "
-"with AI help 2.5.0\n"
+"with AI help 2.6.0\n"
 "Report-Msgid-Bugs-To: "
 "https://wordpress.org/support/plugin/flowsystems-webhook-actions\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
@@ -11,7 +11,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-31T15:46:00+00:00\n"
+"POT-Creation-Date: 2026-08-03T11:02:55+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: flowsystems-webhook-actions\n"
@@ -177,7 +177,7 @@ msgstr ""
 "%1$swp-config.php%2$s is niet beschrijfbaar. Voeg deze regel handmatig toe "
 "vóór de opmerking “That’s all”: %3$sdefine( 'DISABLE_WP_CRON', true );%4$s"
 
-#: admin/src/components/ShareBuildDialog.vue
+#: admin/src/components/BuildPublishProgress.vue
 msgid "%d AI credits added to your balance."
 msgstr "%d AI-credits aan je saldo toegevoegd."
 
@@ -927,6 +927,10 @@ msgstr "Bouwen met AI"
 msgid "Build with AI (bring your own API key)"
 msgstr "Bouwen met AI (eigen API-sleutel)"
 
+#: admin/src/components/BuildPublishProgress.vue
+msgid "Building your page…"
+msgstr "Je pagina wordt gebouwd…"
+
 #: admin/src/views/ProView.vue
 msgid "Business"
 msgstr "Business"
@@ -1097,9 +1101,21 @@ msgstr "Vervaldatum wijzigen: %s"
 msgid "Change model"
 msgstr "Model wijzigen"
 
+#: admin/src/components/ShareBuildDialog.vue
+msgid ""
+"Change what this build contains — add or remove a webhook — to publish it "
+"as a separate page."
+msgstr ""
+"Wijzig wat deze build bevat — voeg een webhook toe of verwijder er een — om "
+"hem als aparte pagina te publiceren."
+
 #: admin/src/views/ActivityView.vue
 msgid "Changes"
 msgstr "Wijzigingen"
+
+#: admin/src/components/BuildPublishProgress.vue
+msgid "Checking whether the page is live…"
+msgstr "Controleren of de pagina live is…"
 
 #: admin/src/components/AiStepControls.vue
 msgid "Choose a credential"
@@ -2570,6 +2586,10 @@ msgstr "Ongeldig importbestand — %1$s %2$s"
 msgid "Invalid scope. Must be read, operational, full, or agent."
 msgstr "Ongeldig bereik. Moet read, operational, full of agent zijn."
 
+#: admin/src/components/BuildPublishProgress.vue
+msgid "It will appear at this address once it has been reviewed."
+msgstr "Hij verschijnt op dit adres zodra hij is beoordeeld."
+
 #: src/Api/QueueController.php:354
 msgid "Job deleted successfully."
 msgstr "Taak succesvol verwijderd."
@@ -3691,6 +3711,10 @@ msgstr ""
 "Gepubliceerde builds worden automatisch gecontroleerd voordat ze live gaan "
 "en kun je later vanuit je account weer offline halen."
 
+#: admin/src/components/BuildPublishProgress.vue
+msgid "Published — your build is live."
+msgstr "Gepubliceerd — je build is live."
+
 #: admin/src/components/ShareBuildDialog.vue
 msgid "Publishing failed."
 msgstr "Publiceren mislukt."
@@ -4752,6 +4776,14 @@ msgstr ""
 "accepteren. Controleer de eindpunt-URL van de webhook en probeer het "
 "opnieuw."
 
+#: admin/src/components/BuildPublishProgress.vue
+msgid ""
+"The page appears at this address once the website finishes rebuilding — it "
+"is safe to close this."
+msgstr ""
+"De pagina verschijnt op dit adres zodra de website klaar is met bouwen — je "
+"kunt dit gerust sluiten."
+
 #: admin/src/components/TriggerSchemaPanel.vue
 msgid ""
 "The payload shape is the same for a trigger everywhere, so a new webhook "
@@ -5648,9 +5680,13 @@ msgstr ""
 msgid "Your WordPress AI connectors are no longer available."
 msgstr "Je WordPress AI-connectors zijn niet langer beschikbaar."
 
-#: admin/src/components/ShareBuildDialog.vue
+#: admin/src/components/BuildPublishProgress.vue
 msgid "Your build is published."
 msgstr "Je build is gepubliceerd."
+
+#: admin/src/components/BuildPublishProgress.vue
+msgid "Your build was received."
+msgstr "Je build is ontvangen."
 
 #: admin/src/components/AiBuildsBar.vue
 msgid "Your builds"
@@ -6030,6 +6066,14 @@ msgstr "webhook_id, trigger en conditions zijn verplicht."
 #: src/Abilities/WriteAbilities.php:110
 msgid "webhook_id, trigger and field_mapping are required."
 msgstr "webhook_id, trigger en field_mapping zijn verplicht."
+
+#: admin/src/components/BuildPublishProgress.vue
+msgid ""
+"wpwebhooks.org rebuilds after every publish — about %d seconds left. The "
+"address becomes a link the moment the page is live."
+msgstr ""
+"wpwebhooks.org wordt na elke publicatie opnieuw opgebouwd — nog ongeveer %d "
+"seconden. Het adres wordt een link zodra de pagina live is."
 
 #: admin/src/components/ConditionsEditor.vue
 msgid "yes"

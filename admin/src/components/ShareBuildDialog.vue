@@ -14,10 +14,11 @@
 // and pays the author in AI credits. Publishing adds the listing fields and ends
 // on a live URL rather than a file.
 import { ref, computed, watch } from 'vue'
-import { AlertCircle, CheckCircle2, Pencil, ExternalLink, Sparkles, ShieldCheck } from 'lucide-vue-next'
+import { AlertCircle, CheckCircle2, Pencil, ExternalLink, ShieldCheck } from 'lucide-vue-next'
 import { Dialog, Button, Checkbox } from '@/components/ui'
 import MarkdownField from '@/components/MarkdownField.vue'
 import BuildPublishFields from '@/components/BuildPublishFields.vue'
+import BuildPublishProgress from '@/components/BuildPublishProgress.vue'
 import { useBuildExport } from '@/composables/useBuildExport'
 import { usePro } from '@/composables/usePro'
 import api from '@/lib/api'
@@ -41,7 +42,8 @@ const exporting = ref(false)
 const loading = ref(false)
 const error = ref('')
 const rejectedCategories = ref([])
-const published = ref(null)     // API payload once the build is live
+const published = ref(null)     // API payload once the build is accepted
+const duplicate = ref(null)     // the page this build already has, if any
 
 const items = ref([])          // [{ kind, id, name, description }]
 const drafts = ref({})         // key -> edited description
@@ -110,6 +112,7 @@ watch(() => props.open, (open) => {
   error.value = ''
   rejectedCategories.value = []
   published.value = null
+  duplicate.value = null
   items.value = []
   drafts.value = {}
   expanded.value = new Set()
@@ -168,6 +171,7 @@ const runPublish = async () => {
   exporting.value = true
   error.value = ''
   rejectedCategories.value = []
+  duplicate.value = null
   try {
     // Descriptions become the body of the published page, so they are saved to
     // the objects first — exactly as in export mode.
@@ -188,6 +192,11 @@ const runPublish = async () => {
   } catch (e) {
     error.value = e?.message || __('Publishing failed.')
     rejectedCategories.value = e?.data?.data?.categories || []
+    // Same build, second attempt: point at the page it already has instead of
+    // inviting a retry that will fail the same way.
+    if (e?.code === 'fswa_publish_duplicate') {
+      duplicate.value = e?.data?.data?.published || {}
+    }
   } finally {
     exporting.value = false
   }
@@ -203,29 +212,8 @@ const runPublish = async () => {
       : __('Download everything this build created as a portable JSON file. Secrets are never included — whoever imports it re-links auth to their own vault.')"
     @close="emit('close')"
   >
-    <!-- Published: the only thing left to do is look at it -->
-    <div v-if="published" class="space-y-4">
-      <div class="flex items-start gap-2">
-        <CheckCircle2 class="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-        <div class="space-y-1">
-          <p class="text-sm font-medium">{{ published.message || __('Your build is published.') }}</p>
-          <a
-            v-if="published.url"
-            :href="published.url"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
-          >
-            {{ published.url }} <ExternalLink class="w-3.5 h-3.5 shrink-0" />
-          </a>
-        </div>
-      </div>
-
-      <p v-if="published.credits_awarded" class="flex items-center gap-2 text-sm text-muted-foreground">
-        <Sparkles class="w-4 h-4 text-primary" />
-        {{ sprintf(__('%d AI credits added to your balance.'), published.credits_awarded) }}
-      </p>
-    </div>
+    <!-- Published: wait for the site to rebuild, then hand over the link -->
+    <BuildPublishProgress v-if="published" :published="published" />
 
     <div v-else class="space-y-5">
       <!-- Listing details (publish only) -->
@@ -321,7 +309,24 @@ const runPublish = async () => {
         {{ __('Published builds are checked automatically before they go live, and can be taken down later from your account.') }}
       </p>
 
-      <div v-if="error" class="space-y-1">
+      <!-- Already published: one build is one page, so this is a link, not a retry -->
+      <div v-if="duplicate" class="space-y-1 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+        <p class="text-sm font-medium">{{ error }}</p>
+        <a
+          v-if="duplicate.url && duplicate.status !== 'removed'"
+          :href="duplicate.url"
+          target="_blank"
+          rel="noopener"
+          class="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
+        >
+          {{ duplicate.url }} <ExternalLink class="w-3.5 h-3.5 shrink-0" />
+        </a>
+        <p class="text-xs text-muted-foreground">
+          {{ __('Change what this build contains — add or remove a webhook — to publish it as a separate page.') }}
+        </p>
+      </div>
+
+      <div v-else-if="error" class="space-y-1">
         <p class="text-sm text-destructive">{{ error }}</p>
         <p v-if="rejectedCategories.length" class="text-xs text-destructive/80">
           {{ sprintf(__('Flagged: %s'), rejectedCategories.join(', ')) }}
@@ -335,7 +340,9 @@ const runPublish = async () => {
           <Button @click="emit('close')">{{ __('Done') }}</Button>
         </template>
         <template v-else-if="publishing">
-          <Button :disabled="exporting || loading || !conversationId || !canPublish" @click="runPublish">
+          <!-- A duplicate is not a retryable failure: the same click fails the
+               same way until the build itself changes. -->
+          <Button :disabled="exporting || loading || !conversationId || !canPublish || !!duplicate" @click="runPublish">
             {{ exporting ? __('Publishing…') : __('Publish build') }}
           </Button>
           <Button variant="outline" :disabled="exporting" @click="emit('close')">{{ __('Cancel') }}</Button>
