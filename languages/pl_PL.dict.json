@@ -1308,5 +1308,13 @@
   "resets in %1$dd %2$dh": "odnowienie za %1$dd %2$dh",
   "resets in %1$dh %2$dm": "odnowienie za %1$dh %2$dm",
   "resets soon": "wkrótce odnowienie",
-  "Import webhooks & chains": "Importuj webhooki i łańcuchy"
+  "Import webhooks & chains": "Importuj webhooki i łańcuchy",
+  "Building your page…": "Tworzenie Twojej strony…",
+  "Change what this build contains — add or remove a webhook — to publish it as a separate page.": "Zmień zawartość tej konfiguracji — dodaj lub usuń webhook — aby opublikować ją jako osobną stronę.",
+  "Checking whether the page is live…": "Sprawdzanie, czy strona jest już dostępna…",
+  "It will appear at this address once it has been reviewed.": "Pojawi się pod tym adresem po zakończeniu weryfikacji.",
+  "Published — your build is live.": "Opublikowano — Twoja konfiguracja jest już dostępna.",
+  "The page appears at this address once the website finishes rebuilding — it is safe to close this.": "Strona pojawi się pod tym adresem po zakończeniu przebudowy witryny — możesz spokojnie zamknąć to okno.",
+  "Your build was received.": "Otrzymaliśmy Twoją konfigurację.",
+  "wpwebhooks.org rebuilds after every publish — about %d seconds left. The address becomes a link the moment the page is live.": "wpwebhooks.org przebudowuje się po każdej publikacji — pozostało około %d s. Adres stanie się odnośnikiem w chwili, gdy strona będzie dostępna."
 }

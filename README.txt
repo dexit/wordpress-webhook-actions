@@ -4,7 +4,7 @@ Tags: ai, webhooks, automation, integration, n8n
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 2.5.0
+Stable tag: 2.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -127,11 +127,6 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.5.0 — 2026-07-31 =
-- New: Publish a build to wpwebhooks.org straight from Build with AI (Pro) — your webhooks and chains become a public page other people can import, and you earn 50 AI credits for publishing plus 20 for every like
-- New: Share a build from Build with AI, optionally with the AI conversation that produced it, so whoever imports it can see how it was made
-- New: captured example payloads are anonymized by default in every export and every published build — names, addresses, emails, phone numbers, IP addresses and user agents are replaced with placeholders, while product names, totals and structure are kept so field mapping still previews correctly
-- New: "Anonymize my site address" replaces your site URL with example.com everywhere it appears, including endpoint URLs and the AI conversation
-- Improved: long descriptions on the webhooks list now collapse behind their first line
-- Fixed: re-importing a build into the site it came from no longer loses the chain, and skipping duplicate webhooks no longer produces an empty one — imports also report what they had to drop instead of failing quietly
-- Fixed: an imported chain now appears in the list without reloading the browser
+= 2.6.0 — 2026-08-03 =
+- New: after you publish a build, Build with AI waits for wpwebhooks.org to rebuild and turns the address into a link the moment your page is actually live, instead of handing you one that does not work yet (requires Pro 1.8.0)
+- Fixed: publishing the same build twice no longer creates a second page — publishing again links you to the page that build already has

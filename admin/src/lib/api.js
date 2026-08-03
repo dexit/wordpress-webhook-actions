@@ -213,6 +213,9 @@ export const api = {
     import: (data) => post('import', data),
     // Pro route: the license key never leaves the Pro plugin.
     publish: (data) => post('pro/publish', data),
+    // Is the published page live yet? Probed server-side — the browser cannot
+    // read a cross-origin 404.
+    publishStatus: (url) => get('pro/publish/status', { url }),
   },
   chains: {
     list: () => get('chains'),
