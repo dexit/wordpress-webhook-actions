@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import {
-  X, Code2, Play, Save, Library, CheckCircle2, AlertCircle,
+  X, Code2, Play, Save, Library, CheckCircle2, AlertCircle, AlertTriangle,
   Loader2, ChevronDown, ChevronUp, Search, Trash2, Copy, Check,
 } from 'lucide-vue-next'
 import { Button, Input, Label, Alert, Badge } from '@/components/ui'
@@ -47,6 +47,9 @@ const preSnippetTags = ref('')
 const preRunning = ref(false)
 const preResult = ref(null)
 const preError = ref(null)
+// Snippet ran clean but against a payload shape it did not expect (typically $args
+// stripped by the field mapping) — no PHP error, but it silently did nothing.
+const preNotice = ref(null)
 
 const postCode = ref('')
 const postSnippetName = ref('')
@@ -125,10 +128,12 @@ const runPreview = async () => {
     preRunning.value = true
     preResult.value = null
     preError.value = null
+    preNotice.value = null
     try {
       const res = await previewSnippet(preCode.value, payload, 'pre')
       preResult.value = res.result
       preError.value = res.error || null
+      preNotice.value = res.notice || null
       if (res.result && !res.error) {
         emit('glue-preview', { trigger: props.trigger, result: res.result })
       }
@@ -256,6 +261,7 @@ watch(() => props.open, async (open) => {
   preResult.value = null
   postResult.value = null
   preError.value = null
+  preNotice.value = null
   postError.value = null
   showLibrary.value = false
   saveSuccess.value = false
@@ -483,9 +489,17 @@ const copyCode = () => {
                 <pre class="text-xs font-mono text-destructive whitespace-pre-wrap break-all">{{ preError }}</pre>
               </div>
               <div v-else-if="preResult !== null" class="space-y-1.5">
+                <div v-if="preNotice" class="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2.5">
+                  <div class="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">{{ __('Snippet ran but changed nothing') }}</div>
+                  <p class="text-xs text-amber-700 dark:text-amber-400 whitespace-pre-wrap break-words">{{ preNotice }}</p>
+                </div>
                 <div class="flex items-center gap-2">
                   <Label class="text-xs">{{ __('Result Preview') }}</Label>
-                  <Badge variant="success" class="text-xs gap-1">
+                  <Badge v-if="preNotice" variant="outline" class="text-xs gap-1 border-amber-500/40 text-amber-700 dark:text-amber-400">
+                    <AlertTriangle class="h-3 w-3" />
+                    {{ __('No-op') }}
+                  </Badge>
+                  <Badge v-else variant="success" class="text-xs gap-1">
                     <CheckCircle2 class="h-3 w-3" />
                     {{ __('OK') }}
                   </Badge>
