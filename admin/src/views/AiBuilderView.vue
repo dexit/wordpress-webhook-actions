@@ -561,12 +561,14 @@ async function advance(opts = {}) {
   if (running.value || !activeId.value) return;
   running.value = true;
   error.value = '';
+  let continuation = null; // outlives the try: dispatched after `running` clears
   try {
     let first = true;
     let keepGoing = true;
     while (keepGoing) {
       const startedAt = Date.now();
       const res = await api.agent.step(activeId.value, first ? opts : {});
+      continuation = res.continuation || null;
       first = false;
       applyHosted(res);
       // Hold the "running" presentation so even instant steps are noticeable,
@@ -585,8 +587,23 @@ async function advance(opts = {}) {
     await loadConversations();
   } catch (e) {
     error.value = e.message;
+    continuation = null; // a failed run is not a finished one
   } finally {
     running.value = false;
+  }
+
+  // The run finished, but it finished on a step whose only job was to wait for
+  // something the agent needed before it could plan the rest (a captured
+  // payload). Hand that straight back to it rather than leaving a half-built
+  // webhook and a silent screen — the user already did their part. Dispatched
+  // outside the try/finally above because dispatchMessage() starts the NEXT
+  // run itself in auto mode, and it must own `running` from here on.
+  if (continuation) {
+    sending.value = true;
+    revealFrom.value = transcript.value.length;
+    transcript.value.push({ role: 'user', content: continuation });
+    await scrollDown();
+    await dispatchMessage(continuation);
   }
 }
 

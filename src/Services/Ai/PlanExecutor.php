@@ -752,6 +752,12 @@ class PlanExecutor {
     if ($transcript !== null) {
       $out['transcript'] = $transcript;
     }
+    if ($finished) {
+      $followUp = $this->continuationPrompt($execution);
+      if ($followUp !== null) {
+        $out['continuation'] = $followUp;
+      }
+    }
     return $out;
   }
 
@@ -797,6 +803,41 @@ class PlanExecutor {
       return array_key_exists($m[1], $refs) ? $refs[$m[1]] : $value;
     }
     return array_key_exists($value, $refs) ? $refs[$value] : $value;
+  }
+
+  /**
+   * The message to send the agent when a finished run has unblocked work it
+   * could not plan before, or null when the run is genuinely done.
+   *
+   * Only the synthetic capture step qualifies. Its whole purpose is to wait for
+   * a payload the agent needed in order to plan the mapping — so the moment it
+   * succeeds the build is knowingly half-finished (a webhook with no mapping),
+   * and leaving it there is what made the run look like it "died" after the
+   * user published their test post and hit retry. Keying on the synthetic id
+   * also makes this loop-proof: the follow-up plan carries set_mapping, so
+   * withCaptureStep() never appends another capture step to it.
+   *
+   * @param array<string, mixed> $execution
+   */
+  private function continuationPrompt(array $execution): ?string {
+    foreach ((array) ($execution['steps'] ?? []) as $step) {
+      if ((string) ($step['id'] ?? '') !== 'step_capture_payload'
+        || (string) ($step['status'] ?? '') !== 'done') {
+        continue;
+      }
+
+      $trigger = (string) ($step['input']['trigger'] ?? '');
+      return sprintf(
+        /* translators: %s: trigger (do_action hook) name. */
+        __('The example payload for "%s" has now been captured, so the field paths are readable. Read it with'
+          . ' get_trigger_schema and finish the build: set the field mapping from the REAL paths, add a'
+          . ' pre-dispatch Code Glue snippet if the destination needs a shape mapping alone cannot produce,'
+          . ' then test_dispatch before enabling.', 'flowsystems-webhook-actions'),
+        $trigger
+      );
+    }
+
+    return null;
   }
 
   /**
