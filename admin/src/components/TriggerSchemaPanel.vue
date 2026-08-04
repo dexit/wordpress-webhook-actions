@@ -25,6 +25,7 @@ import { useSchemas, useUserTriggers } from '@/composables/useSchemas';
 import { usePro } from '@/composables/usePro';
 import { useTriggerSnippet } from '@/composables/useSnippets';
 import { applyMappingTransform } from '@/utils/payloadTransform';
+import { formatJsonWithHighlight } from '@/utils/jsonHighlight';
 import { __, sprintf } from '@/i18n';
 
 const props = defineProps({
@@ -72,14 +73,6 @@ const toggleGluePayload = (trigger) => {
     [trigger]: !gluePayloadExpanded.value[trigger],
   };
 };
-const formatGluePayload = (payload) => {
-  try {
-    return JSON.stringify(payload, null, 2);
-  } catch {
-    return String(payload);
-  }
-};
-
 const toggleSection = (trigger, section) => {
   const key = `${trigger}:${section}`;
   sectionsExpanded.value = {
@@ -706,10 +699,13 @@ watch(
                   class="border rounded-md bg-muted/30 p-3 overflow-x-auto overflow-y-auto"
                   :class="gluePayloadExpanded[trigger] ? '' : 'max-h-72'"
                 >
-                  <pre class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all">{{ formatGluePayload(gluePreviewPayloads[trigger]) }}</pre>
+                  <pre
+                    class="text-xs font-mono leading-relaxed"
+                    v-html="formatJsonWithHighlight(gluePreviewPayloads[trigger])"
+                  ></pre>
                 </div>
                 <p class="text-xs text-muted-foreground mt-1.5">
-                  {{ __('This is the final body on the wire — Transformed Conditions and URL/param templates read from it.') }}
+                  {{ __('This is the final payload on the wire — used for Transformed Conditions and URL/param templates.') }}
                 </p>
               </div>
             </div>

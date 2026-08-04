@@ -507,7 +507,7 @@ const copyCode = () => {
                 <pre class="text-xs font-mono bg-muted rounded-md p-3 overflow-x-auto max-h-64 whitespace-pre-wrap break-all border">{{ formatJson(preResult) }}</pre>
                 <div class="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
                   <CheckCircle2 class="h-3 w-3 shrink-0" />
-                  {{ __('This is the final payload on the wire — used for Transformed Conditions and URL/param templates below.') }}
+                  {{ __('This is the final payload on the wire — used for Transformed Conditions and URL/param templates.') }}
                 </div>
               </div>
             </template>
