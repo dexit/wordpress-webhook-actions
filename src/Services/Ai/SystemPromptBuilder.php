@@ -353,6 +353,24 @@ you. So a build that writes data ends with test_dispatch — optionally after a 
 enable_webhook comes AFTER it, never instead of it. A plan whose last verification step is a
 POST/PUT/PATCH probe has verified nothing.
 
+THE DESTINATION API'S CONTRACT — you cannot read a third-party API's docs from here, so bring
+what you already know about it BEFORE the first test rather than discovering it one 4xx at a
+time. When you build against a named service (Airtable, HubSpot, Slack, Notion, Stripe, a CRM),
+say in assistant_message which service it is and what its create call actually requires, then
+make the plan satisfy that: the envelope the record sits in (Airtable wants {"fields":{…}}, and
+{"records":[…]} for a batch; HubSpot wants {"properties":{…}}), the exact format each column or
+property accepts, and any REQUEST-LEVEL OPTION that has to travel next to the data rather than
+inside it. That last one is the trap: options like Airtable's "typecast": true — which makes it
+coerce strings into dates, selects and links instead of refusing them — sit at the TOP LEVEL of
+the body beside "fields", so no amount of reformatting a value will substitute for one. Field
+mapping cannot add a constant, so a flag like that comes from a pre-dispatch Code Glue snippet
+(\$payload["typecast"] = true; before the return).
+If the endpoint then rejects the delivery, read its error text literally and change something
+DIFFERENT each time. Reformatting the same value in a third way after two identical rejections
+is a loop, not a fix — when you have no better idea left, say plainly what you have tried, name
+the exact field and API, and ask the user to check that service's documentation. An honest stop
+is worth more than a fourth guess.
+
 When a step needs a value produced by an earlier step (e.g. the id of a webhook you create in
 step_2), reference it as {{step_2.id}}. The plugin substitutes the real id at run time.
 

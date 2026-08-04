@@ -368,6 +368,11 @@ class PlanExecutor {
     if ((string) $step['ability'] === 'test_dispatch' && is_array($result)) {
       $dispatch = DispatchInterpreter::interpret($result);
       if ($dispatch !== null) {
+        // Count identical rejections across the whole run, not just this step:
+        // each retry re-proposes test_dispatch under a fresh step id, so a
+        // per-step counter would always read 1.
+        $dispatch = DispatchInterpreter::escalate($dispatch, $this->countDispatchFailure($execution, $dispatch));
+
         $step['status']     = 'blocked_dispatch';
         $step['dispatch']   = $dispatch;
         $step['result']     = $result;
@@ -594,13 +599,24 @@ class PlanExecutor {
       $steps[] = $entry;
     }
 
-    return [
+    $seeded = [
       'mode'   => $mode ?: $this->execMode(),
       'cursor' => 0,
       'refs'   => $refs === [] ? (object) [] : $refs,
       'steps'  => $steps,
       'ledger' => $ledger,
     ];
+
+    // Rejection tally survives re-planning, like the ledger. Every fix arrives
+    // as a NEW plan with a new execution, so a counter that reset here would
+    // read 1 forever and the "you have tried this already" escalation could
+    // never fire — which is precisely the loop it exists to break.
+    $failures = $prior['dispatch_failures'] ?? null;
+    if (is_array($failures) && $failures !== []) {
+      $seeded['dispatch_failures'] = $failures;
+    }
+
+    return $seeded;
   }
 
   /**
@@ -759,6 +775,27 @@ class PlanExecutor {
   // ===================================================================
   // Internals
   // ===================================================================
+
+  /**
+   * Record this rejection against the run and return how many times the
+   * endpoint has now refused in exactly this way (1 on the first).
+   *
+   * Mutates $execution, so the caller must persist it afterwards — which the
+   * blocked_dispatch branch does on its way out.
+   *
+   * @param array<string, mixed>                                            $execution
+   * @param array{kind:string, status:int, message:string, response:string} $dispatch
+   */
+  private function countDispatchFailure(array &$execution, array $dispatch): int {
+    $signature = DispatchInterpreter::signature($dispatch);
+    $tally     = is_array($execution['dispatch_failures'] ?? null) ? $execution['dispatch_failures'] : [];
+    $count     = (int) ($tally[$signature] ?? 0) + 1;
+
+    $tally[$signature]                = $count;
+    $execution['dispatch_failures']   = $tally;
+
+    return $count;
+  }
 
   /**
    * Persist execution state and shape the step response for the frontend loop.

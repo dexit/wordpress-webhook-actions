@@ -78,4 +78,51 @@ final class DispatchInterpreter {
       'response' => $body,
     ];
   }
+
+  /**
+   * A stable signature for "the endpoint refused this in the same way again":
+   * status plus the response body with digits collapsed and whitespace
+   * normalised, so a rejection differing only by a number inside the same
+   * message (a record index, a timestamp) still counts as the same failure.
+   *
+   * Deliberately conservative: an endpoint that adds a whole volatile FIELD to
+   * each response (a per-request id key) produces a different signature, so the
+   * escalation simply does not fire. Missing a loop costs one wasted round;
+   * accusing the model of repeating itself when the endpoint actually said
+   * something new would send it chasing the wrong thing.
+   *
+   * @param array{kind:string, status:int, message:string, response:string} $dispatch
+   */
+  public static function signature(array $dispatch): string {
+    $body = strtolower((string) $dispatch['response']);
+    $body = preg_replace('/\d+/', '#', $body) ?? $body;
+
+    return md5($dispatch['kind'] . '|' . $dispatch['status'] . '|' . preg_replace('/\s+/', ' ', trim($body)));
+  }
+
+  /**
+   * Escalate a rejection the endpoint has now refused identically more than
+   * once. Retrying the same idea is the failure mode we actually see: told only
+   * "fix the payload", a model re-formats the SAME field a second and third way
+   * (Airtable's date column: "Y-m-d H:i:s" → date('c') → gmdate with ms) while
+   * the real answer is elsewhere in the API's contract — a request-level option,
+   * an envelope key, a different column type. So name the loop and redirect it.
+   *
+   * @param array{kind:string, status:int, message:string, response:string} $dispatch
+   * @return array{kind:string, status:int, message:string, response:string, repeat?:int}
+   */
+  public static function escalate(array $dispatch, int $attempt): array {
+    if ($attempt < 2) {
+      return $dispatch;
+    }
+
+    $dispatch['repeat']   = $attempt;
+    $dispatch['message'] .= ' ' . sprintf(
+      /* translators: %d: how many times this identical failure has now occurred. */
+      __('This is the same rejection for the %d time running — the endpoint returned an identical response, so the last change did not touch what it objects to. Do not reformat that value again. Read the endpoint\'s own error text and ask what its API contract wants that the request does not carry: a request-level option or flag (many APIs need one before they will coerce or accept a value), a wrapper key the record has to sit inside, a field that must be a different type, or a value that must already exist on the far side. Name the specific API and what you believe it needs; if you are not sure, say so plainly and ask the user to confirm it from that API\'s documentation instead of guessing a third format.', 'flowsystems-webhook-actions'),
+      $attempt
+    );
+
+    return $dispatch;
+  }
 }
