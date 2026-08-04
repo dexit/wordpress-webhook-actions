@@ -4,7 +4,7 @@ Tags: ai, webhooks, automation, integration, n8n
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 2.6.0
+Stable tag: 2.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -127,6 +127,12 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.6.0 — 2026-08-03 =
-- New: after you publish a build, Build with AI waits for wpwebhooks.org to rebuild and turns the address into a link the moment your page is actually live, instead of handing you one that does not work yet (requires Pro 1.8.0)
-- Fixed: publishing the same build twice no longer creates a second page — publishing again links you to the page that build already has
+= 2.7.0 — 2026-08-04 =
+- New: when the trigger you picked has never fired, Build with AI now adds a "capture the payload" step to the plan and waits there instead of asking in chat — fire the event once, hit retry, and it carries on and finishes the mapping by itself
+- New: "Fix it" button on a failed test delivery hands the endpoint's own response back to Build with AI so it can correct the mapping or the snippet — no more copying the error into chat
+- New: the webhook screen shows the payload after your pre-dispatch Code Glue runs, next to the one after field mapping, so you can see the exact body that goes on the wire
+- Fixed: a test delivery the endpoint rejects now stops the build and shows you the response, instead of counting as a pass and letting the next step take the webhook live
+- Fixed: Build with AI is told what each plan step actually did, so it diagnoses a failure from the real response rather than asking you what went wrong
+- Fixed: Build with AI no longer guesses field paths for a trigger with no captured payload — those steps are refused until a real payload exists
+- Fixed: the example payload keeps refreshing until the webhook is mapped, so triggers that fire more than once (like transition_post_status) no longer freeze on the auto-draft WordPress writes when you open the editor
+- Fixed: Build with AI now knows field mapping runs before the pre-dispatch snippet, so it stops writing snippets that read $args after the mapping has removed it
