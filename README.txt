@@ -136,3 +136,4 @@ For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.
 - Fixed: Build with AI no longer guesses field paths for a trigger with no captured payload — those steps are refused until a real payload exists
 - Fixed: the example payload keeps refreshing until the webhook is mapped, so triggers that fire more than once (like transition_post_status) no longer freeze on the auto-draft WordPress writes when you open the editor
 - Fixed: Build with AI now knows field mapping runs before the pre-dispatch snippet, so it stops writing snippets that read $args after the mapping has removed it
+- Fixed: when the AI replies with a written-out plan instead of a runnable one, it is asked to resend it properly — previously "Fix it" could describe the whole repair and then do nothing at all
