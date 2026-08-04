@@ -138,6 +138,11 @@ class TestAbilities {
 
     return [
       'ok'      => true,
+      // The verb actually probed: a 4xx means something very different for a
+      // body-writing method (the empty body was rejected, so this proves only
+      // reachability) than for a GET. Callers cannot infer it — the method is
+      // often inherited from the webhook rather than passed in.
+      'method'  => $method,
       'status'  => (int) wp_remote_retrieve_response_code($response),
       'headers' => $this->redactHeaders((array) wp_remote_retrieve_headers($response)->getAll()),
       'body'    => $this->redactBody($body, $args['headers']),

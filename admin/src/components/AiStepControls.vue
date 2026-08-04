@@ -262,6 +262,14 @@ function createCredForInput() {
       </div>
     </template>
 
+    <!-- Reachable, but an empty-body probe can't prove a create endpoint works -->
+    <template v-else-if="step.probe?.kind === 'inconclusive'">
+      <div class="flex gap-2">
+        <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('Retry probe') }}</Button>
+        <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
+      </div>
+    </template>
+
     <!-- 404 / unreachable: provide a different endpoint URL, then re-probe -->
     <template v-else>
       <div class="space-y-2">

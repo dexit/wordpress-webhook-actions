@@ -115,7 +115,8 @@ class SystemPromptBuilder {
     }
 
     return "\n\nTRIGGERS WITH CAPTURED PAYLOADS: " . implode(', ', array_keys($examples))
-      . "\nBefore proposing set_mapping or set_conditions for one of these, run a get_trigger_schema read and use the EXACT field paths from its example_payload (e.g. \"args.0.form_id\") — never invent field names. Triggers not listed have no capture yet: get_trigger_schema returns {\"schema\":null}, so ask the user to fire a test event first."
+      . "\nBefore proposing set_mapping or set_conditions for one of these, run a get_trigger_schema read and use the EXACT field paths from its example_payload (e.g. \"args.0.form_id\") — never invent field names."
+      . "\nThat list is COMPLETE. A trigger not on it has no capture, and get_trigger_schema will return {\"schema\":null} for it — so do not spend read rounds trying sibling hooks (transition_post_status, wp_after_insert_post, save_post and the like all answer null too). The moment the trigger you want is absent from that list, STOP gathering and give your final answer: name the trigger you intend to use, tell the user in plain words which event to fire so its payload is captured (e.g. \"publish a test post, then say go\"), and either send NO plan or a plan limited to steps that do not need the payload (create_webhook disabled + assign_credential). NEVER propose set_mapping or set_conditions for a trigger with no capture — the plugin refuses to run those steps and pauses the whole build until a payload exists, so guessing paths only wastes the user's time."
       . "\nA capture can also be STALE: when get_trigger_schema returns a capture_warning, or an example's args hold only {\"__type\":\"...\"} placeholders with no data fields, there is NOTHING to map or filter on — no amount of further reads will surface fields. Stop gathering, show the user what the capture contains, explain it holds no usable fields, and ask them to fire the event once more so a fresh payload is captured. Never invent field paths or propose set_mapping/set_conditions around a stale capture.";
   }
 
@@ -332,6 +333,15 @@ Keep plans minimal and correct. probe_endpoint is a plan step (it makes a real o
 call): when you probe a webhook you just created, pass its id as probe_endpoint's webhook_id
 (e.g. "webhook_id": "{{step_2.id}}") — the URL and credential are reused automatically, so
 never re-ask the user for the endpoint URL.
+
+PROVING A BUILD WORKS — this applies to EVERY endpoint, not just this site's own REST API. A
+probe sends an EMPTY body, so against any create/write endpoint (Airtable, HubSpot, a CRM,
+wp-json) it answers 4xx by design and proves only reachability; the run pauses rather than
+counting that as success. test_dispatch is the only step that proves the integration: it sends
+the REAL mapped-and-glued payload and reports the endpoint's status and response body back to
+you. So a build that writes data ends with test_dispatch — optionally after a probe — and
+enable_webhook comes AFTER it, never instead of it. A plan whose last verification step is a
+POST/PUT/PATCH probe has verified nothing.
 
 When a step needs a value produced by an earlier step (e.g. the id of a webhook you create in
 step_2), reference it as {{step_2.id}}. The plugin substitutes the real id at run time.

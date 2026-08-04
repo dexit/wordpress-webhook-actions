@@ -58,6 +58,26 @@ final class ProbeInterpreter {
       ];
     }
 
+    // A body-writing verb that answered 4xx: the probe sent an EMPTY body, so
+    // this says nothing about whether the real payload is accepted — a create
+    // endpoint rejects an empty body by design. Marking it done would leave the
+    // run green on a build nobody has actually exercised, which is how a broken
+    // integration reaches enable_webhook. test_dispatch is the step that proves
+    // it, so stop here and say so.
+    if ($status >= 400 && $status < 500 && in_array(strtoupper((string) ($result['method'] ?? '')), ['POST', 'PUT', 'PATCH'], true)) {
+      return [
+        'kind'    => 'inconclusive',
+        'status'  => $status,
+        'message' => sprintf(
+          /* translators: %d: HTTP status code returned to the empty-body probe. */
+          __('The endpoint is reachable but answered %d — expected, because a probe sends an EMPTY body. This does'
+            . ' NOT show the integration works. Validate it with a test delivery (test_dispatch), which sends the real'
+            . ' mapped payload, before going live.', 'flowsystems-webhook-actions'),
+          $status
+        ),
+      ];
+    }
+
     return null;
   }
 }

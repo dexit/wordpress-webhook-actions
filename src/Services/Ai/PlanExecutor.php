@@ -6,6 +6,7 @@ defined('ABSPATH') || exit;
 
 use FlowSystems\WebhookActions\Abilities\AbilityRegistry;
 use FlowSystems\WebhookActions\Repositories\AgentConversationRepository;
+use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Repositories\WebhookRepository;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
 use WP_Error;
@@ -270,6 +271,24 @@ class PlanExecutor {
       return $this->persistExecution($conversationId, $execution, $step, false, false);
     }
     unset($step['missing']);
+
+    // 1a) Mapping/conditions against a trigger that has NEVER captured a payload.
+    // Both take dot-paths INTO the captured shape, so with no capture the agent
+    // can only have guessed them ("args.0", "args.2.post_type"). A guessed
+    // mapping silently drops fields and a guessed condition silently passes
+    // everything (a missing path is null, which negative operators accept), so
+    // the build looks applied and is quietly broken. The prompt already forbids
+    // this; weaker models still do it once their read budget runs out, so gate it
+    // here where it cannot be talked around. Same pause the UI already offers for
+    // a missing capture: fire the event, then retry.
+    $prereq = $this->missingCapture($step, $input);
+    if ($prereq !== null) {
+      $step['status']     = 'blocked_prereq';
+      $step['prereq']     = $prereq;
+      $steps[$cursor]     = $step;
+      $execution['steps'] = $steps;
+      return $this->persistExecution($conversationId, $execution, $step, false, false);
+    }
 
     // 2) Confirmation gate (go-live / delete / edit-live / unsafe probe /
     //    real test delivery). Surface the ability's side-effect notice if any.
@@ -702,6 +721,41 @@ class PlanExecutor {
       return array_key_exists($m[1], $refs) ? $refs[$m[1]] : $value;
     }
     return array_key_exists($value, $refs) ? $refs[$value] : $value;
+  }
+
+  /**
+   * A `capture_payload` prereq when this step addresses a captured payload that
+   * does not exist yet, or null when the step is fine to run.
+   *
+   * Only set_mapping and set_conditions take dot-paths into the captured shape.
+   * set_conditions is exempt when it evaluates on "transformed": those paths are
+   * the mapping's own target names plus snippet-injected keys, which the plan
+   * defines itself and no capture can confirm.
+   *
+   * @param array<string, mixed> $step
+   * @param array<string, mixed> $input Ref-resolved input for this step.
+   * @return array{kind:string, webhook_id:int, trigger:string}|null
+   */
+  private function missingCapture(array $step, array $input): ?array {
+    $ability = (string) ($step['ability'] ?? '');
+    if (!in_array($ability, ['set_mapping', 'set_conditions'], true)) {
+      return null;
+    }
+    if ($ability === 'set_conditions' && (string) ($input['conditions_evaluate_on'] ?? 'original') === 'transformed') {
+      return null;
+    }
+
+    $trigger = (string) ($input['trigger'] ?? '');
+    if ($trigger === '') {
+      return null;
+    }
+
+    $webhookId = (int) ($input['webhook_id'] ?? 0);
+    if ((new SchemaRepository())->resolveExample($webhookId, $trigger)['example'] !== null) {
+      return null;
+    }
+
+    return ['kind' => 'capture_payload', 'webhook_id' => $webhookId, 'trigger' => $trigger];
   }
 
   /**
