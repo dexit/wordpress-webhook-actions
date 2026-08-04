@@ -82,8 +82,28 @@ class ReadAbilities {
     // a fresh test.
     $resolved = $repo->resolveExample($webhookId, $trigger, $schema);
     if ($resolved['example'] === null) {
-      // Nothing captured anywhere yet → null signals "submit a test first".
-      return ['schema' => null];
+      // Nothing captured anywhere yet. A bare null used to send agents hunting:
+      // they would spend every read round guessing sibling hooks
+      // (transition_post_status → wp_after_insert_post → save_post → …), which
+      // all answer null too, and then plan against invented field paths. Answer
+      // with the decisive facts instead: this one has nothing, here is the whole
+      // set that DOES, and firing the event is the only way to get a capture.
+      $captured = array_keys((new SchemaRepository())->latestExamplesPerTrigger(30));
+
+      return [
+        'schema'            => null,
+        'captured_triggers' => $captured,
+        'hint'              => sprintf(
+          /* translators: 1: trigger name, 2: comma-separated list of triggers that have captures. */
+          __('No payload has ever been captured for "%1$s", so there is nothing to map or filter on. Reading other'
+            . ' triggers will not help: the ONLY triggers with a capture are: %2$s. Do NOT retry this with a different'
+            . ' hook name, and do NOT propose set_mapping or set_conditions with guessed field paths. Either pick a'
+            . ' trigger from that list, or stop and tell the user in plain words which event to fire (e.g. "publish a'
+            . ' test post") so the payload is captured — then read this again.', 'flowsystems-webhook-actions'),
+          $trigger,
+          $captured === [] ? __('(none yet on this site)', 'flowsystems-webhook-actions') : implode(', ', $captured)
+        ),
+      ];
     }
 
     $schema = array_merge(

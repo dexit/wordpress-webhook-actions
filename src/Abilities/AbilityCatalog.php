@@ -159,7 +159,7 @@ class AbilityCatalog {
       ],
       'set_mapping' => [
         'label'        => __('Set field mapping', 'flowsystems-webhook-actions'),
-        'description'  => __('Set the payload field mapping for a webhook+trigger. field_mapping MUST be an object {"mappings":[{"source":"<dot.path in the captured payload>","target":"<dot.path in the outgoing body>","cast":"number|string|boolean|stringify" (optional)}],"excluded":["<dot.path to drop>"],"includeUnmapped":true|false}. It can only move/rename/exclude EXISTING payload fields — static or constant values are NOT supported (inject those with a pre-dispatch Code Glue snippet instead). The mapping runs BEFORE any pre-dispatch snippet, so snippet output cannot be mapped. Run get_trigger_schema first and take source paths from the real captured payload.', 'flowsystems-webhook-actions'),
+        'description'  => __('Set the payload field mapping for a webhook+trigger. field_mapping MUST be an object {"mappings":[{"source":"<dot.path in the captured payload>","target":"<dot.path in the outgoing body>","cast":"number|string|boolean|stringify" (optional)}],"excluded":["<dot.path to drop>"],"includeUnmapped":true|false}. It can only move/rename/exclude EXISTING payload fields — static or constant values are NOT supported (inject those with a pre-dispatch Code Glue snippet instead). The mapping runs BEFORE any pre-dispatch snippet, so snippet output cannot be mapped — and, in the other direction, the snippet only ever sees what the mapping LEFT BEHIND. With includeUnmapped:false everything unmapped is deleted, including "args", so a snippet reading $args[0] gets nothing: whenever a snippet needs a source field, map it through explicitly (e.g. source "args.0" → target "post_id") and have the snippet unset it before returning if it must not be sent. Run get_trigger_schema first and take source paths from the real captured payload.', 'flowsystems-webhook-actions'),
         'category'     => 'webhook-actions',
         'scope'        => AuthHelper::SCOPE_FULL,
         'input_schema' => [
@@ -175,7 +175,7 @@ class AbilityCatalog {
       ],
       'set_conditions' => [
         'label'        => __('Set conditions', 'flowsystems-webhook-actions'),
-        'description'  => __('Set conditional-dispatch rules for a webhook+trigger so only matching events leave the site. conditions MUST be an object {"enabled":true,"type":"and"|"or","rules":[{"field":"<dot.path into the captured payload>","operator":"equals|not_equals|contains|not_contains|greater_than|less_than|is_empty|is_not_empty|is_true|is_false|array_contains|object_contains","value":"..."}]}. A rule may add an optional "cast":"number"|"string"|"boolean"|"stringify" to coerce the payload value before comparing (e.g. numeric compare on a string field). A rules item may also be a nested group {"type":"group","match":"and"|"or","rules":[...]} (Pro only; without a Pro license only ONE simple rule with type "and" is allowed). Run get_trigger_schema first and take field paths from the real captured payload (e.g. "args.0.form_id").', 'flowsystems-webhook-actions'),
+        'description'  => __('Set conditional-dispatch rules for a webhook+trigger so only matching events leave the site. conditions MUST be an object {"enabled":true,"type":"and"|"or","rules":[{"field":"<dot.path into the captured payload>","operator":"equals|not_equals|contains|not_contains|greater_than|less_than|is_empty|is_not_empty|is_true|is_false|array_contains|object_contains","value":"..."}]}. A rule may add an optional "cast":"number"|"string"|"boolean"|"stringify" to coerce the payload value before comparing (e.g. numeric compare on a string field). A rules item may also be a nested group {"type":"group","match":"and"|"or","rules":[...]} (Pro only; without a Pro license only ONE simple rule with type "and" is allowed). conditions_evaluate_on decides WHICH payload the field paths address, so set it deliberately: "original" (default) = the raw captured payload, so paths look like "args.0.form_id" — read them from get_trigger_schema; "transformed" = the payload AFTER the field mapping AND after any pre-dispatch Code Glue snippet, so paths are the mapping\'s target names plus any key the snippet injects — use this, and ONLY this, when filtering on something a snippet computes. Mixing them up silently breaks the filter: a path that does not exist evaluates to null, and the NEGATIVE operators (not_equals, not_contains, is_empty) then PASS, so the event is dispatched rather than filtered out. For a rule that must fail closed when its field is missing, prefer a positive operator (is_internal equals "false" rather than is_internal not_equals "true").', 'flowsystems-webhook-actions'),
         'category'     => 'webhook-actions',
         'scope'        => AuthHelper::SCOPE_FULL,
         'input_schema' => [
@@ -204,7 +204,12 @@ class AbilityCatalog {
               ],
               'required'   => ['rules'],
             ],
-            'conditions_evaluate_on' => ['type' => 'string', 'enum' => ['original', 'transformed'], 'default' => 'original'],
+            'conditions_evaluate_on' => [
+              'type'        => 'string',
+              'enum'        => ['original', 'transformed'],
+              'default'     => 'original',
+              'description' => 'Which payload the rule "field" paths address. "original" = the raw captured payload (paths like "args.0.form_id"). "transformed" = the payload after the field mapping AND after any pre-dispatch Code Glue snippet, so paths are mapping target names plus snippet-injected keys — required when filtering on a value a snippet computes.',
+            ],
           ],
           'required'   => ['webhook_id', 'trigger', 'conditions'],
         ],
@@ -295,7 +300,7 @@ class AbilityCatalog {
       ],
       'test_dispatch' => [
         'label'            => __('Test-dispatch a webhook', 'flowsystems-webhook-actions'),
-        'description'      => __('Send a synchronous test delivery for a webhook using a provided or captured payload, and return the HTTP result so the agent can verify the integration end to end. This makes a REAL delivery now, so for an internal REST endpoint it can actually create or modify data (e.g. create a WordPress user); it requires confirmation.', 'flowsystems-webhook-actions'),
+        'description'      => __('Send a synchronous test delivery for a webhook using a provided or captured payload, and return the HTTP result so the agent can verify the integration end to end. This makes a REAL delivery now, so for an internal REST endpoint it can actually create or modify data (e.g. create a WordPress user); it requires confirmation. It sends the REAL mapped-and-glued payload, so any non-2xx response means the build does not work and the run STOPS there — the result (status + the endpoint\'s response body) comes back to you, so fix the mapping or the pre-dispatch snippet from that response and re-test. Order every plan so test_dispatch comes before enable_webhook, and never treat a step as done just because you proposed it.', 'flowsystems-webhook-actions'),
         'category'         => 'webhook-actions',
         'scope'            => AuthHelper::SCOPE_FULL,
         'requires_confirm' => 'always',

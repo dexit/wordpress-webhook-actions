@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
             :href="url"
             target="_blank"
             rel="noopener"
-            class="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
+            class="inline-flex items-center gap-1 text-sm text-primary hover:!text-primary hover:!underline break-all"
           >
             {{ url }} <ExternalLink class="w-3.5 h-3.5 shrink-0" />
           </a>
@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
             :href="url"
             target="_blank"
             rel="noopener"
-            class="inline-flex items-center gap-1 text-sm text-primary hover:underline break-all"
+            class="inline-flex items-center gap-1 text-sm text-primary hover:!text-primary hover:!underline break-all"
           >
             {{ url }} <ExternalLink class="w-3.5 h-3.5 shrink-0" />
           </a>

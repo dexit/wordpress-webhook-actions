@@ -561,12 +561,14 @@ async function advance(opts = {}) {
   if (running.value || !activeId.value) return;
   running.value = true;
   error.value = '';
+  let continuation = null; // outlives the try: dispatched after `running` clears
   try {
     let first = true;
     let keepGoing = true;
     while (keepGoing) {
       const startedAt = Date.now();
       const res = await api.agent.step(activeId.value, first ? opts : {});
+      continuation = res.continuation || null;
       first = false;
       applyHosted(res);
       // Hold the "running" presentation so even instant steps are noticeable,
@@ -574,6 +576,9 @@ async function advance(opts = {}) {
       const hold = MIN_STEP_MS - (Date.now() - startedAt);
       if (hold > 0) await sleep(hold);
       execution.value = res.execution;
+      // The run appends its step outcomes to the transcript when it stops, so
+      // the next message the user sends carries them to the model.
+      if (res.transcript) transcript.value = res.transcript;
       focusedIndex.value = null; // follow the cursor as it advances
       devPanel.value?.refresh();
       keepGoing = res.continue;
@@ -582,8 +587,23 @@ async function advance(opts = {}) {
     await loadConversations();
   } catch (e) {
     error.value = e.message;
+    continuation = null; // a failed run is not a finished one
   } finally {
     running.value = false;
+  }
+
+  // The run finished, but it finished on a step whose only job was to wait for
+  // something the agent needed before it could plan the rest (a captured
+  // payload). Hand that straight back to it rather than leaving a half-built
+  // webhook and a silent screen — the user already did their part. Dispatched
+  // outside the try/finally above because dispatchMessage() starts the NEXT
+  // run itself in auto mode, and it must own `running` from here on.
+  if (continuation) {
+    sending.value = true;
+    revealFrom.value = transcript.value.length;
+    transcript.value.push({ role: 'user', content: continuation });
+    await scrollDown();
+    await dispatchMessage(continuation);
   }
 }
 
@@ -603,6 +623,37 @@ function confirmStep() {
 }
 function retryStep() {
   advance({});
+}
+
+// "Fix it" on a blocked step: hand the failure back to the agent as a turn so it
+// proposes a corrected plan. Retry re-runs the same broken build, which is only
+// useful once something has changed — this is the button for when nothing has.
+// The endpoint's own response goes in the message because that is the part that
+// says WHY, and the user should never have to copy it across themselves.
+async function fixStep() {
+  const step = currentStep.value;
+  if (!step || sending.value || running.value) return;
+
+  const detail = step.dispatch || step.probe || null;
+  const parts = [
+    sprintf(
+      __('Step %1$s (%2$s) did not succeed: %3$s'),
+      step.id,
+      step.ability,
+      detail?.message || step.error || __('the step failed.')
+    ),
+  ];
+  if (detail?.response) {
+    parts.push(__('The endpoint responded:') + '\n' + detail.response);
+  }
+  parts.push(__('Fix the build so this passes — adjust the field mapping or the pre-dispatch Code Glue snippet as needed — then test again before enabling.'));
+  const text = parts.join('\n\n');
+
+  sending.value = true;
+  revealFrom.value = transcript.value.length;
+  transcript.value.push({ role: 'user', content: text });
+  await scrollDown();
+  await dispatchMessage(text);
 }
 function skipStep() {
   advance({ skip: true });
@@ -782,8 +833,12 @@ async function scrollDown() {
               {{ __('e.g. “When a Contact Form 7 form is submitted, send it as JSON to my n8n webhook.”') }}
             </div>
             <template v-for="(m, i) in transcript" :key="i">
-              <!-- Read activity: abilities the agent ran itself to gather data -->
-              <div v-if="m.role === 'tool'" class="flex items-center flex-wrap gap-1.5 px-1 text-xs text-muted-foreground">
+              <!-- Read activity: abilities the agent ran itself to gather data.
+                   Step-result entries are also role "tool" but carry no reads —
+                   they exist to feed the model what the plan did, and the run
+                   panel already shows the user each step's outcome. -->
+              <div v-if="m.role === 'tool'" v-show="(m.reads || []).length"
+                class="flex items-center flex-wrap gap-1.5 px-1 text-xs text-muted-foreground">
                 <Search class="w-3.5 h-3.5 shrink-0" />
                 <span v-for="(r, j) in (m.reads || [])" :key="j"
                   class="rounded bg-muted px-1.5 py-0.5 font-mono">{{ readLabel(r) }}</span>
@@ -838,6 +893,7 @@ async function scrollDown() {
             @retry="retryStep"
             @skip="skipStep"
             @probe-fix="(fix) => advance({ probe_fix: fix })"
+            @fix-it="fixStep"
             @create-credential="onCreateCredential"
             @provision-app-password="onProvisionAppPassword"
             @enable="enableBuiltWebhook"

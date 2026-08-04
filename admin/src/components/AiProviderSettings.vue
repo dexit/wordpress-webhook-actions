@@ -108,6 +108,13 @@ const saveWp = () => run('wp', () => api.agent.savePreference({ provider: wpProv
 const byokProviders = computed(() => props.status?.byok?.providers || []);
 const byokActive = computed(() => props.status?.byok?.active || null);
 
+// First run: no WordPress connector, no key of their own, nothing hosted — so
+// the panel is asking for an API key from someone who may not have one yet and
+// has no idea a free option exists. Only then do we surface the two ways out.
+const needsFirstKey = computed(
+  () => !byokProviders.value.some((p) => p.connected) && !hostedAvailable.value,
+);
+
 // Per-provider UI state: connect form open, key/model drafts, show-all toggle.
 const ui = reactive({});
 function uiFor(id) {
@@ -269,6 +276,32 @@ initWp();
       <p class="text-xs text-muted-foreground">
         {{ __('Add an API key for one or more providers. The active provider is used first; if it is rate-limited or fails, the agent automatically falls back to another connected provider.') }}
       </p>
+
+      <!-- No connector, no key, no credits: don't leave them staring at an empty
+           key field. One route is free and takes two minutes; the other is Pro. -->
+      <div v-if="needsFirstKey"
+        class="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2.5">
+        <div class="flex items-start gap-2">
+          <Sparkles class="w-4 h-4 text-primary shrink-0 mt-0.5" />
+          <p class="text-xs text-foreground">
+            {{ __('Build with AI needs a model to talk to. You do not have to pay for one — Google AI Studio gives you a free Gemini key with no credit card.') }}
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <a href="https://wpwebhooks.org/docs/get-google-ai-studio-api-key/"
+            target="_blank" rel="noopener noreferrer">
+            <Button size="sm">
+              <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Get a free Gemini key') }}
+            </Button>
+          </a>
+          <a href="https://wpwebhooks.org/pricing/#credits"
+            target="_blank" rel="noopener noreferrer">
+            <Button size="sm" variant="outline">
+              {{ __('Or use Pro AI credits — no key needed') }}
+            </Button>
+          </a>
+        </div>
+      </div>
 
       <div v-for="p in byokProviders" :key="p.id" class="rounded-md border border-border bg-background">
         <div class="flex items-center justify-between gap-3 px-3 py-2.5">

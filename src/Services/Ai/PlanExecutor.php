@@ -6,6 +6,7 @@ defined('ABSPATH') || exit;
 
 use FlowSystems\WebhookActions\Abilities\AbilityRegistry;
 use FlowSystems\WebhookActions\Repositories\AgentConversationRepository;
+use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Repositories\WebhookRepository;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
 use WP_Error;
@@ -18,7 +19,9 @@ use WP_Error;
  * The AgentOrchestrator owns the conversation turn and delegates all plan
  * execution and reverting here. Cohesive sub-concerns live in collaborators:
  * {@see BuildLedger} (idempotent reuse of already-built objects),
- * {@see StepReverter} (per-step undo mechanics) and {@see ProbeInterpreter}.
+ * {@see StepReverter} (per-step undo mechanics), {@see ProbeInterpreter} and
+ * {@see DispatchInterpreter} (which non-2xx outcomes should stop a run), and
+ * {@see StepFeedback} (handing what actually happened back to the model).
  */
 class PlanExecutor {
   private AgentConversationRepository $conversations;
@@ -61,6 +64,7 @@ class PlanExecutor {
     $confirmed = array_map('strval', $confirmed);
     $applied   = is_array($conversation['last_recipe_json'] ?? null) ? $conversation['last_recipe_json'] : [];
     $results   = [];
+    $outcomes  = [];
 
     foreach ($plan as $step) {
       $stepId  = (string) $step['id'];
@@ -68,7 +72,7 @@ class PlanExecutor {
       $input   = (array) ($step['input'] ?? []);
 
       if ($this->stepNeedsConfirm($step, $input) && !in_array($stepId, $confirmed, true)) {
-        $this->persistRecipe($conversationId, $applied, $plan);
+        $this->persistRecipe($conversationId, $applied, $plan, $outcomes);
         return [
           'status'         => 'needs_confirm',
           'pending_step'   => $step,
@@ -80,7 +84,8 @@ class PlanExecutor {
       $result = $this->registry->execute($ability, $input);
 
       if (is_wp_error($result)) {
-        $this->persistRecipe($conversationId, $applied, $plan);
+        $outcomes[] = StepFeedback::outcome($step, null, false, $result->get_error_message());
+        $this->persistRecipe($conversationId, $applied, $plan, $outcomes);
         return [
           'status'      => 'error',
           'failed_step' => $step,
@@ -89,6 +94,23 @@ class PlanExecutor {
           'results'     => $results,
         ];
       }
+
+      // A test delivery that the endpoint refused is a failed build, not a
+      // completed step — stop before the plan's enable_webhook takes it live.
+      $dispatch = $ability === 'test_dispatch' ? DispatchInterpreter::interpret($result) : null;
+      if ($dispatch !== null) {
+        $outcomes[] = StepFeedback::outcome($step, $result, false, $dispatch['message']);
+        $this->persistRecipe($conversationId, $applied, $plan, $outcomes);
+        return [
+          'status'      => 'error',
+          'failed_step' => $step + ['dispatch' => $dispatch],
+          'error'       => $dispatch['message'],
+          'applied'     => $applied,
+          'results'     => $results,
+        ];
+      }
+
+      $outcomes[] = StepFeedback::outcome($step, $result, true);
 
       $this->activity->log(
         'agent.' . $ability,
@@ -102,7 +124,7 @@ class PlanExecutor {
       $results[] = ['id' => $stepId, 'ability' => $ability, 'ok' => true, 'result' => $result];
     }
 
-    $this->persistRecipe($conversationId, $applied, []);
+    $this->persistRecipe($conversationId, $applied, [], $outcomes);
 
     return ['status' => 'completed', 'applied' => $applied, 'results' => $results];
   }
@@ -250,6 +272,24 @@ class PlanExecutor {
     }
     unset($step['missing']);
 
+    // 1a) Mapping/conditions against a trigger that has NEVER captured a payload.
+    // Both take dot-paths INTO the captured shape, so with no capture the agent
+    // can only have guessed them ("args.0", "args.2.post_type"). A guessed
+    // mapping silently drops fields and a guessed condition silently passes
+    // everything (a missing path is null, which negative operators accept), so
+    // the build looks applied and is quietly broken. The prompt already forbids
+    // this; weaker models still do it once their read budget runs out, so gate it
+    // here where it cannot be talked around. Same pause the UI already offers for
+    // a missing capture: fire the event, then retry.
+    $prereq = $this->missingCapture($step, $input);
+    if ($prereq !== null) {
+      $step['status']     = 'blocked_prereq';
+      $step['prereq']     = $prereq;
+      $steps[$cursor]     = $step;
+      $execution['steps'] = $steps;
+      return $this->persistExecution($conversationId, $execution, $step, false, false);
+    }
+
     // 2) Confirmation gate (go-live / delete / edit-live / unsafe probe /
     //    real test delivery). Surface the ability's side-effect notice if any.
     if ($this->stepNeedsConfirm($step, $input) && empty($opts['confirm'])) {
@@ -299,6 +339,7 @@ class PlanExecutor {
       $step['error']      = $result->get_error_message();
       $steps[$cursor]     = $step;
       $execution['steps'] = $steps;
+      StepFeedback::record($execution, $step, null, false, $result->get_error_message());
       return $this->persistExecution($conversationId, $execution, $step, false, false);
     }
     unset($step['error']);
@@ -313,10 +354,35 @@ class PlanExecutor {
         $step['probe']      = $probe;
         $steps[$cursor]     = $step;
         $execution['steps'] = $steps;
+        StepFeedback::record($execution, $step, $result, false, $probe['message']);
         return $this->persistExecution($conversationId, $execution, $step, false, false);
       }
     }
     unset($step['probe']);
+
+    // 3b-3) test_dispatch sends the REAL mapped-and-glued payload, so a non-2xx
+    // response means the build does not work — the endpoint refused exactly what
+    // a live delivery would send. It returns a plain array (never a WP_Error),
+    // so without this gate the run marks it done and walks straight into the
+    // plan's enable_webhook, taking a webhook live on the back of a failure.
+    if ((string) $step['ability'] === 'test_dispatch' && is_array($result)) {
+      $dispatch = DispatchInterpreter::interpret($result);
+      if ($dispatch !== null) {
+        // Count identical rejections across the whole run, not just this step:
+        // each retry re-proposes test_dispatch under a fresh step id, so a
+        // per-step counter would always read 1.
+        $dispatch = DispatchInterpreter::escalate($dispatch, $this->countDispatchFailure($execution, $dispatch));
+
+        $step['status']     = 'blocked_dispatch';
+        $step['dispatch']   = $dispatch;
+        $step['result']     = $result;
+        $steps[$cursor]     = $step;
+        $execution['steps'] = $steps;
+        StepFeedback::record($execution, $step, $result, false, $dispatch['message']);
+        return $this->persistExecution($conversationId, $execution, $step, false, false);
+      }
+    }
+    unset($step['dispatch']);
 
     // 3c) Success → record result (+ pre-state for undo), expose its id to
     // downstream steps, advance.
@@ -373,6 +439,7 @@ class PlanExecutor {
     $execution['refs']   = $refs;
     $execution['cursor'] = $cursor + 1;
     $finished            = ($cursor + 1) >= count($steps);
+    StepFeedback::record($execution, $step, is_array($result) ? $result : null, true);
     return $this->persistExecution($conversationId, $execution, $step, !$finished, $finished);
   }
 
@@ -532,13 +599,24 @@ class PlanExecutor {
       $steps[] = $entry;
     }
 
-    return [
+    $seeded = [
       'mode'   => $mode ?: $this->execMode(),
       'cursor' => 0,
       'refs'   => $refs === [] ? (object) [] : $refs,
       'steps'  => $steps,
       'ledger' => $ledger,
     ];
+
+    // Rejection tally survives re-planning, like the ledger. Every fix arrives
+    // as a NEW plan with a new execution, so a counter that reset here would
+    // read 1 forever and the "you have tried this already" escalation could
+    // never fire — which is precisely the loop it exists to break.
+    $failures = $prior['dispatch_failures'] ?? null;
+    if (is_array($failures) && $failures !== []) {
+      $seeded['dispatch_failures'] = $failures;
+    }
+
+    return $seeded;
   }
 
   /**
@@ -577,12 +655,147 @@ class PlanExecutor {
       ];
     }
 
-    return $normalized;
+    return $this->withCaptureStep($normalized);
+  }
+
+  /**
+   * Append a "capture the payload" step when the plan builds a webhook on a
+   * trigger that has never captured one.
+   *
+   * The agent handles this correctly now — it stops and asks in prose — but
+   * prose scrolls away and the run still finishes green, so the build silently
+   * ends half-done. Making it the plan's last STEP puts the ask where the user
+   * is already looking: get_trigger_schema on an uncaptured trigger returns null,
+   * which the run turns into the amber `blocked_prereq` pause that already says
+   * "submit a test entry, then retry" and auto-resumes when they come back.
+   *
+   * @param array<int, array<string, mixed>> $plan
+   * @return array<int, array<string, mixed>>
+   */
+  private function withCaptureStep(array $plan): array {
+    $repo = new SchemaRepository();
+
+    // Trigger => the webhook reference to read it against. Two sources, because
+    // a build does not have to create the webhook: the agent may be finishing
+    // one that already exists (assign_credential on #206 and nothing else), and
+    // scanning only create_webhook missed that entirely.
+    $candidates    = [];
+    $existingIds   = [];
+
+    foreach ($plan as $step) {
+      $ability = (string) ($step['ability'] ?? '');
+
+      // Something downstream already depends on the capture (and is gated on it),
+      // or the agent asked for the schema itself — no synthetic step needed.
+      if (in_array($ability, ['set_mapping', 'set_conditions', 'get_trigger_schema'], true)) {
+        return $plan;
+      }
+
+      // 1) A webhook this plan creates: its triggers are in the step's own input,
+      //    and downstream steps address it by {{step_N.id}}.
+      if ($ability === 'create_webhook' || $ability === 'update_webhook') {
+        foreach ((array) ($step['input']['triggers'] ?? []) as $trigger) {
+          $trigger = (string) $trigger;
+          if ($trigger !== '') {
+            $candidates[$trigger] ??= '{{' . (string) ($step['id'] ?? '') . '.id}}';
+          }
+        }
+      }
+
+      // 2) A webhook that already exists: the plan names it by numeric id, so its
+      //    triggers have to be read off the record.
+      $webhookId = (int) ($step['input']['webhook_id'] ?? 0);
+      if ($webhookId <= 0 && in_array($ability, ['update_webhook', 'enable_webhook', 'delete_webhook'], true)) {
+        $webhookId = (int) ($step['input']['id'] ?? 0);
+      }
+      if ($webhookId > 0) {
+        $existingIds[$webhookId] = $webhookId;
+      }
+    }
+
+    if ($existingIds !== []) {
+      $webhooks = new WebhookRepository();
+      foreach ($existingIds as $webhookId) {
+        $webhook = $webhooks->find($webhookId);
+        foreach ((array) ($webhook['triggers'] ?? []) as $trigger) {
+          $trigger = (string) $trigger;
+          if ($trigger !== '') {
+            $candidates[$trigger] ??= $webhookId;
+          }
+        }
+      }
+    }
+
+    $pending = null;
+    foreach ($candidates as $trigger => $webhookRef) {
+      // Chain links fire from another webhook's response, never from a
+      // do_action the user can go and trigger by hand.
+      if (str_starts_with((string) $trigger, 'fswa_chain_link:')) {
+        continue;
+      }
+      if ($repo->resolveExample(is_int($webhookRef) ? $webhookRef : 0, (string) $trigger)['example'] === null) {
+        $pending = ['trigger' => (string) $trigger, 'webhook_ref' => $webhookRef];
+        break;
+      }
+    }
+
+    if ($pending === null) {
+      return $plan;
+    }
+
+    $capture = [
+      'id'               => 'step_capture_payload',
+      'ability'          => 'get_trigger_schema',
+      'summary'          => sprintf(
+        /* translators: %s: trigger (do_action hook) name. */
+        __('Capture an example payload for "%s" — fire the event once (e.g. publish a test post)', 'flowsystems-webhook-actions'),
+        $pending['trigger']
+      ),
+      'input'            => [
+        'trigger'    => $pending['trigger'],
+        'webhook_id' => $pending['webhook_ref'],
+      ],
+      'requires_confirm' => false,
+    ];
+
+    // Slot it in front of going live: a webhook with no captured payload has
+    // nothing mapped, so enabling first would put an unshaped delivery on the
+    // wire. Otherwise it lands at the end.
+    foreach ($plan as $index => $step) {
+      if ((string) ($step['ability'] ?? '') === 'enable_webhook') {
+        array_splice($plan, $index, 0, [$capture]);
+        return $plan;
+      }
+    }
+
+    $plan[] = $capture;
+    return $plan;
   }
 
   // ===================================================================
   // Internals
   // ===================================================================
+
+  /**
+   * Record this rejection against the run and return how many times the
+   * endpoint has now refused in exactly this way (1 on the first).
+   *
+   * Mutates $execution, so the caller must persist it afterwards — which the
+   * blocked_dispatch branch does on its way out.
+   *
+   * @param array<string, mixed>                                            $execution
+   * @param array{kind:string, status:int, message:string, response:string} $dispatch
+   */
+  private function countDispatchFailure(array &$execution, array $dispatch): int {
+    $signature = DispatchInterpreter::signature($dispatch);
+    $tally     = is_array($execution['dispatch_failures'] ?? null) ? $execution['dispatch_failures'] : [];
+    $count     = (int) ($tally[$signature] ?? 0) + 1;
+
+    $tally[$signature]                = $count;
+    $execution['dispatch_failures']   = $tally;
+
+    return $count;
+  }
 
   /**
    * Persist execution state and shape the step response for the frontend loop.
@@ -592,13 +805,35 @@ class PlanExecutor {
    * @return array<string, mixed>
    */
   private function persistExecution(int $conversationId, array $execution, ?array $acted, bool $continue, bool $finished): array {
-    $this->conversations->update($conversationId, ['execution' => $execution]);
-    return [
+    // The run has stopped moving (paused for the user, or finished) — hand every
+    // outcome it collected to the model as ONE entry. Mid-run we keep
+    // accumulating, so a long plan can't crowd out the read results it sits
+    // beside in the replay window.
+    $entry      = $continue ? null : StepFeedback::flush($execution);
+    $transcript = $entry === null ? null : $this->appendTranscript($conversationId, $entry);
+
+    $update = ['execution' => $execution];
+    if ($transcript !== null) {
+      $update['transcript'] = $transcript;
+    }
+    $this->conversations->update($conversationId, $update);
+
+    $out = [
       'execution' => $execution,
       'acted'     => $acted,
       'continue'  => $continue,
       'finished'  => $finished,
     ];
+    if ($transcript !== null) {
+      $out['transcript'] = $transcript;
+    }
+    if ($finished) {
+      $followUp = $this->continuationPrompt($execution);
+      if ($followUp !== null) {
+        $out['continuation'] = $followUp;
+      }
+    }
+    return $out;
   }
 
   /**
@@ -643,6 +878,76 @@ class PlanExecutor {
       return array_key_exists($m[1], $refs) ? $refs[$m[1]] : $value;
     }
     return array_key_exists($value, $refs) ? $refs[$value] : $value;
+  }
+
+  /**
+   * The message to send the agent when a finished run has unblocked work it
+   * could not plan before, or null when the run is genuinely done.
+   *
+   * Only the synthetic capture step qualifies. Its whole purpose is to wait for
+   * a payload the agent needed in order to plan the mapping — so the moment it
+   * succeeds the build is knowingly half-finished (a webhook with no mapping),
+   * and leaving it there is what made the run look like it "died" after the
+   * user published their test post and hit retry. Keying on the synthetic id
+   * also makes this loop-proof: the follow-up plan carries set_mapping, so
+   * withCaptureStep() never appends another capture step to it.
+   *
+   * @param array<string, mixed> $execution
+   */
+  private function continuationPrompt(array $execution): ?string {
+    foreach ((array) ($execution['steps'] ?? []) as $step) {
+      if ((string) ($step['id'] ?? '') !== 'step_capture_payload'
+        || (string) ($step['status'] ?? '') !== 'done') {
+        continue;
+      }
+
+      $trigger = (string) ($step['input']['trigger'] ?? '');
+      return sprintf(
+        /* translators: %s: trigger (do_action hook) name. */
+        __('The example payload for "%s" has now been captured, so the field paths are readable. Read it with'
+          . ' get_trigger_schema and finish the build: set the field mapping from the REAL paths, add a'
+          . ' pre-dispatch Code Glue snippet if the destination needs a shape mapping alone cannot produce,'
+          . ' then test_dispatch before enabling.', 'flowsystems-webhook-actions'),
+        $trigger
+      );
+    }
+
+    return null;
+  }
+
+  /**
+   * A `capture_payload` prereq when this step addresses a captured payload that
+   * does not exist yet, or null when the step is fine to run.
+   *
+   * Only set_mapping and set_conditions take dot-paths into the captured shape.
+   * set_conditions is exempt when it evaluates on "transformed": those paths are
+   * the mapping's own target names plus snippet-injected keys, which the plan
+   * defines itself and no capture can confirm.
+   *
+   * @param array<string, mixed> $step
+   * @param array<string, mixed> $input Ref-resolved input for this step.
+   * @return array{kind:string, webhook_id:int, trigger:string}|null
+   */
+  private function missingCapture(array $step, array $input): ?array {
+    $ability = (string) ($step['ability'] ?? '');
+    if (!in_array($ability, ['set_mapping', 'set_conditions'], true)) {
+      return null;
+    }
+    if ($ability === 'set_conditions' && (string) ($input['conditions_evaluate_on'] ?? 'original') === 'transformed') {
+      return null;
+    }
+
+    $trigger = (string) ($input['trigger'] ?? '');
+    if ($trigger === '') {
+      return null;
+    }
+
+    $webhookId = (int) ($input['webhook_id'] ?? 0);
+    if ((new SchemaRepository())->resolveExample($webhookId, $trigger)['example'] !== null) {
+      return null;
+    }
+
+    return ['kind' => 'capture_payload', 'webhook_id' => $webhookId, 'trigger' => $trigger];
   }
 
   /**
@@ -726,11 +1031,36 @@ class PlanExecutor {
     return $latestBefore > 0 ? $latestBefore : $fallback;
   }
 
-  private function persistRecipe(int $conversationId, array $applied, array $remainingPlan): void {
-    $this->conversations->update($conversationId, [
+  /**
+   * @param array<int, array<string, mixed>> $outcomes Executed-step outcomes to feed back to the model.
+   */
+  private function persistRecipe(int $conversationId, array $applied, array $remainingPlan, array $outcomes = []): void {
+    $update = [
       'last_recipe' => $applied,
       'plan'        => $remainingPlan,
-    ]);
+    ];
+
+    $entry = StepFeedback::entry($outcomes);
+    if ($entry !== null) {
+      $update['transcript'] = $this->appendTranscript($conversationId, $entry);
+    }
+
+    $this->conversations->update($conversationId, $update);
+  }
+
+  /**
+   * The conversation transcript with one entry appended. Read fresh: a run
+   * spans several requests, so an in-memory copy from the top of the call is
+   * already stale by the time a later step reports.
+   *
+   * @param array<string, mixed> $entry
+   * @return array<int, array<string, mixed>>
+   */
+  private function appendTranscript(int $conversationId, array $entry): array {
+    $conversation = $this->conversations->find($conversationId);
+    $transcript   = is_array($conversation['transcript_json'] ?? null) ? $conversation['transcript_json'] : [];
+    $transcript[] = $entry;
+    return $transcript;
   }
 
   /**

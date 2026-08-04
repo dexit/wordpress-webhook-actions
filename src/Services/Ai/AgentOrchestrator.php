@@ -28,6 +28,29 @@ class AgentOrchestrator {
   /** Max model round-trips spent on "reads" before the reply must be final. */
   private const READ_ITERATIONS_MAX = 3;
 
+  /**
+   * How many times a turn may re-ask after the model answers in prose instead
+   * of the JSON envelope. One is enough in practice: the model has just been
+   * shown its own malformed reply, which is a far stronger correction than any
+   * amount of extra instruction in the system prompt.
+   */
+  private const ENVELOPE_REPAIR_MAX = 1;
+
+  /**
+   * Sent back with the model's own prose reply when it breaks the JSON
+   * contract. It names the consequence (nothing runs) rather than restating
+   * the schema — the system prompt already carries the schema, and repeating
+   * it is what the model just ignored.
+   */
+  private const REPAIR_NUDGE = <<<'TXT'
+That reply was NOT the required JSON envelope — it was plain prose, so the plugin could not run any of it. Whatever you just described did NOT happen: nothing was created, changed or tested, and the user is looking at a plan that does not exist.
+
+Send that SAME answer again as a single raw JSON object and nothing else — no text before or after it, no ``` fence:
+{"assistant_message": "...", "plan": [{"id": "step_1", "ability": "...", "summary": "...", "input": {...}}]}
+
+Every action you described in that prose must appear as a typed step in "plan" with its ability and input — a numbered list inside assistant_message runs nothing. If you meant to gather data first, put the read abilities in "reads" instead. If you genuinely have nothing to propose, still answer with the object, using an empty "plan".
+TXT;
+
   /** Byte budget for one read result handed back to the model. */
   private const READ_RESULT_BYTES = 8192;
 
@@ -42,6 +65,9 @@ class AgentOrchestrator {
 
   /** Byte cap for a stale (earlier-turn) read-result entry in model replay. */
   private const REPLAY_TOOL_STALE_BYTES = 1024;
+
+  /** Closing line on every user-role turn, restating the reply contract. */
+  private const ENVELOPE_REMINDER = 'Reply with your next JSON envelope.';
 
   private AbilityRegistry             $registry;
   private AgentConversationRepository $conversations;
@@ -93,6 +119,13 @@ class AgentOrchestrator {
     $options  = ['temperature' => 0.2, 'json' => true, 'purpose' => 'agent'];
     $activity = [];
 
+    // Scaffolding for the envelope-repair round: the model's malformed reply
+    // plus the nudge, appended for ONE round-trip only. Deliberately kept out
+    // of $transcript — it is a protocol correction, not conversation, and
+    // replaying it on later turns would teach the format it is rejecting.
+    $repair  = [];
+    $repairs = 0;
+
     // A turn can be several model round-trips: while the envelope asks for
     // "reads" (read-only abilities), execute them locally, feed the results
     // back, and ask again. Bounded, so the whole turn stays one HTTP request.
@@ -103,7 +136,7 @@ class AgentOrchestrator {
         @set_time_limit(180);
       }
 
-      $sent    = $this->modelMessages($transcript);
+      $sent    = array_merge($this->modelMessages($transcript), $repair);
       $started = microtime(true);
       $raw     = $transport->generateText($system, $sent, $options);
       $latency = (int) round((microtime(true) - $started) * 1000);
@@ -132,7 +165,25 @@ class AgentOrchestrator {
         'reads'            => array_column($reads, 'ability'),
         'plan_steps'       => count($plan),
         'clarifying_count' => count((array) ($envelope['clarifying_questions'] ?? [])),
+        'repair_round'     => $repair !== [],
       ]);
+
+      // A prose reply is not merely cosmetic: with no envelope there is no
+      // "plan", so the turn ends with the model DESCRIBING a fix ("I'll update
+      // the snippet, re-test, then enable") that it never actually proposed and
+      // the UI has nothing to run — the user clicks Fix it, reads a confident
+      // plan, and nothing happens (2026-08-04 trace, Airtable 422). The parse
+      // ladder cannot rescue this: the steps were never written down. So show
+      // the model its own reply and ask for the same answer as an envelope.
+      if (!$this->lastParseSucceeded && $repairs < self::ENVELOPE_REPAIR_MAX && trim($raw) !== '') {
+        $repairs++;
+        $repair = [
+          ['role' => 'assistant', 'content' => $raw],
+          ['role' => 'user', 'content' => self::REPAIR_NUDGE],
+        ];
+        continue;
+      }
+      $repair = [];
 
       // Final reply: no reads requested, or the read budget is spent (then any
       // leftover reads are dropped and the envelope is treated as final).
@@ -161,6 +212,14 @@ class AgentOrchestrator {
     // user otherwise only learns this from the Dev Trace. Surface it as a notice
     // on the turn so the chat shows which provider actually answered and why.
     $notice = $this->fallbackNotice($transport);
+
+    // The repair round did not take either. The reply below reads like a plan
+    // but is only prose, so nothing is runnable — say so, otherwise the user
+    // waits on a build that was never proposed.
+    if (!$this->lastParseSucceeded) {
+      $proseNotice = __('The AI answered in prose instead of a runnable plan, so no steps were proposed and nothing has been applied. Ask it to "send that as a plan" to try again.', 'flowsystems-webhook-actions');
+      $notice = $notice === null ? $proseNotice : $notice . ' ' . $proseNotice;
+    }
 
     // Steps the model proposed with abilities this site cannot run were dropped
     // from the plan — the remaining plan can look complete while missing a
@@ -294,7 +353,8 @@ class AgentOrchestrator {
    * The stored transcript is the UI's view (folded prose). The model instead
    * gets, for each assistant turn, the raw JSON envelope it produced — keeping
    * its own few-shot history in the required format — and each `tool` entry
-   * (read results) rendered as a user-role block.
+   * (read results, and the outcomes of executed plan steps) rendered as a
+   * user-role block.
    *
    * @param array<int, array<string, mixed>> $transcript
    * @return array<int, array{role:string,content:string}>
@@ -302,9 +362,14 @@ class AgentOrchestrator {
   private function modelMessages(array $transcript): array {
     // Only the last few read-result entries replay in full (see the constant):
     // older ones belong to finished turns and would bloat every prompt.
+    // Step-result entries are exempt: they are short, they are the only record
+    // of what the plan actually did, and counting them here would push real
+    // read results out of the full-replay window.
     $toolIndexes = array_keys(array_filter(
       $transcript,
-      static fn($entry) => (($entry['role'] ?? '') === 'tool') && empty($entry['error'])
+      static fn($entry) => (($entry['role'] ?? '') === 'tool')
+        && empty($entry['error'])
+        && ($entry['kind'] ?? '') !== StepFeedback::KIND
     ));
     $fullToolsFrom = count($toolIndexes) > self::REPLAY_TOOL_FULL_COUNT
       ? $toolIndexes[count($toolIndexes) - self::REPLAY_TOOL_FULL_COUNT]
@@ -326,7 +391,8 @@ class AgentOrchestrator {
         continue;
       }
       if ($role === 'tool') {
-        if ($index < $fullToolsFrom && strlen($content) > self::REPLAY_TOOL_STALE_BYTES) {
+        $isStepResults = ($entry['kind'] ?? '') === StepFeedback::KIND;
+        if (!$isStepResults && $index < $fullToolsFrom && strlen($content) > self::REPLAY_TOOL_STALE_BYTES) {
           $content = substr($content, 0, self::REPLAY_TOOL_STALE_BYTES)
             . "\n…[older read results truncated — re-run the read if you need them]";
         }
@@ -347,6 +413,19 @@ class AgentOrchestrator {
       }
       $merged[] = $message;
     }
+
+    // Close the turn with the reply contract. Only the read-results path used
+    // to carry this line, and the prose replies we have traced all landed on
+    // the paths that did not: step results, the capture continuation, and the
+    // Fix it button. Applying it here covers whatever composes a turn next
+    // instead of re-adding the sentence at each call site.
+    $last = count($merged) - 1;
+    if ($last >= 0
+      && $merged[$last]['role'] === 'user'
+      && strpos($merged[$last]['content'], self::ENVELOPE_REMINDER) === false) {
+      $merged[$last]['content'] .= "\n\n" . self::ENVELOPE_REMINDER;
+    }
+
     return $merged;
   }
 
@@ -476,7 +555,7 @@ class AgentOrchestrator {
 
     $content = "READ RESULTS (read-only abilities executed locally, no user review needed):\n"
       . PayloadRedactor::encodeCapped($results, self::READ_RESULT_BYTES * max(1, count($results)))
-      . "\n\nReply with your next JSON envelope."
+      . "\n\n" . self::ENVELOPE_REMINDER
       . ($budgetSpent ? ' Your read budget for this turn is spent — no further "reads"; give your final assistant_message/plan now.' : '');
 
     return [

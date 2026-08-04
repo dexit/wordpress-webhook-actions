@@ -25,6 +25,7 @@ import { useSchemas, useUserTriggers } from '@/composables/useSchemas';
 import { usePro } from '@/composables/usePro';
 import { useTriggerSnippet } from '@/composables/useSnippets';
 import { applyMappingTransform } from '@/utils/payloadTransform';
+import { formatJsonWithHighlight } from '@/utils/jsonHighlight';
 import { __, sprintf } from '@/i18n';
 
 const props = defineProps({
@@ -63,6 +64,15 @@ const isSectionExpanded = (trigger, section) => {
   return sectionsExpanded.value[key] !== false; // default true
 };
 
+// The after-glue payload starts capped (isSectionExpanded defaults to true, and
+// a full WP_Post body would push everything below it off screen).
+const gluePayloadExpanded = ref({});
+const toggleGluePayload = (trigger) => {
+  gluePayloadExpanded.value = {
+    ...gluePayloadExpanded.value,
+    [trigger]: !gluePayloadExpanded.value[trigger],
+  };
+};
 const toggleSection = (trigger, section) => {
   const key = `${trigger}:${section}`;
   sectionsExpanded.value = {
@@ -597,28 +607,6 @@ watch(
             />
           </div>
 
-          <!-- Pre-dispatch Code Glue — inline, right after capture status -->
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 text-sm">
-              <Code2 class="h-4 w-4 text-muted-foreground shrink-0" />
-              <span>{{ __('Pre-dispatch Code Glue') }}</span>
-              <UpgradeBadge v-if="!proActive" />
-              <Badge v-else-if="triggerSnippetAssignments[trigger]?.pre_snippet_id" variant="default" class="text-xs">
-                {{ __('Active') }}
-              </Badge>
-            </div>
-            <div class="flex items-center gap-2">
-              <div v-if="proActive && gluePreviewPayloads[trigger]" class="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                <Check class="h-3 w-3 shrink-0" />
-                {{ __('Preview active') }}
-              </div>
-              <Button size="sm" variant="outline" class="gap-1" :disabled="!proActive" @click.stop="openGlueDrawer(trigger, 'pre')">
-                <Pencil class="h-3.5 w-3.5" />
-                {{ triggerSnippetAssignments[trigger]?.pre_snippet_id ? __('Edit') : __('Add') }}
-              </Button>
-            </div>
-          </div>
-
           <!-- User Data Toggle (only for user triggers) -->
           <div
             v-if="isUserTrigger(trigger)"
@@ -657,6 +645,72 @@ watch(
             </div>
           </div>
 
+          <!--
+            Pre-dispatch Code Glue — deliberately placed AFTER Payload Mapping and
+            BEFORE Conditions, mirroring the real dispatch order (mapping → pre-glue →
+            conditions). The snippet receives the MAPPED payload, so reading this panel
+            top-to-bottom is reading the pipeline in execution order.
+          -->
+          <div class="border-t pt-2">
+            <button
+              class="w-full flex items-center gap-2 py-2 hover:text-foreground text-left transition-colors"
+              :disabled="!proActive"
+              @click.stop="proActive && toggleSection(trigger, 'pre-glue')"
+            >
+              <component :is="isSectionExpanded(trigger, 'pre-glue') ? ChevronDown : ChevronRight" class="h-4 w-4 text-muted-foreground shrink-0" />
+              <Code2 class="h-5 w-5 shrink-0" />
+              <span class="text-sm font-semibold">{{ __('Pre-dispatch Code Glue') }}</span>
+              <UpgradeBadge v-if="!proActive" class="ml-1" />
+              <Badge v-else-if="triggerSnippetAssignments[trigger]?.pre_snippet_id" variant="default" class="text-xs ml-1">
+                {{ __('Active') }}
+              </Badge>
+              <!-- Collapsed-state signal: the preview drives Transformed Conditions below,
+                   so it must stay visible without expanding the section. -->
+              <span v-if="proActive && gluePreviewPayloads[trigger]" class="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                <Check class="h-3 w-3 shrink-0" />
+                {{ __('Preview active') }}
+              </span>
+            </button>
+            <div v-if="proActive && isSectionExpanded(trigger, 'pre-glue')" class="pt-2">
+              <div class="flex items-center justify-between p-3 border rounded-md bg-background">
+                <div>
+                  <p class="text-xs text-muted-foreground" v-html="sprintf(__('Runs after the mapping above, on the mapped payload — %1$s$args%2$s is empty unless %1$sargs%2$s was mapped through.'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>
+                </div>
+                <div class="flex items-center gap-2 ml-4">
+                  <Button size="sm" variant="outline" class="gap-1" @click.stop="openGlueDrawer(trigger, 'pre')">
+                    <Pencil class="h-3.5 w-3.5" />
+                    {{ triggerSnippetAssignments[trigger]?.pre_snippet_id ? __('Edit') : __('Add') }}
+                  </Button>
+                </div>
+              </div>
+
+              <!-- What the snippet actually produced. This is the payload that
+                   goes on the wire, so it belongs next to the mapping preview
+                   rather than only inside the drawer the user has closed. -->
+              <div v-if="gluePreviewPayloads[trigger]" class="mt-3">
+                <div class="flex items-center justify-between mb-2">
+                  <Label class="text-sm font-medium">{{ __('After Pre-dispatch Code Glue Payload') }}</Label>
+                  <Button size="sm" variant="ghost" @click.stop="toggleGluePayload(trigger)">
+                    <component :is="gluePayloadExpanded[trigger] ? ChevronDown : ChevronRight" class="h-4 w-4 mr-1" />
+                    {{ gluePayloadExpanded[trigger] ? __('Show less') : __('Show full') }}
+                  </Button>
+                </div>
+                <div
+                  class="border rounded-md bg-muted/30 p-3 overflow-x-auto overflow-y-auto"
+                  :class="gluePayloadExpanded[trigger] ? '' : 'max-h-72'"
+                >
+                  <pre
+                    class="text-xs font-mono leading-relaxed"
+                    v-html="formatJsonWithHighlight(gluePreviewPayloads[trigger])"
+                  ></pre>
+                </div>
+                <p class="text-xs text-muted-foreground mt-1.5">
+                  {{ __('This is the final payload on the wire — used for Transformed Conditions and URL/param templates.') }}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <!-- Conditions Section -->
           <div class="border-t pt-2">
             <button
@@ -671,7 +725,7 @@ watch(
               <div class="flex items-center justify-between px-1">
                 <p class="text-xs text-muted-foreground flex items-center gap-1.5">
                   {{ __('Evaluate conditions against') }}
-                  <Tooltip :content="__('Choose which payload the conditions read from: Original is the raw payload before field mapping; Transformed is the payload after mapping is applied.')" side="right">
+                  <Tooltip :content="__('Choose which payload the conditions read from. Original is the raw payload, before field mapping. Transformed is the payload after mapping AND after the pre-dispatch Code Glue snippet — pick it when you filter on a value the snippet adds. Note: if a field does not exist in the payload you pick, negative operators like \'not equals\' still pass, so the event is sent.')" side="right">
                     <Info class="h-3.5 w-3.5 text-muted-foreground cursor-help shrink-0" />
                   </Tooltip>
                 </p>

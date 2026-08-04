@@ -17,7 +17,7 @@ const props = defineProps({
   busy: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['continue', 'retry', 'skip', 'confirm', 'probe-fix', 'create-credential', 'provision-app-password']);
+const emit = defineEmits(['continue', 'retry', 'skip', 'confirm', 'probe-fix', 'fix-it', 'create-credential', 'provision-app-password']);
 
 // ---- blocked_input -------------------------------------------------------
 const inputDraft = reactive({});
@@ -197,11 +197,15 @@ function createCredForInput() {
   <!-- blocked_prereq: need a captured payload -->
   <div v-else-if="step.status === 'blocked_prereq'"
     class="rounded-md border border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20 p-4 text-sm">
+    <p class="text-amber-700 dark:text-amber-300 mb-1">
+      {{ __('Waiting for an example payload. Nothing has fired this trigger yet, so there are no real field names to map against.') }}
+    </p>
     <p class="text-amber-700 dark:text-amber-300 mb-3">
-      {{ __('No example payload captured yet. Open a page with your form and submit a test entry, then retry so the agent can map the real fields.') }}
+      {{ __('Go and fire the event once — publish a test post, submit the form, place a test order — then come back and retry.') }}
+      <span v-if="step.prereq?.trigger" class="font-mono text-xs">({{ step.prereq.trigger }})</span>
     </p>
     <div class="flex gap-2">
-      <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('I sent a test — retry') }}</Button>
+      <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('I fired it — retry') }}</Button>
       <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
     </div>
   </div>
@@ -262,6 +266,14 @@ function createCredForInput() {
       </div>
     </template>
 
+    <!-- Reachable, but an empty-body probe can't prove a create endpoint works -->
+    <template v-else-if="step.probe?.kind === 'inconclusive'">
+      <div class="flex gap-2">
+        <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('Retry probe') }}</Button>
+        <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
+      </div>
+    </template>
+
     <!-- 404 / unreachable: provide a different endpoint URL, then re-probe -->
     <template v-else>
       <div class="space-y-2">
@@ -273,6 +285,22 @@ function createCredForInput() {
         </div>
       </div>
     </template>
+  </div>
+
+  <!-- blocked_dispatch: the test delivery reached the endpoint but was refused -->
+  <div v-else-if="step.status === 'blocked_dispatch'"
+    class="rounded-md border border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20 p-4 text-sm space-y-3">
+    <p class="text-amber-700 dark:text-amber-300">{{ step.dispatch?.message }}</p>
+    <pre v-if="step.dispatch?.response"
+      class="max-h-32 overflow-auto rounded bg-muted p-2 text-xs font-mono whitespace-pre-wrap break-all">{{ step.dispatch.response }}</pre>
+    <p class="text-xs text-muted-foreground">
+      {{ __('Ask the agent to fix the payload — it can see this response now — then retry. Skipping leaves the rest of the plan (including going live) to run on a delivery that failed.') }}
+    </p>
+    <div class="flex gap-2">
+      <Button size="sm" :disabled="busy" @click="emit('fix-it')">{{ __('Fix it') }}</Button>
+      <Button size="sm" variant="outline" :disabled="busy" @click="emit('retry')">{{ __('Retry') }}</Button>
+      <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
+    </div>
   </div>
 
   <!-- needs_confirm -->
