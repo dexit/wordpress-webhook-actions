@@ -17,7 +17,7 @@ const props = defineProps({
   busy: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['continue', 'retry', 'skip', 'confirm', 'probe-fix', 'create-credential', 'provision-app-password']);
+const emit = defineEmits(['continue', 'retry', 'skip', 'confirm', 'probe-fix', 'fix-it', 'create-credential', 'provision-app-password']);
 
 // ---- blocked_input -------------------------------------------------------
 const inputDraft = reactive({});
@@ -297,7 +297,8 @@ function createCredForInput() {
       {{ __('Ask the agent to fix the payload — it can see this response now — then retry. Skipping leaves the rest of the plan (including going live) to run on a delivery that failed.') }}
     </p>
     <div class="flex gap-2">
-      <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('Retry') }}</Button>
+      <Button size="sm" :disabled="busy" @click="emit('fix-it')">{{ __('Fix it') }}</Button>
+      <Button size="sm" variant="outline" :disabled="busy" @click="emit('retry')">{{ __('Retry') }}</Button>
       <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
     </div>
   </div>

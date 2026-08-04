@@ -624,6 +624,37 @@ function confirmStep() {
 function retryStep() {
   advance({});
 }
+
+// "Fix it" on a blocked step: hand the failure back to the agent as a turn so it
+// proposes a corrected plan. Retry re-runs the same broken build, which is only
+// useful once something has changed — this is the button for when nothing has.
+// The endpoint's own response goes in the message because that is the part that
+// says WHY, and the user should never have to copy it across themselves.
+async function fixStep() {
+  const step = currentStep.value;
+  if (!step || sending.value || running.value) return;
+
+  const detail = step.dispatch || step.probe || null;
+  const parts = [
+    sprintf(
+      __('Step %1$s (%2$s) did not succeed: %3$s'),
+      step.id,
+      step.ability,
+      detail?.message || step.error || __('the step failed.')
+    ),
+  ];
+  if (detail?.response) {
+    parts.push(__('The endpoint responded:') + '\n' + detail.response);
+  }
+  parts.push(__('Fix the build so this passes — adjust the field mapping or the pre-dispatch Code Glue snippet as needed — then test again before enabling.'));
+  const text = parts.join('\n\n');
+
+  sending.value = true;
+  revealFrom.value = transcript.value.length;
+  transcript.value.push({ role: 'user', content: text });
+  await scrollDown();
+  await dispatchMessage(text);
+}
 function skipStep() {
   advance({ skip: true });
 }
@@ -862,6 +893,7 @@ async function scrollDown() {
             @retry="retryStep"
             @skip="skipStep"
             @probe-fix="(fix) => advance({ probe_fix: fix })"
+            @fix-it="fixStep"
             @create-credential="onCreateCredential"
             @provision-app-password="onProvisionAppPassword"
             @enable="enableBuiltWebhook"

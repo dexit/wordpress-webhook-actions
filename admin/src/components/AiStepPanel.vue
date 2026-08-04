@@ -27,7 +27,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  'advance', 'confirm', 'retry', 'skip', 'probe-fix',
+  'advance', 'confirm', 'retry', 'skip', 'probe-fix', 'fix-it',
   'create-credential', 'provision-app-password',
   'enable', 'toggle-sync', 'revert', 'share', 'publish',
 ]);
@@ -81,6 +81,7 @@ const emit = defineEmits([
       @retry="emit('retry')"
       @skip="emit('skip')"
       @probe-fix="(fix) => emit('probe-fix', fix)"
+      @fix-it="emit('fix-it')"
       @create-credential="(payload) => emit('create-credential', payload)"
       @provision-app-password="emit('provision-app-password')"
     />

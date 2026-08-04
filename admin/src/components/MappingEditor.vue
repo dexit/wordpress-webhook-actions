@@ -711,7 +711,7 @@ const previewHtml = computed(() => {
       <!-- JSON Preview -->
       <div>
         <div class="flex items-center justify-between mb-3">
-          <Label class="text-sm font-medium">{{ __('Transformed Payload Preview') }}</Label>
+          <Label class="text-sm font-medium">{{ __('After Mapping Payload Preview') }}</Label>
           <Button size="sm" variant="ghost" @click="previewExpanded = !previewExpanded">
             <component :is="previewExpanded ? ChevronDown : ChevronRight" class="h-4 w-4 mr-1" />
             {{ previewExpanded ? __('Show less') : __('Show full') }}

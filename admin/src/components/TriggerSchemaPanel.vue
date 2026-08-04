@@ -63,6 +63,23 @@ const isSectionExpanded = (trigger, section) => {
   return sectionsExpanded.value[key] !== false; // default true
 };
 
+// The after-glue payload starts capped (isSectionExpanded defaults to true, and
+// a full WP_Post body would push everything below it off screen).
+const gluePayloadExpanded = ref({});
+const toggleGluePayload = (trigger) => {
+  gluePayloadExpanded.value = {
+    ...gluePayloadExpanded.value,
+    [trigger]: !gluePayloadExpanded.value[trigger],
+  };
+};
+const formatGluePayload = (payload) => {
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return String(payload);
+  }
+};
+
 const toggleSection = (trigger, section) => {
   const key = `${trigger}:${section}`;
   sectionsExpanded.value = {
@@ -672,6 +689,28 @@ watch(
                     {{ triggerSnippetAssignments[trigger]?.pre_snippet_id ? __('Edit') : __('Add') }}
                   </Button>
                 </div>
+              </div>
+
+              <!-- What the snippet actually produced. This is the payload that
+                   goes on the wire, so it belongs next to the mapping preview
+                   rather than only inside the drawer the user has closed. -->
+              <div v-if="gluePreviewPayloads[trigger]" class="mt-3">
+                <div class="flex items-center justify-between mb-2">
+                  <Label class="text-sm font-medium">{{ __('After Pre-dispatch Code Glue Payload') }}</Label>
+                  <Button size="sm" variant="ghost" @click.stop="toggleGluePayload(trigger)">
+                    <component :is="gluePayloadExpanded[trigger] ? ChevronDown : ChevronRight" class="h-4 w-4 mr-1" />
+                    {{ gluePayloadExpanded[trigger] ? __('Show less') : __('Show full') }}
+                  </Button>
+                </div>
+                <div
+                  class="border rounded-md bg-muted/30 p-3 overflow-x-auto overflow-y-auto"
+                  :class="gluePayloadExpanded[trigger] ? '' : 'max-h-72'"
+                >
+                  <pre class="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all">{{ formatGluePayload(gluePreviewPayloads[trigger]) }}</pre>
+                </div>
+                <p class="text-xs text-muted-foreground mt-1.5">
+                  {{ __('This is the final body on the wire — Transformed Conditions and URL/param templates read from it.') }}
+                </p>
               </div>
             </div>
           </div>
