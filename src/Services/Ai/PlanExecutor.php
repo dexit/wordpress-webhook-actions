@@ -657,8 +657,14 @@ class PlanExecutor {
    * @return array<int, array<string, mixed>>
    */
   private function withCaptureStep(array $plan): array {
-    $repo    = new SchemaRepository();
-    $pending = null;
+    $repo = new SchemaRepository();
+
+    // Trigger => the webhook reference to read it against. Two sources, because
+    // a build does not have to create the webhook: the agent may be finishing
+    // one that already exists (assign_credential on #206 and nothing else), and
+    // scanning only create_webhook missed that entirely.
+    $candidates    = [];
+    $existingIds   = [];
 
     foreach ($plan as $step) {
       $ability = (string) ($step['ability'] ?? '');
@@ -669,19 +675,51 @@ class PlanExecutor {
         return $plan;
       }
 
-      if ($ability !== 'create_webhook' && $ability !== 'update_webhook') {
+      // 1) A webhook this plan creates: its triggers are in the step's own input,
+      //    and downstream steps address it by {{step_N.id}}.
+      if ($ability === 'create_webhook' || $ability === 'update_webhook') {
+        foreach ((array) ($step['input']['triggers'] ?? []) as $trigger) {
+          $trigger = (string) $trigger;
+          if ($trigger !== '') {
+            $candidates[$trigger] ??= '{{' . (string) ($step['id'] ?? '') . '.id}}';
+          }
+        }
+      }
+
+      // 2) A webhook that already exists: the plan names it by numeric id, so its
+      //    triggers have to be read off the record.
+      $webhookId = (int) ($step['input']['webhook_id'] ?? 0);
+      if ($webhookId <= 0 && in_array($ability, ['update_webhook', 'enable_webhook', 'delete_webhook'], true)) {
+        $webhookId = (int) ($step['input']['id'] ?? 0);
+      }
+      if ($webhookId > 0) {
+        $existingIds[$webhookId] = $webhookId;
+      }
+    }
+
+    if ($existingIds !== []) {
+      $webhooks = new WebhookRepository();
+      foreach ($existingIds as $webhookId) {
+        $webhook = $webhooks->find($webhookId);
+        foreach ((array) ($webhook['triggers'] ?? []) as $trigger) {
+          $trigger = (string) $trigger;
+          if ($trigger !== '') {
+            $candidates[$trigger] ??= $webhookId;
+          }
+        }
+      }
+    }
+
+    $pending = null;
+    foreach ($candidates as $trigger => $webhookRef) {
+      // Chain links fire from another webhook's response, never from a
+      // do_action the user can go and trigger by hand.
+      if (str_starts_with((string) $trigger, 'fswa_chain_link:')) {
         continue;
       }
-      foreach ((array) ($step['input']['triggers'] ?? []) as $trigger) {
-        $trigger = (string) $trigger;
-        // Chain links fire from another webhook's response, never from a
-        // do_action the user can go and trigger by hand.
-        if ($trigger === '' || str_starts_with($trigger, 'fswa_chain_link:')) {
-          continue;
-        }
-        if ($repo->resolveExample(0, $trigger)['example'] === null) {
-          $pending ??= ['trigger' => $trigger, 'webhook_step' => (string) ($step['id'] ?? '')];
-        }
+      if ($repo->resolveExample(is_int($webhookRef) ? $webhookRef : 0, (string) $trigger)['example'] === null) {
+        $pending = ['trigger' => (string) $trigger, 'webhook_ref' => $webhookRef];
+        break;
       }
     }
 
@@ -699,7 +737,7 @@ class PlanExecutor {
       ),
       'input'            => [
         'trigger'    => $pending['trigger'],
-        'webhook_id' => $pending['webhook_step'] !== '' ? '{{' . $pending['webhook_step'] . '.id}}' : 0,
+        'webhook_id' => $pending['webhook_ref'],
       ],
       'requires_confirm' => false,
     ];
