@@ -283,8 +283,19 @@ class SchemaRepository {
   public function captureExamplePayload(int $webhookId, string $trigger, array $payload): bool {
     $existing = $this->findByWebhookAndTrigger($webhookId, $trigger);
 
-    // Only capture if we don't have an example payload yet
-    if ($existing && !empty($existing['example_payload'])) {
+    // Keep taking the freshest example until the webhook is actually configured.
+    //
+    // Freezing on the very first firing looks cheap but hands the agent the
+    // wrong payload on any trigger that fires more than once: opening the
+    // new-post screen makes WordPress write an auto-draft, so
+    // transition_post_status captures ["auto-draft","new",…] with post_title
+    // "Auto Draft" and post_date_gmt "0000-00-00 00:00:00" — and the real
+    // publish a minute later was discarded. Everything downstream then inherits
+    // it: the mapping is built from a draft, and test_dispatch sends that draft.
+    //
+    // A stored field mapping means the build is settled, so from then on the
+    // example stays put and the write stops happening on every event.
+    if ($existing && !empty($existing['example_payload']) && !empty($existing['field_mapping'])) {
       return true;
     }
 
