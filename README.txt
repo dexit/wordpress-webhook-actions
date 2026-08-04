@@ -137,3 +137,7 @@ For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.
 - Fixed: the example payload keeps refreshing until the webhook is mapped, so triggers that fire more than once (like transition_post_status) no longer freeze on the auto-draft WordPress writes when you open the editor
 - Fixed: Build with AI now knows field mapping runs before the pre-dispatch snippet, so it stops writing snippets that read $args after the mapping has removed it
 - Fixed: when the AI replies with a written-out plan instead of a runnable one, it is asked to resend it properly — previously "Fix it" could describe the whole repair and then do nothing at all
+- New: Build with AI now brings what it knows about the destination API before the first test — the envelope a record has to sit in, and request-level options like Airtable's typecast flag that no amount of reformatting a value can replace
+- Fixed: if the endpoint rejects a test delivery the same way twice, Build with AI is told the last change made no difference and to stop reformatting the same value — instead of looping through a third and fourth guess
+- New: with no AI connector and no key of your own, the AI settings now point you to a free Gemini key or to Pro's included AI credits, instead of just showing an empty key field
+- Fixed: the published-build address no longer picks up WordPress's own link colour when you hover it
