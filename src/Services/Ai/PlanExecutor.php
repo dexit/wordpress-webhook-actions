@@ -639,7 +639,83 @@ class PlanExecutor {
       ];
     }
 
-    return $normalized;
+    return $this->withCaptureStep($normalized);
+  }
+
+  /**
+   * Append a "capture the payload" step when the plan builds a webhook on a
+   * trigger that has never captured one.
+   *
+   * The agent handles this correctly now — it stops and asks in prose — but
+   * prose scrolls away and the run still finishes green, so the build silently
+   * ends half-done. Making it the plan's last STEP puts the ask where the user
+   * is already looking: get_trigger_schema on an uncaptured trigger returns null,
+   * which the run turns into the amber `blocked_prereq` pause that already says
+   * "submit a test entry, then retry" and auto-resumes when they come back.
+   *
+   * @param array<int, array<string, mixed>> $plan
+   * @return array<int, array<string, mixed>>
+   */
+  private function withCaptureStep(array $plan): array {
+    $repo    = new SchemaRepository();
+    $pending = null;
+
+    foreach ($plan as $step) {
+      $ability = (string) ($step['ability'] ?? '');
+
+      // Something downstream already depends on the capture (and is gated on it),
+      // or the agent asked for the schema itself — no synthetic step needed.
+      if (in_array($ability, ['set_mapping', 'set_conditions', 'get_trigger_schema'], true)) {
+        return $plan;
+      }
+
+      if ($ability !== 'create_webhook' && $ability !== 'update_webhook') {
+        continue;
+      }
+      foreach ((array) ($step['input']['triggers'] ?? []) as $trigger) {
+        $trigger = (string) $trigger;
+        // Chain links fire from another webhook's response, never from a
+        // do_action the user can go and trigger by hand.
+        if ($trigger === '' || str_starts_with($trigger, 'fswa_chain_link:')) {
+          continue;
+        }
+        if ($repo->resolveExample(0, $trigger)['example'] === null) {
+          $pending ??= ['trigger' => $trigger, 'webhook_step' => (string) ($step['id'] ?? '')];
+        }
+      }
+    }
+
+    if ($pending === null) {
+      return $plan;
+    }
+
+    $capture = [
+      'id'               => 'step_capture_payload',
+      'ability'          => 'get_trigger_schema',
+      'summary'          => sprintf(
+        /* translators: %s: trigger (do_action hook) name. */
+        __('Capture an example payload for "%s" — fire the event once (e.g. publish a test post)', 'flowsystems-webhook-actions'),
+        $pending['trigger']
+      ),
+      'input'            => [
+        'trigger'    => $pending['trigger'],
+        'webhook_id' => $pending['webhook_step'] !== '' ? '{{' . $pending['webhook_step'] . '.id}}' : 0,
+      ],
+      'requires_confirm' => false,
+    ];
+
+    // Slot it in front of going live: a webhook with no captured payload has
+    // nothing mapped, so enabling first would put an unshaped delivery on the
+    // wire. Otherwise it lands at the end.
+    foreach ($plan as $index => $step) {
+      if ((string) ($step['ability'] ?? '') === 'enable_webhook') {
+        array_splice($plan, $index, 0, [$capture]);
+        return $plan;
+      }
+    }
+
+    $plan[] = $capture;
+    return $plan;
   }
 
   // ===================================================================

@@ -197,11 +197,15 @@ function createCredForInput() {
   <!-- blocked_prereq: need a captured payload -->
   <div v-else-if="step.status === 'blocked_prereq'"
     class="rounded-md border border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20 p-4 text-sm">
+    <p class="text-amber-700 dark:text-amber-300 mb-1">
+      {{ __('Waiting for an example payload. Nothing has fired this trigger yet, so there are no real field names to map against.') }}
+    </p>
     <p class="text-amber-700 dark:text-amber-300 mb-3">
-      {{ __('No example payload captured yet. Open a page with your form and submit a test entry, then retry so the agent can map the real fields.') }}
+      {{ __('Go and fire the event once — publish a test post, submit the form, place a test order — then come back and retry.') }}
+      <span v-if="step.prereq?.trigger" class="font-mono text-xs">({{ step.prereq.trigger }})</span>
     </p>
     <div class="flex gap-2">
-      <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('I sent a test — retry') }}</Button>
+      <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('I fired it — retry') }}</Button>
       <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
     </div>
   </div>

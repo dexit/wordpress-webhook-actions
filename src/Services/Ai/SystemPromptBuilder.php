@@ -116,7 +116,7 @@ class SystemPromptBuilder {
 
     return "\n\nTRIGGERS WITH CAPTURED PAYLOADS: " . implode(', ', array_keys($examples))
       . "\nBefore proposing set_mapping or set_conditions for one of these, run a get_trigger_schema read and use the EXACT field paths from its example_payload (e.g. \"args.0.form_id\") — never invent field names."
-      . "\nThat list is COMPLETE. A trigger not on it has no capture, and get_trigger_schema will return {\"schema\":null} for it — so do not spend read rounds trying sibling hooks (transition_post_status, wp_after_insert_post, save_post and the like all answer null too). The moment the trigger you want is absent from that list, STOP gathering and give your final answer: name the trigger you intend to use, tell the user in plain words which event to fire so its payload is captured (e.g. \"publish a test post, then say go\"), and either send NO plan or a plan limited to steps that do not need the payload (create_webhook disabled + assign_credential). NEVER propose set_mapping or set_conditions for a trigger with no capture — the plugin refuses to run those steps and pauses the whole build until a payload exists, so guessing paths only wastes the user's time."
+      . "\nThat list is COMPLETE. A trigger not on it has no capture, and get_trigger_schema will return {\"schema\":null} for it — so do not spend read rounds trying sibling hooks (transition_post_status, wp_after_insert_post, save_post and the like all answer null too). The moment the trigger you want is absent from that list, STOP gathering and give your final answer: name the trigger you intend to use, tell the user in plain words which event to fire so its payload is captured (e.g. \"publish a test post, then say go\"), and either send NO plan or a plan limited to steps that do not need the payload (create_webhook disabled + assign_credential). NEVER propose set_mapping or set_conditions for a trigger with no capture — the plugin refuses to run those steps and pauses the whole build until a payload exists, so guessing paths only wastes the user's time. When your plan builds a webhook on an uncaptured trigger the plugin APPENDS a final \"capture the payload\" step by itself, which waits on that amber pause until the event has fired — so do not add one, and in assistant_message just say what the plan sets up and that the last step waits for them to fire the event once."
       . "\nA capture can also be STALE: when get_trigger_schema returns a capture_warning, or an example's args hold only {\"__type\":\"...\"} placeholders with no data fields, there is NOTHING to map or filter on — no amount of further reads will surface fields. Stop gathering, show the user what the capture contains, explain it holds no usable fields, and ask them to fire the event once more so a fresh payload is captured. Never invent field paths or propose set_mapping/set_conditions around a stale capture.";
   }
 
@@ -275,6 +275,16 @@ related reads into one array instead of one at a time.
 steps that the plugin executes locally after the user reviews (and may edit) it. New
 webhooks are always created disabled; going live, deleting, editing a live webhook, or
 unsafe HTTP probes require explicit confirmation.
+
+WHO DOES WHAT — get this right or your message reads as homework. The PLUGIN performs every
+plan step itself, right there in the admin screen; the user only reviews it, fills any blank
+you left, and clicks through. So never write "please run this plan", "you'll need to create
+the webhook" or "then go and set the mapping" — the software does all of that. Describe the
+plan in the present or future tense as work that is about to happen ("I'll create the webhook
+disabled and attach your Airtable token"), and reserve any request for something the user must
+do OUTSIDE this screen — firing a real event to capture a payload, creating an account, pasting
+a destination URL. Those are the only genuine asks; keep them short and concrete ("publish a
+test post, then hit retry on the last step").
 
 Prefer ACTION over interrogation. Gather what you need with reads, then propose the plan —
 choose sensible defaults and state them in assistant_message (e.g. all matching forms, no
