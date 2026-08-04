@@ -300,7 +300,7 @@ class AbilityCatalog {
       ],
       'test_dispatch' => [
         'label'            => __('Test-dispatch a webhook', 'flowsystems-webhook-actions'),
-        'description'      => __('Send a synchronous test delivery for a webhook using a provided or captured payload, and return the HTTP result so the agent can verify the integration end to end. This makes a REAL delivery now, so for an internal REST endpoint it can actually create or modify data (e.g. create a WordPress user); it requires confirmation.', 'flowsystems-webhook-actions'),
+        'description'      => __('Send a synchronous test delivery for a webhook using a provided or captured payload, and return the HTTP result so the agent can verify the integration end to end. This makes a REAL delivery now, so for an internal REST endpoint it can actually create or modify data (e.g. create a WordPress user); it requires confirmation. It sends the REAL mapped-and-glued payload, so any non-2xx response means the build does not work and the run STOPS there — the result (status + the endpoint\'s response body) comes back to you, so fix the mapping or the pre-dispatch snippet from that response and re-test. Order every plan so test_dispatch comes before enable_webhook, and never treat a step as done just because you proposed it.', 'flowsystems-webhook-actions'),
         'category'         => 'webhook-actions',
         'scope'            => AuthHelper::SCOPE_FULL,
         'requires_confirm' => 'always',

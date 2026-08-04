@@ -574,6 +574,9 @@ async function advance(opts = {}) {
       const hold = MIN_STEP_MS - (Date.now() - startedAt);
       if (hold > 0) await sleep(hold);
       execution.value = res.execution;
+      // The run appends its step outcomes to the transcript when it stops, so
+      // the next message the user sends carries them to the model.
+      if (res.transcript) transcript.value = res.transcript;
       focusedIndex.value = null; // follow the cursor as it advances
       devPanel.value?.refresh();
       keepGoing = res.continue;
@@ -782,8 +785,12 @@ async function scrollDown() {
               {{ __('e.g. “When a Contact Form 7 form is submitted, send it as JSON to my n8n webhook.”') }}
             </div>
             <template v-for="(m, i) in transcript" :key="i">
-              <!-- Read activity: abilities the agent ran itself to gather data -->
-              <div v-if="m.role === 'tool'" class="flex items-center flex-wrap gap-1.5 px-1 text-xs text-muted-foreground">
+              <!-- Read activity: abilities the agent ran itself to gather data.
+                   Step-result entries are also role "tool" but carry no reads —
+                   they exist to feed the model what the plan did, and the run
+                   panel already shows the user each step's outcome. -->
+              <div v-if="m.role === 'tool'" v-show="(m.reads || []).length"
+                class="flex items-center flex-wrap gap-1.5 px-1 text-xs text-muted-foreground">
                 <Search class="w-3.5 h-3.5 shrink-0" />
                 <span v-for="(r, j) in (m.reads || [])" :key="j"
                   class="rounded bg-muted px-1.5 py-0.5 font-mono">{{ readLabel(r) }}</span>

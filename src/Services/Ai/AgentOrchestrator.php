@@ -294,7 +294,8 @@ class AgentOrchestrator {
    * The stored transcript is the UI's view (folded prose). The model instead
    * gets, for each assistant turn, the raw JSON envelope it produced — keeping
    * its own few-shot history in the required format — and each `tool` entry
-   * (read results) rendered as a user-role block.
+   * (read results, and the outcomes of executed plan steps) rendered as a
+   * user-role block.
    *
    * @param array<int, array<string, mixed>> $transcript
    * @return array<int, array{role:string,content:string}>
@@ -302,9 +303,14 @@ class AgentOrchestrator {
   private function modelMessages(array $transcript): array {
     // Only the last few read-result entries replay in full (see the constant):
     // older ones belong to finished turns and would bloat every prompt.
+    // Step-result entries are exempt: they are short, they are the only record
+    // of what the plan actually did, and counting them here would push real
+    // read results out of the full-replay window.
     $toolIndexes = array_keys(array_filter(
       $transcript,
-      static fn($entry) => (($entry['role'] ?? '') === 'tool') && empty($entry['error'])
+      static fn($entry) => (($entry['role'] ?? '') === 'tool')
+        && empty($entry['error'])
+        && ($entry['kind'] ?? '') !== StepFeedback::KIND
     ));
     $fullToolsFrom = count($toolIndexes) > self::REPLAY_TOOL_FULL_COUNT
       ? $toolIndexes[count($toolIndexes) - self::REPLAY_TOOL_FULL_COUNT]
@@ -326,7 +332,8 @@ class AgentOrchestrator {
         continue;
       }
       if ($role === 'tool') {
-        if ($index < $fullToolsFrom && strlen($content) > self::REPLAY_TOOL_STALE_BYTES) {
+        $isStepResults = ($entry['kind'] ?? '') === StepFeedback::KIND;
+        if (!$isStepResults && $index < $fullToolsFrom && strlen($content) > self::REPLAY_TOOL_STALE_BYTES) {
           $content = substr($content, 0, self::REPLAY_TOOL_STALE_BYTES)
             . "\n…[older read results truncated — re-run the read if you need them]";
         }

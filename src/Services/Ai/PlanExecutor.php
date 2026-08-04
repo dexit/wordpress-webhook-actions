@@ -18,7 +18,9 @@ use WP_Error;
  * The AgentOrchestrator owns the conversation turn and delegates all plan
  * execution and reverting here. Cohesive sub-concerns live in collaborators:
  * {@see BuildLedger} (idempotent reuse of already-built objects),
- * {@see StepReverter} (per-step undo mechanics) and {@see ProbeInterpreter}.
+ * {@see StepReverter} (per-step undo mechanics), {@see ProbeInterpreter} and
+ * {@see DispatchInterpreter} (which non-2xx outcomes should stop a run), and
+ * {@see StepFeedback} (handing what actually happened back to the model).
  */
 class PlanExecutor {
   private AgentConversationRepository $conversations;
@@ -61,6 +63,7 @@ class PlanExecutor {
     $confirmed = array_map('strval', $confirmed);
     $applied   = is_array($conversation['last_recipe_json'] ?? null) ? $conversation['last_recipe_json'] : [];
     $results   = [];
+    $outcomes  = [];
 
     foreach ($plan as $step) {
       $stepId  = (string) $step['id'];
@@ -68,7 +71,7 @@ class PlanExecutor {
       $input   = (array) ($step['input'] ?? []);
 
       if ($this->stepNeedsConfirm($step, $input) && !in_array($stepId, $confirmed, true)) {
-        $this->persistRecipe($conversationId, $applied, $plan);
+        $this->persistRecipe($conversationId, $applied, $plan, $outcomes);
         return [
           'status'         => 'needs_confirm',
           'pending_step'   => $step,
@@ -80,7 +83,8 @@ class PlanExecutor {
       $result = $this->registry->execute($ability, $input);
 
       if (is_wp_error($result)) {
-        $this->persistRecipe($conversationId, $applied, $plan);
+        $outcomes[] = StepFeedback::outcome($step, null, false, $result->get_error_message());
+        $this->persistRecipe($conversationId, $applied, $plan, $outcomes);
         return [
           'status'      => 'error',
           'failed_step' => $step,
@@ -89,6 +93,23 @@ class PlanExecutor {
           'results'     => $results,
         ];
       }
+
+      // A test delivery that the endpoint refused is a failed build, not a
+      // completed step — stop before the plan's enable_webhook takes it live.
+      $dispatch = $ability === 'test_dispatch' ? DispatchInterpreter::interpret($result) : null;
+      if ($dispatch !== null) {
+        $outcomes[] = StepFeedback::outcome($step, $result, false, $dispatch['message']);
+        $this->persistRecipe($conversationId, $applied, $plan, $outcomes);
+        return [
+          'status'      => 'error',
+          'failed_step' => $step + ['dispatch' => $dispatch],
+          'error'       => $dispatch['message'],
+          'applied'     => $applied,
+          'results'     => $results,
+        ];
+      }
+
+      $outcomes[] = StepFeedback::outcome($step, $result, true);
 
       $this->activity->log(
         'agent.' . $ability,
@@ -102,7 +123,7 @@ class PlanExecutor {
       $results[] = ['id' => $stepId, 'ability' => $ability, 'ok' => true, 'result' => $result];
     }
 
-    $this->persistRecipe($conversationId, $applied, []);
+    $this->persistRecipe($conversationId, $applied, [], $outcomes);
 
     return ['status' => 'completed', 'applied' => $applied, 'results' => $results];
   }
@@ -299,6 +320,7 @@ class PlanExecutor {
       $step['error']      = $result->get_error_message();
       $steps[$cursor]     = $step;
       $execution['steps'] = $steps;
+      StepFeedback::record($execution, $step, null, false, $result->get_error_message());
       return $this->persistExecution($conversationId, $execution, $step, false, false);
     }
     unset($step['error']);
@@ -313,10 +335,30 @@ class PlanExecutor {
         $step['probe']      = $probe;
         $steps[$cursor]     = $step;
         $execution['steps'] = $steps;
+        StepFeedback::record($execution, $step, $result, false, $probe['message']);
         return $this->persistExecution($conversationId, $execution, $step, false, false);
       }
     }
     unset($step['probe']);
+
+    // 3b-3) test_dispatch sends the REAL mapped-and-glued payload, so a non-2xx
+    // response means the build does not work — the endpoint refused exactly what
+    // a live delivery would send. It returns a plain array (never a WP_Error),
+    // so without this gate the run marks it done and walks straight into the
+    // plan's enable_webhook, taking a webhook live on the back of a failure.
+    if ((string) $step['ability'] === 'test_dispatch' && is_array($result)) {
+      $dispatch = DispatchInterpreter::interpret($result);
+      if ($dispatch !== null) {
+        $step['status']     = 'blocked_dispatch';
+        $step['dispatch']   = $dispatch;
+        $step['result']     = $result;
+        $steps[$cursor]     = $step;
+        $execution['steps'] = $steps;
+        StepFeedback::record($execution, $step, $result, false, $dispatch['message']);
+        return $this->persistExecution($conversationId, $execution, $step, false, false);
+      }
+    }
+    unset($step['dispatch']);
 
     // 3c) Success → record result (+ pre-state for undo), expose its id to
     // downstream steps, advance.
@@ -373,6 +415,7 @@ class PlanExecutor {
     $execution['refs']   = $refs;
     $execution['cursor'] = $cursor + 1;
     $finished            = ($cursor + 1) >= count($steps);
+    StepFeedback::record($execution, $step, is_array($result) ? $result : null, true);
     return $this->persistExecution($conversationId, $execution, $step, !$finished, $finished);
   }
 
@@ -592,13 +635,29 @@ class PlanExecutor {
    * @return array<string, mixed>
    */
   private function persistExecution(int $conversationId, array $execution, ?array $acted, bool $continue, bool $finished): array {
-    $this->conversations->update($conversationId, ['execution' => $execution]);
-    return [
+    // The run has stopped moving (paused for the user, or finished) — hand every
+    // outcome it collected to the model as ONE entry. Mid-run we keep
+    // accumulating, so a long plan can't crowd out the read results it sits
+    // beside in the replay window.
+    $entry      = $continue ? null : StepFeedback::flush($execution);
+    $transcript = $entry === null ? null : $this->appendTranscript($conversationId, $entry);
+
+    $update = ['execution' => $execution];
+    if ($transcript !== null) {
+      $update['transcript'] = $transcript;
+    }
+    $this->conversations->update($conversationId, $update);
+
+    $out = [
       'execution' => $execution,
       'acted'     => $acted,
       'continue'  => $continue,
       'finished'  => $finished,
     ];
+    if ($transcript !== null) {
+      $out['transcript'] = $transcript;
+    }
+    return $out;
   }
 
   /**
@@ -726,11 +785,36 @@ class PlanExecutor {
     return $latestBefore > 0 ? $latestBefore : $fallback;
   }
 
-  private function persistRecipe(int $conversationId, array $applied, array $remainingPlan): void {
-    $this->conversations->update($conversationId, [
+  /**
+   * @param array<int, array<string, mixed>> $outcomes Executed-step outcomes to feed back to the model.
+   */
+  private function persistRecipe(int $conversationId, array $applied, array $remainingPlan, array $outcomes = []): void {
+    $update = [
       'last_recipe' => $applied,
       'plan'        => $remainingPlan,
-    ]);
+    ];
+
+    $entry = StepFeedback::entry($outcomes);
+    if ($entry !== null) {
+      $update['transcript'] = $this->appendTranscript($conversationId, $entry);
+    }
+
+    $this->conversations->update($conversationId, $update);
+  }
+
+  /**
+   * The conversation transcript with one entry appended. Read fresh: a run
+   * spans several requests, so an in-memory copy from the top of the call is
+   * already stale by the time a later step reports.
+   *
+   * @param array<string, mixed> $entry
+   * @return array<int, array<string, mixed>>
+   */
+  private function appendTranscript(int $conversationId, array $entry): array {
+    $conversation = $this->conversations->find($conversationId);
+    $transcript   = is_array($conversation['transcript_json'] ?? null) ? $conversation['transcript_json'] : [];
+    $transcript[] = $entry;
+    return $transcript;
   }
 
   /**

@@ -46,7 +46,7 @@ const emit = defineEmits([
             <Loader2 v-else-if="running && isCurrent && step.status === 'pending'" class="w-5 h-5 animate-spin text-primary" />
             <ShieldAlert v-else-if="step.status === 'needs_confirm'" class="w-5 h-5 text-amber-500" />
             <XCircle v-else-if="step.status === 'failed'" class="w-5 h-5 text-destructive" />
-            <AlertCircle v-else-if="step.status === 'blocked_input' || step.status === 'blocked_prereq' || step.status === 'blocked_probe'" class="w-5 h-5 text-amber-500" />
+            <AlertCircle v-else-if="step.status === 'blocked_input' || step.status === 'blocked_prereq' || step.status === 'blocked_probe' || step.status === 'blocked_dispatch'" class="w-5 h-5 text-amber-500" />
             <Undo2 v-else-if="step.status === 'reverted'" class="w-5 h-5 text-muted-foreground" />
             <Circle v-else class="w-5 h-5 text-primary" />
           </span>

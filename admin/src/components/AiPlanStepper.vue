@@ -76,7 +76,7 @@ watch(
                 <CheckCircle2 v-if="step.status === 'done'" class="w-4 h-4 text-emerald-500" />
                 <Loader2 v-else-if="isRunning(i)" class="w-4 h-4 animate-spin text-primary" />
                 <XCircle v-else-if="step.status === 'failed'" class="w-4 h-4 text-destructive" />
-                <AlertCircle v-else-if="step.status === 'blocked_input' || step.status === 'blocked_prereq' || step.status === 'blocked_probe' || step.status === 'needs_confirm'" class="w-4 h-4 text-amber-500" />
+                <AlertCircle v-else-if="step.status === 'blocked_input' || step.status === 'blocked_prereq' || step.status === 'blocked_probe' || step.status === 'blocked_dispatch' || step.status === 'needs_confirm'" class="w-4 h-4 text-amber-500" />
                 <Undo2 v-else-if="step.status === 'reverted'" class="w-4 h-4 text-muted-foreground" />
                 <Circle v-else :class="['w-4 h-4', isActive(i) ? 'text-primary' : 'text-muted-foreground/40']" />
               </span>

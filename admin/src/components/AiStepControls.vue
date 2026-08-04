@@ -275,6 +275,21 @@ function createCredForInput() {
     </template>
   </div>
 
+  <!-- blocked_dispatch: the test delivery reached the endpoint but was refused -->
+  <div v-else-if="step.status === 'blocked_dispatch'"
+    class="rounded-md border border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20 p-4 text-sm space-y-3">
+    <p class="text-amber-700 dark:text-amber-300">{{ step.dispatch?.message }}</p>
+    <pre v-if="step.dispatch?.response"
+      class="max-h-32 overflow-auto rounded bg-muted p-2 text-xs font-mono whitespace-pre-wrap break-all">{{ step.dispatch.response }}</pre>
+    <p class="text-xs text-muted-foreground">
+      {{ __('Ask the agent to fix the payload — it can see this response now — then retry. Skipping leaves the rest of the plan (including going live) to run on a delivery that failed.') }}
+    </p>
+    <div class="flex gap-2">
+      <Button size="sm" :disabled="busy" @click="emit('retry')">{{ __('Retry') }}</Button>
+      <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
+    </div>
+  </div>
+
   <!-- needs_confirm -->
   <div v-else-if="step.status === 'needs_confirm'"
     class="rounded-md border border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20 p-4">
