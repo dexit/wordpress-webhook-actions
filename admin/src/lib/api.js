@@ -250,7 +250,11 @@ export const api = {
     createConversation: (data = {}) => post('agent/conversations', data),
     getConversation: (id) => get(`agent/conversations/${id}`),
     deleteConversation: (id) => del(`agent/conversations/${id}`),
-    message: (id, message) => post(`agent/conversations/${id}/message`, { message }),
+    // `origin` marks a turn the panel composed for the user ("fix_it",
+    // "continuation") so the transcript can show it as machine text rather than
+    // as something they typed. Omitted for a message they actually wrote.
+    message: (id, message, origin = '') =>
+      post(`agent/conversations/${id}/message`, origin ? { message, origin } : { message }),
     execute: (id, data = {}) => post(`agent/conversations/${id}/execute`, data),
     step: (id, opts = {}) => post(`agent/conversations/${id}/step`, opts),
     setExecMode: (mode) => post('agent/exec-mode', { mode }),

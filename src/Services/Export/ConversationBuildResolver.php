@@ -5,16 +5,19 @@ namespace FlowSystems\WebhookActions\Services\Export;
 defined('ABSPATH') || exit;
 
 use FlowSystems\WebhookActions\Repositories\AgentConversationRepository;
+use FlowSystems\WebhookActions\Services\Ai\AppliedSteps;
 
 /**
  * Resolves an AI Builder conversation to the objects it actually built, so
  * "Share this build" can hand {@see BuildExporter} a webhook/chain id set
  * without the user re-picking everything by hand.
  *
- * The source of truth is `execution_json['steps']` — every applied plan step
- * records the ability it ran plus the concrete result it produced. The build
- * ledger is deliberately NOT used: it only dedupes create_webhook and
- * provision_wp_app_password, so it would miss chains entirely.
+ * The source of truth is every step the conversation applied — {@see AppliedSteps},
+ * which spans earlier plans as well as the current one, because a build that
+ * failed its test and got a fix plan created most of itself before the re-plan.
+ * Each applied step records the ability it ran plus the concrete result it
+ * produced. The build ledger is deliberately NOT used: it only dedupes
+ * create_webhook and provision_wp_app_password, so it would miss chains entirely.
  */
 class ConversationBuildResolver {
   private AgentConversationRepository $conversations;
@@ -40,7 +43,7 @@ class ConversationBuildResolver {
    */
   public function resolveFromConversation(array $conversation): array {
     $execution = is_array($conversation['execution_json'] ?? null) ? $conversation['execution_json'] : [];
-    $steps     = is_array($execution['steps'] ?? null) ? $execution['steps'] : [];
+    $steps     = AppliedSteps::all($execution);
 
     $webhookIds = [];
     $chainIds   = [];

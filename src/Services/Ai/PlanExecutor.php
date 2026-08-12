@@ -600,11 +600,16 @@ class PlanExecutor {
     }
 
     $seeded = [
-      'mode'   => $mode ?: $this->execMode(),
-      'cursor' => 0,
-      'refs'   => $refs === [] ? (object) [] : $refs,
-      'steps'  => $steps,
-      'ledger' => $ledger,
+      'mode'    => $mode ?: $this->execMode(),
+      'cursor'  => 0,
+      'refs'    => $refs === [] ? (object) [] : $refs,
+      'steps'   => $steps,
+      'ledger'  => $ledger,
+      // The run being replaced becomes history. Without this a re-plan erases
+      // every step the earlier plans applied, and everything downstream — the
+      // published build's "Abilities used", the resolver that decides which
+      // webhooks a share contains — sees only the last plan's work.
+      'applied' => AppliedSteps::carryForward($prior),
     ];
 
     // Rejection tally survives re-planning, like the ledger. Every fix arrives

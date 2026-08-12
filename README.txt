@@ -4,7 +4,7 @@ Tags: ai, webhooks, automation, integration, n8n
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 2.7.0
+Stable tag: 2.7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -127,17 +127,8 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.7.0 — 2026-08-04 =
-- New: when the trigger you picked has never fired, Build with AI now adds a "capture the payload" step to the plan and waits there instead of asking in chat — fire the event once, hit retry, and it carries on and finishes the mapping by itself
-- New: "Fix it" button on a failed test delivery hands the endpoint's own response back to Build with AI so it can correct the mapping or the snippet — no more copying the error into chat
-- New: the webhook screen shows the payload after your pre-dispatch Code Glue runs, next to the one after field mapping, so you can see the exact body that goes on the wire
-- Fixed: a test delivery the endpoint rejects now stops the build and shows you the response, instead of counting as a pass and letting the next step take the webhook live
-- Fixed: Build with AI is told what each plan step actually did, so it diagnoses a failure from the real response rather than asking you what went wrong
-- Fixed: Build with AI no longer guesses field paths for a trigger with no captured payload — those steps are refused until a real payload exists
-- Fixed: the example payload keeps refreshing until the webhook is mapped, so triggers that fire more than once (like transition_post_status) no longer freeze on the auto-draft WordPress writes when you open the editor
-- Fixed: Build with AI now knows field mapping runs before the pre-dispatch snippet, so it stops writing snippets that read $args after the mapping has removed it
-- Fixed: when the AI replies with a written-out plan instead of a runnable one, it is asked to resend it properly — previously "Fix it" could describe the whole repair and then do nothing at all
-- New: Build with AI now brings what it knows about the destination API before the first test — the envelope a record has to sit in, and request-level options like Airtable's typecast flag that no amount of reformatting a value can replace
-- Fixed: if the endpoint rejects a test delivery the same way twice, Build with AI is told the last change made no difference and to stop reformatting the same value — instead of looping through a third and fourth guess
-- New: with no AI connector and no key of your own, the AI settings now point you to a free Gemini key or to Pro's included AI credits, instead of just showing an empty key field
-- Fixed: the published-build address no longer picks up WordPress's own link colour when you hover it
+= 2.7.1 — 2026-08-12 =
+- Fixed: when Build with AI replans — after a failed test delivery, or when you ask for a change — it no longer forgets what the earlier plans already applied; a shared or published build now lists every ability the agent ran, not just the last plan's
+- Fixed: "Share this build" works out which webhooks a build contains from the whole run, so a build finished by a short corrective plan can no longer be shared with pieces missing
+- Fixed: the "Fix it" button and the automatic resume after a captured payload are now shown as messages the panel sent for you, not as something you typed — an endpoint's own error is no longer put in your mouth
+
