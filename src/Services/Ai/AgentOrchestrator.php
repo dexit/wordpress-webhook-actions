@@ -88,12 +88,23 @@ TXT;
   }
 
   /**
+   * Origins for a user-role turn the PANEL composed rather than the user typing
+   * it. The model is told nothing about this — the turn reaches it as the user's
+   * message either way, because that is what it is functionally. It exists so
+   * the transcript can say who actually wrote the words, in the chat and in a
+   * published build; anything else is stored as an author turn.
+   */
+  private const PANEL_ORIGINS = ['fix_it', 'continuation'];
+
+  /**
    * Add a user message to a conversation and get the agent's response (assistant
    * message + optional editable plan). Persists transcript + plan.
    *
+   * @param string $origin One of PANEL_ORIGINS when the panel composed this
+   *                       turn; '' when the user typed it.
    * @return array<string, mixed>|WP_Error
    */
-  public function converse(int $conversationId, string $userMessage): array|WP_Error {
+  public function converse(int $conversationId, string $userMessage, string $origin = ''): array|WP_Error {
     $transport = (new LlmTransport())->resolve();
     if ($transport === null) {
       return new WP_Error('fswa_ai_unconfigured', __('No AI provider is configured yet. Set one up to use the AI Builder.', 'flowsystems-webhook-actions'), ['status' => 409]);
@@ -110,7 +121,11 @@ TXT;
     // persisted turn (its completed read rounds replay for free) instead of
     // appending a duplicate user entry.
     if (!$this->isRetryAfterFailure($transcript, $userMessage)) {
-      $transcript[] = ['role' => 'user', 'content' => $userMessage];
+      $entry = ['role' => 'user', 'content' => $userMessage];
+      if (in_array($origin, self::PANEL_ORIGINS, true)) {
+        $entry['origin'] = $origin;
+      }
+      $transcript[] = $entry;
     }
 
     $system   = $this->prompts->build($conversation);

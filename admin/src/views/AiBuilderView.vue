@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Sparkles,
   Clock3,
+  Wrench,
 } from 'lucide-vue-next';
 import { Button, Input, Switch, Dialog } from '@/components/ui';
 import ProviderLogo from '@/components/ProviderLogo.vue';
@@ -434,6 +435,14 @@ function readLabel(read) {
   return hint ? `${read.ability} · ${hint}` : read.ability;
 }
 
+// Which panel action composed a user turn, for the transcript's own label. An
+// unrecognised origin from a newer build still reads as automatic.
+function originLabel(origin) {
+  if (origin === 'fix_it') return __('Sent for you by “Fix it”');
+  if (origin === 'continuation') return __('Sent for you — the run resumed');
+  return __('Sent for you by the panel');
+}
+
 // Fold any clarifying questions into the assistant bubble so they're actually
 // visible (mirrors how the server stores them in the transcript).
 function foldReply(message, questions) {
@@ -443,8 +452,11 @@ function foldReply(message, questions) {
 }
 
 // ---- Chat ----------------------------------------------------------------
-// The message whose send failed, so the user can retry without re-typing it.
+// The message whose send failed, so the user can retry without re-typing it —
+// with the origin it was sent under, so a retried "Fix it" is still recorded as
+// the panel's words rather than the author's.
 const retryMessage = ref(null);
+const retryOrigin = ref('');
 
 async function send() {
   const text = messageInput.value.trim();
@@ -469,11 +481,12 @@ async function send() {
 async function retrySend() {
   if (!retryMessage.value || sending.value) return;
   const text = retryMessage.value;
+  const origin = retryOrigin.value;
   sending.value = true;
   error.value = '';
   retryMessage.value = null;
   revealFrom.value = transcript.value.length; // animate the resumed reply
-  await dispatchMessage(text);
+  await dispatchMessage(text, origin);
 }
 
 // While a turn runs server-side the orchestrator persists each completed read
@@ -509,11 +522,15 @@ async function reloadTranscript(convId) {
   }
 }
 
-async function dispatchMessage(text) {
+// `origin` is empty for a message the user typed, and names the panel action
+// that composed it otherwise ('fix_it', 'continuation') — see PANEL_ORIGINS in
+// AgentOrchestrator. It only affects how the turn reads back in the transcript;
+// the model receives it as the user's turn either way.
+async function dispatchMessage(text, origin = '') {
   const convId = activeId.value;
   const poll = pollTurnProgress(convId);
   try {
-    const res = await api.agent.message(convId, text);
+    const res = await api.agent.message(convId, text, origin);
     clearInterval(poll);
     applyHosted(res);
     try {
@@ -545,6 +562,7 @@ async function dispatchMessage(text) {
     try { await reloadTranscript(convId); } catch { /* keep local view */ }
     error.value = e.message;
     retryMessage.value = text;
+    retryOrigin.value = origin;
     devPanel.value?.refresh();
   } finally {
     clearInterval(poll);
@@ -601,9 +619,9 @@ async function advance(opts = {}) {
   if (continuation) {
     sending.value = true;
     revealFrom.value = transcript.value.length;
-    transcript.value.push({ role: 'user', content: continuation });
+    transcript.value.push({ role: 'user', content: continuation, origin: 'continuation' });
     await scrollDown();
-    await dispatchMessage(continuation);
+    await dispatchMessage(continuation, 'continuation');
   }
 }
 
@@ -651,9 +669,9 @@ async function fixStep() {
 
   sending.value = true;
   revealFrom.value = transcript.value.length;
-  transcript.value.push({ role: 'user', content: text });
+  transcript.value.push({ role: 'user', content: text, origin: 'fix_it' });
   await scrollDown();
-  await dispatchMessage(text);
+  await dispatchMessage(text, 'fix_it');
 }
 function skipStep() {
   advance({ skip: true });
@@ -842,6 +860,22 @@ async function scrollDown() {
                 <Search class="w-3.5 h-3.5 shrink-0" />
                 <span v-for="(r, j) in (m.reads || [])" :key="j"
                   class="rounded bg-muted px-1.5 py-0.5 font-mono">{{ readLabel(r) }}</span>
+              </div>
+              <!-- A user turn the PANEL composed, not the user: "Fix it" handing
+                   a failed step's own error back to the agent, or the run
+                   resuming itself once a payload was captured. It still goes to
+                   the model as their turn, so it keeps their side of the thread —
+                   but dashed and monospaced, with the button that sent it named,
+                   so it never reads as something they typed. -->
+              <div v-else-if="m.content && m.origin" class="flex justify-end">
+                <div class="max-w-[80%] min-w-0 rounded-lg border border-dashed border-border px-3 py-2">
+                  <div class="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-1">
+                    <Wrench v-if="m.origin === 'fix_it'" class="w-3 h-3 shrink-0" />
+                    <Clock3 v-else class="w-3 h-3 shrink-0" />
+                    <span>{{ originLabel(m.origin) }}</span>
+                  </div>
+                  <div class="whitespace-pre-wrap font-mono text-xs text-muted-foreground">{{ m.content }}</div>
+                </div>
               </div>
               <div v-else-if="m.content"
                 :class="['flex', m.role === 'user' ? 'justify-end' : 'justify-start']">

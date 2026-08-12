@@ -372,14 +372,23 @@ class AgentController extends WP_REST_Controller {
   }
 
   /**
-   * POST /agent/conversations/{id}/message  Body: { message }
+   * POST /agent/conversations/{id}/message  Body: { message, origin? }
+   *
+   * `origin` marks a turn the PANEL composed on the user's behalf ("Fix it",
+   * the run resuming itself after a payload capture) rather than one they
+   * typed. The model still receives it as the user's turn — it only changes how
+   * the transcript reads back, in the chat and in a shared build.
    */
   public function message(WP_REST_Request $request): WP_REST_Response|WP_Error {
     $message = trim((string) $request->get_param('message'));
     if ($message === '') {
       return new WP_Error('fswa_empty_message', __('A message is required.', 'flowsystems-webhook-actions'), ['status' => 400]);
     }
-    $result = $this->orchestrator->converse((int) $request->get_param('id'), $message);
+    $result = $this->orchestrator->converse(
+      (int) $request->get_param('id'),
+      $message,
+      (string) ($request->get_param('origin') ?? '')
+    );
     return is_wp_error($result) ? $result : rest_ensure_response($this->withHostedStatus($result));
   }
 
