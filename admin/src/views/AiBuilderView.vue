@@ -13,6 +13,7 @@ import {
   Sparkles,
   Clock3,
   Wrench,
+  History,
 } from 'lucide-vue-next';
 import { Button, Input, Switch, Dialog } from '@/components/ui';
 import ProviderLogo from '@/components/ProviderLogo.vue';
@@ -771,8 +772,13 @@ async function scrollDown() {
       <Loader2 class="w-4 h-4 animate-spin" /> {{ __('Loading…') }}
     </div>
 
+    <template v-else>
     <!-- Setup card -------------------------------------------------------- -->
-    <div v-else-if="!configured" class="rounded-lg border border-border bg-card p-6 max-w-2xl">
+    <!-- Shown when no provider is connected. It deliberately does NOT replace the
+         builder any more: build history is a record of work already done, so it
+         stays readable (read-only) below. Losing your API key should not lose
+         sight of what you built with it. -->
+    <div v-if="!configured" class="rounded-lg border border-border bg-card p-6 max-w-2xl">
       <div class="flex items-center gap-2 mb-1">
         <Settings2 class="w-5 h-5 text-primary" />
         <h3 class="text-lg font-semibold text-foreground">{{ __('Connect an AI provider') }}</h3>
@@ -784,9 +790,18 @@ async function scrollDown() {
     </div>
 
     <!-- Builder ----------------------------------------------------------- -->
-    <div v-else class="space-y-4">
+    <!-- With a provider: the full builder. Without one: past builds only, read-only.
+         Nothing at all when there is neither — the setup card stands alone. -->
+    <div v-if="configured || conversations.length" :class="['space-y-4', !configured && 'mt-6']">
+      <!-- Read-only notice, in place of the model bar there is no provider for -->
+      <div v-if="!configured"
+        class="rounded-lg border border-border bg-muted/40 px-4 py-3 flex items-start gap-2 text-sm text-muted-foreground">
+        <History class="w-4 h-4 shrink-0 mt-0.5" />
+        <span>{{ __('Your previous builds, read-only. Connect a provider above to continue building.') }}</span>
+      </div>
+
       <!-- Active model bar + expandable provider settings -->
-      <div class="rounded-lg border border-border bg-card">
+      <div v-else class="rounded-lg border border-border bg-card">
         <div class="flex items-center justify-between gap-3 px-4 py-3">
           <div class="flex items-center gap-2 min-w-0">
             <ProviderLogo :provider="activeProvider" :size="36" />
@@ -825,7 +840,7 @@ async function scrollDown() {
       </div>
 
       <!-- Builds bar: switcher + delete + new, above the conversation window -->
-      <AiBuildsBar :conversations="conversations" :active-id="activeId"
+      <AiBuildsBar :conversations="conversations" :active-id="activeId" :can-create="configured"
         @switch="onSwitchConversation" @delete="removeConversation({ id: activeId })" @new="newChat" />
 
       <div :class="['grid grid-cols-1 gap-6', hasStepper && 'lg:grid-cols-[240px_1fr]']">
@@ -898,8 +913,8 @@ async function scrollDown() {
             </div>
           </div>
 
-          <!-- Input -->
-          <form @submit.prevent="send" class="flex gap-2">
+          <!-- Input — only with a provider to send it to. -->
+          <form v-if="configured" @submit.prevent="send" class="flex gap-2">
             <Input v-model="messageInput" type="text" :placeholder="__('Describe what to build…')"
               class="flex-1" />
             <button type="submit" :disabled="sending || !messageInput.trim()"
@@ -908,8 +923,9 @@ async function scrollDown() {
             </button>
           </form>
 
-          <!-- Focused step detail (one step at a time) -->
-          <AiStepPanel v-if="execution && focusedStep"
+          <!-- Focused step detail (one step at a time). Its actions all call the
+               agent, so it is hidden without a provider rather than shown inert. -->
+          <AiStepPanel v-if="configured && execution && focusedStep"
             :step="focusedStep"
             :step-number="(focusedIndex ?? execCursor) + 1"
             :step-count="execSteps.length"
@@ -938,7 +954,7 @@ async function scrollDown() {
           />
 
           <!-- Finished, nothing focused -->
-          <div v-else-if="execution && execFinished"
+          <div v-else-if="configured && execution && execFinished"
             class="rounded-lg border border-border bg-card p-5 flex flex-wrap items-center gap-3 text-sm">
             <span class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 class="w-5 h-5" /> {{ __('Build complete.') }}
@@ -951,6 +967,7 @@ async function scrollDown() {
       </section>
       </div>
     </div>
+    </template>
 
     <!-- Error toast -->
     <div v-if="error" class="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center justify-between gap-3">

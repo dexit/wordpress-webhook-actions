@@ -2,9 +2,9 @@
 Contributors: mateuszflowsystems
 Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.7.2
+Stable tag: 2.7.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -143,7 +143,7 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.7.2 — 2026-08-19 =
-- Improved: the plugin directory listing now spells out what Webhook Actions can connect — which form plugins can act as triggers (Elementor Forms, WPForms, Forminator, Fluent Forms, Gravity Forms, plus built-in Contact Form 7 and IvyForms support) and which destinations you can send to (Slack, Discord, Airtable, Google Sheets, Mailchimp, HubSpot, Salesforce, n8n, Make, Zapier, or any other HTTP endpoint)
-- Improved: two new FAQ entries — using Elementor Forms, WPForms, Forminator, Fluent Forms or Gravity Forms as triggers, and sending WordPress data to Slack, Google Sheets, Airtable or a CRM
-- No functional changes: this release updates the readme and directory listing only
+= 2.7.3 — 2026-08-20 =
+- Fixed: your past builds no longer disappear when no AI provider is connected. Build with AI used to replace the whole screen with the provider setup card, hiding the build switcher and every transcript along with it — so rotating or removing an API key lost sight of everything you had built with it. The setup card now sits above your build history instead of in place of it, and past builds stay readable.
+- Changed: while no provider is connected, build history is read-only — the message box, "New build" and the step actions are hidden rather than shown as buttons that cannot work.
+- Tested up to WordPress 7.1.
