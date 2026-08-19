@@ -1,20 +1,28 @@
 === Webhook Actions - build automations and integrations with AI help ===
 Contributors: mateuszflowsystems
-Tags: ai, webhooks, automation, integration, n8n
+Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 2.7.1
+Stable tag: 2.7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
-Describe what you want in chat — the built-in AI agent plans, builds, and tests your WordPress webhooks, integrations, and automations.
+Describe an integration in chat and the AI builds it — outgoing webhooks from any WordPress or WooCommerce action, queued, retried and logged.
 
 == Description ==
 
 **Describe the integration you want. The AI builds it.** Webhook Actions ships with **Build with AI** — an in-admin agent that turns a plain-language request like *"When a Contact Form 7 form is submitted, send it as JSON to my n8n webhook"* into a working, tested automation. The agent proposes a plan you can review and edit, then creates the webhook, captures a real example payload from your site, maps the fields, sets dispatch conditions, probes your endpoint, and sends a test delivery. Nothing goes live without your confirmation — new webhooks are always created disabled, and you can undo the last change with one click.
 
 📖 [Full documentation at wpwebhooks.org/docs/](https://wpwebhooks.org/docs/)
+
+= What you can connect =
+
+**Sources — anything in WordPress that fires an action.** Webhook Actions turns any `do_action` into a trigger, so form submissions, WooCommerce orders, user registrations, post publishes and your own custom plugin events can all start an automation. That covers Elementor Forms, WPForms, Forminator, Fluent Forms, Gravity Forms, WooCommerce and your own code — there is no per-plugin add-on to hunt down. Contact Form 7 and IvyForms go one step further with built-in support: their submissions are normalized into clean JSON payloads automatically.
+
+**Destinations — any HTTP endpoint.** The plugin sends outgoing webhooks to anything that accepts a request: an n8n, Make, Zapier or Pabbly webhook node, a Slack or Discord incoming-webhook URL for order and form notifications, Airtable, Google Sheets, Mailchimp, HubSpot, Salesforce, Notion, your CRM, an internal microservice, or an AI agent API. There are no bundled per-service connectors and none are needed — point a webhook at a URL, map the fields, and send. Every delivery is queued, retried on failure and logged with full request and response history.
+
+That makes it a no-code way to sync WordPress data outward: describe what you want in chat and let the AI build it, or wire it up by hand in the admin UI. No PHP required either way.
 
 = Bring your own AI — free options included =
 
@@ -29,13 +37,13 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 
 = The engine underneath (free) =
 
-- Turn any WordPress do_action into a first-class automation trigger your CRMs, n8n flows, AI agents, and internal services can consume
+- Turn any WordPress do_action into a first-class automation trigger your CRMs, n8n flows, AI agents, and internal services can consume — every dispatch is an outgoing webhook you fully control
 - Persistent delivery queue with smart retry and exponential backoff — powered by WP-Cron, auto-upgrades to Action Scheduler or System Cron when available, **(Pro)** External Cron for guaranteed reliability
 - Per-event UUID and ISO 8601 timestamp — enable downstream deduplication
 - Delivery logs with full attempt history, request/response inspection, replay, and bulk retry
 - Synchronous execution mode — fire inline without queue delay
 - Payload mapping — rename, restructure, exclude, and type-cast fields with dot-notation paths
-- Conditional dispatch — filter events by payload field values before dispatch
+- Conditional dispatch — filter events by payload field values before dispatch, so a Slack notification or a CRM sync only fires when it should
 - HTTP method, custom headers, and URL query parameters per webhook
 - Dynamic endpoint URLs — `{{ field.path }}` placeholders resolved at dispatch time (free via `fswa_webhook_url` filter)
 - Webhook Chains — wire 2xx completions to downstream webhooks with full observability
@@ -95,6 +103,14 @@ Yes. The core plugin is completely free and licensed under GPL. Webhook Actions 
 
 Yes. Any WordPress or WooCommerce action can be a trigger. The plugin delivers to any HTTP endpoint — n8n, Make, Zapier webhook nodes, internal services, or AI agent APIs. Scoped API tokens let Claude Code, Cursor, or any automation tool read logs, retry deliveries, and toggle webhooks without WordPress credentials.
 
+= Does it work with Elementor Forms, WPForms, Forminator, Fluent Forms or Gravity Forms? =
+
+Yes. These plugins fire their own WordPress actions when a form is submitted, and Webhook Actions can use any of them as a trigger — so you can send an Elementor Forms or WPForms submission straight to a webhook without a dedicated add-on. Pick the plugin's submit action in the trigger list, capture a real submission to see the payload, then map the fields you want. Contact Form 7 and IvyForms additionally ship with built-in normalization; the others use the generic trigger path.
+
+= Can I send WordPress data to Slack, Google Sheets, Airtable or a CRM? =
+
+Yes — any destination that accepts an HTTP request works. For Slack or Discord, paste the incoming-webhook URL they give you and map the payload into the message field. For Google Sheets, Airtable, Mailchimp, HubSpot or Salesforce, either call their API directly or point the webhook at an n8n, Make or Zapier node and let it do the last hop. Nothing here needs a per-service connector, because the plugin speaks plain HTTP.
+
 = Do I need extra plugins for Contact Form 7 or IvyForms? =
 
 No. Both integrations are built in. When CF7 or IvyForms is active, submissions are automatically normalized into clean JSON payloads — no additional plugins or custom code required.
@@ -127,8 +143,7 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.7.1 — 2026-08-12 =
-- Fixed: when Build with AI replans — after a failed test delivery, or when you ask for a change — it no longer forgets what the earlier plans already applied; a shared or published build now lists every ability the agent ran, not just the last plan's
-- Fixed: "Share this build" works out which webhooks a build contains from the whole run, so a build finished by a short corrective plan can no longer be shared with pieces missing
-- Fixed: the "Fix it" button and the automatic resume after a captured payload are now shown as messages the panel sent for you, not as something you typed — an endpoint's own error is no longer put in your mouth
-
+= 2.7.2 — 2026-08-19 =
+- Improved: the plugin directory listing now spells out what Webhook Actions can connect — which form plugins can act as triggers (Elementor Forms, WPForms, Forminator, Fluent Forms, Gravity Forms, plus built-in Contact Form 7 and IvyForms support) and which destinations you can send to (Slack, Discord, Airtable, Google Sheets, Mailchimp, HubSpot, Salesforce, n8n, Make, Zapier, or any other HTTP endpoint)
+- Improved: two new FAQ entries — using Elementor Forms, WPForms, Forminator, Fluent Forms or Gravity Forms as triggers, and sending WordPress data to Slack, Google Sheets, Airtable or a CRM
+- No functional changes: this release updates the readme and directory listing only
