@@ -8,6 +8,9 @@ import { __ } from '@/i18n';
 const props = defineProps({
   conversations: { type: Array, default: () => [] },
   activeId: { type: [Number, String], default: null },
+  // False when no AI provider is connected: past builds stay readable, but there
+  // is nothing to start a new one with, so the button would only lead to an error.
+  canCreate: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['switch', 'delete', 'new']);
@@ -33,7 +36,7 @@ const emit = defineEmits(['switch', 'delete', 'new']);
       <Trash2 class="w-4 h-4" />
     </button>
     <div class="flex-1"></div>
-    <button @click="emit('new')"
+    <button v-if="canCreate" @click="emit('new')"
       class="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted shrink-0">
       <Plus class="w-4 h-4" /> {{ __('New build') }}
     </button>
