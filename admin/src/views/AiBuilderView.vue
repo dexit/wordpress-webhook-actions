@@ -774,11 +774,11 @@ async function scrollDown() {
 
     <template v-else>
     <!-- Setup card -------------------------------------------------------- -->
-    <!-- Shown when no provider is connected. It deliberately does NOT replace the
-         builder any more: build history is a record of work already done, so it
-         stays readable (read-only) below. Losing your API key should not lose
-         sight of what you built with it. -->
-    <div v-if="!configured" class="rounded-lg border border-border bg-card p-6 max-w-2xl">
+    <!-- Only when there is NOTHING else to show. With builds to display, the
+         full card would fill the screen above them and bury the one thing that
+         demonstrates what this feature does, so the compact bar below is used
+         instead and the card's own settings live inside it. -->
+    <div v-if="!configured && !conversations.length" class="rounded-lg border border-border bg-card p-6 max-w-2xl">
       <div class="flex items-center gap-2 mb-1">
         <Settings2 class="w-5 h-5 text-primary" />
         <h3 class="text-lg font-semibold text-foreground">{{ __('Connect an AI provider') }}</h3>
@@ -792,12 +792,24 @@ async function scrollDown() {
     <!-- Builder ----------------------------------------------------------- -->
     <!-- With a provider: the full builder. Without one: past builds only, read-only.
          Nothing at all when there is neither — the setup card stands alone. -->
-    <div v-if="configured || conversations.length" :class="['space-y-4', !configured && 'mt-6']">
-      <!-- Read-only notice, in place of the model bar there is no provider for -->
-      <div v-if="!configured"
-        class="rounded-lg border border-border bg-muted/40 px-4 py-3 flex items-start gap-2 text-sm text-muted-foreground">
-        <History class="w-4 h-4 shrink-0 mt-0.5" />
-        <span>{{ __('Your previous builds, read-only. Connect a provider above to continue building.') }}</span>
+    <div v-if="configured || conversations.length" class="space-y-4">
+      <!-- No provider, but there ARE builds: a one-line bar rather than the full
+           card, so the builds themselves stay above the fold. Same settings, one
+           click away — it expands into the very same AiProviderSettings. -->
+      <div v-if="!configured" class="rounded-lg border border-border bg-card">
+        <div class="flex items-center justify-between gap-3 px-4 py-3">
+          <div class="flex items-start gap-2 min-w-0 text-sm text-muted-foreground">
+            <History class="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{{ __('Your previous builds, read-only. Connect a provider to continue building.') }}</span>
+          </div>
+          <Button variant="outline" size="sm" class="shrink-0" @click="showSettings = !showSettings">
+            <Settings2 class="w-4 h-4 mr-1.5" />
+            {{ __('Connect') }}
+          </Button>
+        </div>
+        <div v-if="showSettings" class="border-t border-border p-4">
+          <AiProviderSettings :status="status" @update="onSettingsUpdate" />
+        </div>
       </div>
 
       <!-- Active model bar + expandable provider settings -->
