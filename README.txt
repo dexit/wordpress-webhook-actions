@@ -4,7 +4,7 @@ Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.7.3
+Stable tag: 2.7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -143,7 +143,5 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.7.3 — 2026-08-20 =
-- Fixed: your past builds no longer disappear when no AI provider is connected. Build with AI used to replace the whole screen with the provider setup card, hiding the build switcher and every transcript along with it — so rotating or removing an API key lost sight of everything you had built with it. The setup card now sits above your build history instead of in place of it, and past builds stay readable.
-- Changed: while no provider is connected, build history is read-only — the message box, "New build" and the step actions are hidden rather than shown as buttons that cannot work.
-- Tested up to WordPress 7.1.
+= 2.7.4 — 2026-08-20 =
+- Changed: when you have builds but no AI provider connected, Build with AI now opens on your builds with a single "Connect" bar above them, instead of a full-height setup card that pushed everything below the fold. The same provider settings are one click away inside that bar. A site with no builds yet still sees the full setup card.
