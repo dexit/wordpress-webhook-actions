@@ -140,7 +140,12 @@ class AgentController extends WP_REST_Controller {
     // challenge config; the browser solves it and calls again. That keeps the
     // Turnstile site key off every ordinary status render — this route is the
     // only place it is ever needed.
-    if ($token === '') {
+    //
+    // `challenge` marks the second leg. It matters because the challenge legally
+    // yields no token on most sites — Turnstile only renders on hostnames
+    // registered with Cloudflare — and without the marker that empty token would
+    // loop straight back to this branch instead of reaching the API.
+    if ($token === '' && !$request->get_param('challenge')) {
       return new WP_REST_Response([
         'needs_challenge' => true,
         'site_key'        => $trial->siteKey(),

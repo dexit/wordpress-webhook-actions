@@ -7,10 +7,12 @@ import { ref } from 'vue'
  * out credits without a payment. The script is loaded lazily — an admin who
  * never starts a trial should not be making requests to Cloudflare at all.
  *
- * Failure is reported, never swallowed: the API fails closed, so a silent
- * script-load failure would surface as a confusing "could not verify" error
- * later instead of an honest "the challenge could not load" here. That matters
- * most inside WordPress Playground, where an external script may be blocked.
+ * A widget only renders on the hostnames registered against it, and Cloudflare's
+ * "Any Hostname" option is Enterprise-only — so on an ordinary customer domain
+ * this WILL fail, by design. That is not an error state: the API only requires a
+ * solved challenge from Playground, where the hostname is fixed and identities
+ * are disposable. Callers should treat a failure as "no token" and let the server
+ * decide, rather than blocking the user.
  */
 const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 
@@ -40,7 +42,7 @@ function loadScript() {
   return scriptPromise
 }
 
-export function useTurnstile(siteKey) {
+export function useTurnstile(siteKey, action = 'wpwebhooks-ai-trial') {
   const solving = ref(false)
   const error = ref('')
 
@@ -61,6 +63,7 @@ export function useTurnstile(siteKey) {
       return await new Promise((resolve, reject) => {
         const widgetId = turnstile.render(container, {
           sitekey: siteKey,
+          action,
           appearance: 'interaction-only',
           callback: (token) => {
             turnstile.remove(widgetId)

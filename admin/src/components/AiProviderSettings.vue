@@ -129,24 +129,25 @@ async function startTrial() {
       return;
     }
 
-    // No site key means trials are not configured server-side. Stop here rather
-    // than posting an empty token, which the route would read as another
-    // token-less call and answer with needs_challenge again — leaving the panel
-    // to emit a challenge envelope as if it were a status object.
-    if (!first.site_key) {
-      trialError.value = __('The free trial is temporarily unavailable. Please connect a provider below, or try again later.');
-      return;
+    // Try the challenge, but never let it block. The widget only renders on
+    // hostnames registered with Cloudflare, so on an ordinary customer domain it
+    // fails by design — and the API only *requires* a token from Playground,
+    // where the hostname is fixed. Anywhere else it falls back to the per-IP
+    // throttle, one-trial-per-site and the global daily cap.
+    let token = '';
+
+    if (first.site_key) {
+      try {
+        token = await useTurnstile(first.site_key).solve(challengeBox.value);
+      } catch {
+        token = '';
+      }
     }
 
-    const { solve } = useTurnstile(first.site_key);
-    const token = await solve(challengeBox.value);
-
-    if (!token) {
-      trialError.value = __('The verification challenge could not be completed. Please try again.');
-      return;
-    }
-
-    const second = await api.agent.startTrial({ turnstile_token: token });
+    // `challenge` marks this as the second leg, so an empty token cannot be read
+    // as another token-less first call and answered with needs_challenge — which
+    // the panel would then emit as if it were a transport status.
+    const second = await api.agent.startTrial({ turnstile_token: token, challenge: 1 });
 
     if (second?.needs_challenge) {
       trialError.value = __('The verification challenge could not be completed. Please try again.');
