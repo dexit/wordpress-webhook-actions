@@ -26,8 +26,14 @@ use FlowSystems\WebhookActions\Repositories\CredentialRepository;
  * `fswa_ai_transport` filter supplying a transport, 'hosted' resolves like
  * 'auto', so the option is inert on free installs.
  *
+ * A fourth, 'hosted_trial', is the anonymous free trial: our API, our provider
+ * key, no account. It is the LAST resort in 'auto' — a site that has configured
+ * the AI Client or its own key always keeps using it — but it is what makes
+ * Build with AI work on a fresh install, and inside the Playground preview,
+ * with nothing connected at all.
+ *
  * Option shapes:
- *   fswa_ai_source     : 'auto' | 'wp_ai_client' | 'byok' | 'hosted'
+ *   fswa_ai_source     : 'auto' | 'wp_ai_client' | 'byok' | 'hosted' | 'hosted_trial'
  *   fswa_ai_client_pref: [ 'provider' => 'google', 'model' => 'gemini-2.5-pro' ]
  *   fswa_ai_byok       : [ 'active' => 'openai', 'providers' => [
  *                            'openai' => [ 'credential_id' => 13, 'model' => 'gpt-4o-mini' ], … ] ]
@@ -58,15 +64,31 @@ class LlmTransport {
     $aiAvailable = WpAiClientTransport::isAvailable();
 
     if ($source === 'byok') {
-      return $this->byokTransport() ?? ($aiAvailable ? $this->aiClientTransport() : null);
+      return $this->byokTransport() ?? ($aiAvailable ? $this->aiClientTransport() : $this->trialTransport());
     }
 
     if ($source === 'wp_ai_client') {
-      return $aiAvailable ? $this->aiClientTransport() : $this->byokTransport();
+      return $aiAvailable ? $this->aiClientTransport() : ($this->byokTransport() ?? $this->trialTransport());
     }
 
-    // auto: prefer the AI Client when present, else fall back to BYO.
-    return $aiAvailable ? $this->aiClientTransport() : $this->byokTransport();
+    if ($source === 'hosted_trial') {
+      return $this->trialTransport() ?? ($aiAvailable ? $this->aiClientTransport() : $this->byokTransport());
+    }
+
+    // auto: prefer the AI Client, then BYO, then the free trial. The trial is
+    // last so we never spend our own credits for a site that brought a key.
+    if ($aiAvailable) {
+      return $this->aiClientTransport();
+    }
+
+    return $this->byokTransport() ?? $this->trialTransport();
+  }
+
+  /** The anonymous trial transport, or null when no trial has been started. */
+  private function trialTransport(): ?LlmTransportInterface {
+    $trial = new TrialClient();
+
+    return $trial->isStarted() ? new HostedTrialTransport($trial) : null;
   }
 
   // ---- Status --------------------------------------------------------------
@@ -97,6 +119,9 @@ class LlmTransport {
       // save-source/byok/preference endpoints return this array too and the
       // admin UI replaces its whole status with each response.
       'hosted'           => apply_filters('fswa_ai_hosted_status', null),
+      // The free trial. Drives the "Try it free — no key needed" path, which is
+      // the primary CTA on an unconfigured install.
+      'trial'            => (new TrialClient())->status(),
     ];
   }
 
@@ -157,11 +182,11 @@ class LlmTransport {
 
   public function source(): string {
     $source = (string) get_option(self::SOURCE_KEY, 'auto');
-    return in_array($source, ['auto', 'wp_ai_client', 'byok', 'hosted'], true) ? $source : 'auto';
+    return in_array($source, ['auto', 'wp_ai_client', 'byok', 'hosted', 'hosted_trial'], true) ? $source : 'auto';
   }
 
   public function saveSource(string $source): void {
-    if (in_array($source, ['auto', 'wp_ai_client', 'byok', 'hosted'], true)) {
+    if (in_array($source, ['auto', 'wp_ai_client', 'byok', 'hosted', 'hosted_trial'], true)) {
       update_option(self::SOURCE_KEY, $source);
     }
   }

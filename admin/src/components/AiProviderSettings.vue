@@ -4,6 +4,7 @@ import { Loader2, Check, Trash2, KeyRound, Plus, AlertTriangle, Sparkles, Extern
 import { Input, Label, Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui';
 import ProviderLogo from './ProviderLogo.vue';
 import { api } from '@/lib/api';
+import { useTurnstile } from '@/composables/useTurnstile';
 import { __ } from '@/i18n';
 
 const props = defineProps({ status: { type: Object, required: true } });
@@ -105,6 +106,40 @@ function onWpProvider(id) {
 const saveWp = () => run('wp', () => api.agent.savePreference({ provider: wpProvider.value, model: wpModel.value }));
 
 // ---- BYO connectors -------------------------------------------------------
+// ---- Free trial -----------------------------------------------------------
+// The answer to "Build with AI needs an API key before you can see it work".
+const trial = computed(() => props.status?.trial || null);
+const trialActive = computed(() => trial.value?.started === true && !trial.value?.exhausted);
+const trialSpent = computed(() => trial.value?.started === true && trial.value?.exhausted === true);
+
+const challengeBox = ref(null);
+const trialError = ref('');
+
+async function startTrial() {
+  trialError.value = '';
+  busy.value = 'trial';
+
+  try {
+    // First call returns the challenge config; the browser solves it, then we
+    // call again with the token to actually mint the trial.
+    const first = await api.agent.startTrial({});
+
+    if (!first?.needs_challenge) {
+      emit('update', first);
+      return;
+    }
+
+    const { solve } = useTurnstile(first.site_key);
+    const token = await solve(challengeBox.value);
+
+    emit('update', await api.agent.startTrial({ turnstile_token: token }));
+  } catch (e) {
+    trialError.value = e?.message || __('Could not start the free trial.');
+  } finally {
+    busy.value = '';
+  }
+}
+
 const byokProviders = computed(() => props.status?.byok?.providers || []);
 const byokActive = computed(() => props.status?.byok?.active || null);
 
@@ -112,7 +147,7 @@ const byokActive = computed(() => props.status?.byok?.active || null);
 // the panel is asking for an API key from someone who may not have one yet and
 // has no idea a free option exists. Only then do we surface the two ways out.
 const needsFirstKey = computed(
-  () => !byokProviders.value.some((p) => p.connected) && !hostedAvailable.value,
+  () => !byokProviders.value.some((p) => p.connected) && !hostedAvailable.value && !trialActive.value,
 );
 
 // Per-provider UI state: connect form open, key/model drafts, show-all toggle.
@@ -279,28 +314,60 @@ initWp();
 
       <!-- No connector, no key, no credits: don't leave them staring at an empty
            key field. One route is free and takes two minutes; the other is Pro. -->
+      <!-- Trial in progress: show what is left, and nothing else to do. -->
+      <div v-if="trialActive" class="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1.5">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <Sparkles class="w-3.5 h-3.5 text-primary" /> {{ __('Free trial') }}
+          </span>
+          <span class="text-sm font-medium text-foreground tabular-nums">
+            {{ __('%s credits left').replace('%s', fmt(trial.credits)) }}
+          </span>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          {{ __('No API key needed. Connect your own provider below at any time — it will be used instead of the trial.') }}
+        </p>
+      </div>
+
       <div v-if="needsFirstKey"
         class="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2.5">
         <div class="flex items-start gap-2">
           <Sparkles class="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <p class="text-xs text-foreground">
-            {{ __('Build with AI needs a model to talk to. You do not have to pay for one — Google AI Studio gives you a free Gemini key with no credit card.') }}
+            <template v-if="trialSpent">
+              {{ __('Your free trial is used up. Connect your own provider below — Google AI Studio gives you a free Gemini key with no credit card — or get Pro credits.') }}
+            </template>
+            <template v-else>
+              {{ __('Build with AI needs a model to talk to. Try it free right now with no key and no account, or connect your own provider.') }}
+            </template>
           </p>
         </div>
+
         <div class="flex flex-wrap items-center gap-2">
+          <Button v-if="!trialSpent" size="sm" :disabled="busy === 'trial'" @click="startTrial">
+            <Loader2 v-if="busy === 'trial'" class="w-4 h-4 animate-spin mr-1.5" />
+            <Sparkles v-else class="w-4 h-4 mr-1.5" />
+            {{ __('Try it free — no key needed') }}
+          </Button>
+
           <a href="https://wpwebhooks.org/docs/get-google-ai-studio-api-key/"
             target="_blank" rel="noopener noreferrer">
-            <Button size="sm">
+            <Button size="sm" :variant="trialSpent ? 'default' : 'outline'">
               <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Get a free Gemini key') }}
             </Button>
           </a>
           <a href="https://wpwebhooks.org/pricing/#credits"
             target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="outline">
-              {{ __('Or use Pro AI credits — no key needed') }}
+              {{ __('Or use Pro AI credits') }}
             </Button>
           </a>
         </div>
+
+        <!-- Turnstile mounts here; interaction-only, so it usually stays empty. -->
+        <div ref="challengeBox"></div>
+
+        <p v-if="trialError" class="text-xs text-destructive">{{ trialError }}</p>
       </div>
 
       <div v-for="p in byokProviders" :key="p.id" class="rounded-md border border-border bg-background">

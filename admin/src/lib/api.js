@@ -243,6 +243,9 @@ export const api = {
     status: () => get('agent/status'),
     savePreference: (data) => post('agent/preference', data),
     saveSource: (data) => post('agent/source', data),
+    // Anonymous free trial. The Turnstile token can only come from a browser, so
+    // the trial is always started from here, never lazily server-side.
+    startTrial: (data) => post('agent/trial', data),
     saveByok: (data) => post('agent/byok', data),
     deleteByok: (provider) => del(`agent/byok/${provider}`),
     abilities: () => get('agent/abilities'),

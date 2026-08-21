@@ -18,6 +18,7 @@ use FlowSystems\WebhookActions\Services\Ai\AgentOrchestrator;
 use FlowSystems\WebhookActions\Services\Ai\AnthropicTransport;
 use FlowSystems\WebhookActions\Services\Ai\OpenAiTransport;
 use FlowSystems\WebhookActions\Services\Ai\GoogleTransport;
+use FlowSystems\WebhookActions\Services\Ai\TrialClient;
 use FlowSystems\WebhookActions\Services\Ai\AgentTraceLog;
 use FlowSystems\WebhookActions\Abilities\AbilityRegistry;
 
@@ -56,6 +57,12 @@ class AgentController extends WP_REST_Controller {
 
     register_rest_route($this->namespace, $base . '/source', [
       ['methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'saveSource'], 'permission_callback' => [$this, 'writeCheck']],
+    ]);
+
+    // Starting a free trial needs a Turnstile token, which only a browser can
+    // produce — hence a route rather than lazy server-side issuance.
+    register_rest_route($this->namespace, $base . '/trial', [
+      ['methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'startTrial'], 'permission_callback' => [$this, 'writeCheck']],
     ]);
 
     register_rest_route($this->namespace, $base . '/byok', [
@@ -112,6 +119,45 @@ class AgentController extends WP_REST_Controller {
     register_rest_route($this->namespace, $base . '/exec-mode', [
       ['methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'setExecMode'], 'permission_callback' => [$this, 'writeCheck']],
     ]);
+  }
+
+  /**
+   * POST /agent/trial — start the anonymous free trial for this site.
+   *
+   * Returns the full transport status on success, because the admin UI replaces
+   * its whole status object with each response (same contract as saveSource).
+   */
+  public function startTrial(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    $trial = new TrialClient();
+
+    if ($trial->isStarted()) {
+      return new WP_REST_Response((new LlmTransport())->status(), 200);
+    }
+
+    $token = (string) $request->get_param('turnstile_token');
+
+    // Two-step by design. The first call carries no token and just hands back the
+    // challenge config; the browser solves it and calls again. That keeps the
+    // Turnstile site key off every ordinary status render — this route is the
+    // only place it is ever needed.
+    if ($token === '') {
+      return new WP_REST_Response([
+        'needs_challenge' => true,
+        'site_key'        => $trial->siteKey(),
+      ], 200);
+    }
+
+    $result = $trial->start($token);
+
+    if (is_wp_error($result)) {
+      return $result;
+    }
+
+    $this->activity->log('agent.trial_started', 'agent', null, 'free trial', [
+      'new' => ['credits' => $result['credits'] ?? 0],
+    ]);
+
+    return new WP_REST_Response((new LlmTransport())->status(), 200);
   }
 
   public function readCheck(WP_REST_Request $request): bool|WP_Error {
