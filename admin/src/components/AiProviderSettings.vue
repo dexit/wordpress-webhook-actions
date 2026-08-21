@@ -129,10 +129,31 @@ async function startTrial() {
       return;
     }
 
+    // No site key means trials are not configured server-side. Stop here rather
+    // than posting an empty token, which the route would read as another
+    // token-less call and answer with needs_challenge again — leaving the panel
+    // to emit a challenge envelope as if it were a status object.
+    if (!first.site_key) {
+      trialError.value = __('The free trial is temporarily unavailable. Please connect a provider below, or try again later.');
+      return;
+    }
+
     const { solve } = useTurnstile(first.site_key);
     const token = await solve(challengeBox.value);
 
-    emit('update', await api.agent.startTrial({ turnstile_token: token }));
+    if (!token) {
+      trialError.value = __('The verification challenge could not be completed. Please try again.');
+      return;
+    }
+
+    const second = await api.agent.startTrial({ turnstile_token: token });
+
+    if (second?.needs_challenge) {
+      trialError.value = __('The verification challenge could not be completed. Please try again.');
+      return;
+    }
+
+    emit('update', second);
   } catch (e) {
     trialError.value = e?.message || __('Could not start the free trial.');
   } finally {
