@@ -1141,7 +1141,7 @@ async function scrollDown() {
              `interaction-only`, and only reached where the API asks for a
              challenge at all — so on an ordinary install it stays empty and
              Cloudflare is never contacted. -->
-        <div ref="trialChallenge"></div>
+        <div ref="trialChallenge" class="flex justify-center empty:hidden"></div>
 
         <template v-if="hasTranscript">
           <!-- Transcript -->

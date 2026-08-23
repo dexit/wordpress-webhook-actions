@@ -42,17 +42,49 @@ function loadScript() {
   return scriptPromise
 }
 
+/**
+ * Development overrides, read from the admin URL.
+ *
+ * `interaction-only` means a healthy visitor sees nothing at all, which is
+ * correct for them and impossible for us: when a challenge misbehaves it fails
+ * silently, with no widget, no error callback and nothing in the console. These
+ * two knobs are the difference between diagnosing that and guessing at it, and
+ * neither weakens anything — appearance is cosmetic, and a token minted against
+ * some other sitekey is exactly what siteverify rejects.
+ *
+ *   ?fswa_turnstile=always            render the widget visibly
+ *   ?fswa_turnstile_sitekey=<key>     render a different sitekey, e.g. Cloudflare's
+ *                                     3x00000000000000000000FF, which always forces
+ *                                     an interactive challenge you can watch. Its
+ *                                     token is a dummy and will NOT mint a trial.
+ */
+function devOverrides() {
+  try {
+    const q = new URLSearchParams(window.location.search)
+    return {
+      appearance: q.get('fswa_turnstile') === 'always' ? 'always' : 'interaction-only',
+      sitekey: q.get('fswa_turnstile_sitekey') || '',
+    }
+  } catch {
+    return { appearance: 'interaction-only', sitekey: '' }
+  }
+}
+
 export function useTurnstile(siteKey, action = 'wpwebhooks-ai-trial') {
   const solving = ref(false)
   const error = ref('')
 
   /**
-   * Renders an invisible widget into `container` and resolves with a token.
-   * Returns '' when no site key is configured, which the caller sends as-is —
-   * the API decides whether an unverified request is acceptable, not the client.
+   * Renders the widget into `container` and resolves with a token. Invisible in
+   * normal use. Returns '' when no site key is configured, which the caller
+   * sends as-is — the API decides whether an unverified request is acceptable,
+   * not the client.
    */
   async function solve(container) {
-    if (!siteKey) return ''
+    const dev = devOverrides()
+    const key = dev.sitekey || siteKey
+
+    if (!key) return ''
 
     solving.value = true
     error.value = ''
@@ -62,9 +94,9 @@ export function useTurnstile(siteKey, action = 'wpwebhooks-ai-trial') {
 
       return await new Promise((resolve, reject) => {
         const widgetId = turnstile.render(container, {
-          sitekey: siteKey,
+          sitekey: key,
           action,
-          appearance: 'interaction-only',
+          appearance: dev.appearance,
           callback: (token) => {
             turnstile.remove(widgetId)
             resolve(token)
