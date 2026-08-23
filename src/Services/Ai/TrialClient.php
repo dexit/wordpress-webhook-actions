@@ -25,41 +25,98 @@ class TrialClient {
 
   private const DEFAULT_API_BASE = 'https://api.wpwebhooks.org';
 
+  /**
+   * What the grant is, before we have asked. Shown so a site can see what it is
+   * being offered without us making an HTTP request just to render a panel; the
+   * real value replaces it as soon as the API has been talked to for any reason.
+   */
+  private const DEFAULT_GRANT = 55;
+
+  /**
+   * Credits an average agent turn costs, for turning a balance into "about N
+   * runs". Measured over real production usage rather than assumed: 9,329 input
+   * + 325 output tokens per call on average, which prices at 11 credits. The
+   * config it is estimating originally guessed 7, which is why this is a
+   * measurement and not a constant someone picked.
+   */
+  private const CREDITS_PER_RUN = 11;
+
   public static function apiBase(): string {
     return rtrim((string) apply_filters('fswa_ai_api_base', self::DEFAULT_API_BASE), '/');
   }
 
   /**
-   * The public Turnstile site key, fetched from our API and cached for a day.
+   * What this site needs in order to claim a trial: the public Turnstile site
+   * key, and whether it will be asked for a challenge at all.
    *
-   * Not shipped as a constant: a key baked into the plugin zip could not be
-   * rotated without a release, which would break the trial on every install that
-   * had not updated. Returns '' when unavailable — the caller sends no token and
-   * the API decides whether to accept it (in production it will not).
+   * The key is served rather than shipped as a constant — one baked into the
+   * plugin zip could not be rotated without a release, which would break the
+   * trial on every install that had not updated.
+   *
+   * `required` is answered by the API, not guessed here, and it is normally
+   * false: a challenge is demanded only where a widget can actually render
+   * (Playground). So the ordinary install never loads Cloudflare's script on the
+   * way to its first prompt — and never mints a token from a hostname the API
+   * does not recognise, which would be rejected precisely because any supplied
+   * token must validate.
+   *
+   * Both fall back to "no key, no challenge" when the API is unreachable; the
+   * API then decides whether a token-less request is acceptable.
+   *
+   * @return array{site_key: string, required: bool}
    */
-  public function siteKey(): string {
+  public function challengeConfig(): array {
     $cached = get_transient(self::SITE_KEY_TRANSIENT);
-    if (is_string($cached)) {
+    if (is_array($cached)) {
       return $cached;
     }
 
-    $response = wp_remote_get(self::apiBase() . '/api/ai/trial/config', [
+    $url = add_query_arg(
+      ['site_url' => rawurlencode(home_url())],
+      self::apiBase() . '/api/ai/trial/config'
+    );
+
+    $response = wp_remote_get($url, [
       'timeout' => (int) apply_filters('fswa_ai_http_timeout', 15),
     ]);
 
+    $miss = ['site_key' => '', 'required' => false, 'credits' => self::DEFAULT_GRANT];
+
     if (is_wp_error($response) || (int) wp_remote_retrieve_response_code($response) !== 200) {
       // Cache the miss briefly so a hard-down API doesn't mean a request per click.
-      set_transient(self::SITE_KEY_TRANSIENT, '', 5 * MINUTE_IN_SECONDS);
+      set_transient(self::SITE_KEY_TRANSIENT, $miss, 5 * MINUTE_IN_SECONDS);
 
-      return '';
+      return $miss;
     }
 
     $data = json_decode((string) wp_remote_retrieve_body($response), true);
-    $key  = (string) ($data['site_key'] ?? '');
 
-    set_transient(self::SITE_KEY_TRANSIENT, $key, DAY_IN_SECONDS);
+    // An API old enough not to answer this question still enforces the challenge
+    // where it always did, so "field absent" must mean *attempt it*, not skip it.
+    // Defaulting the other way would break Playground for exactly as long as it
+    // took to deploy the two sides in the wrong order.
+    $required = is_array($data) && array_key_exists('challenge_required', $data)
+      ? (bool) $data['challenge_required']
+      : true;
 
-    return $key;
+    $config = [
+      'site_key' => (string) ($data['site_key'] ?? ''),
+      'required' => $required,
+      'credits'  => (int) ($data['credits'] ?? self::DEFAULT_GRANT),
+    ];
+
+    // A 200 carrying no key is a misconfiguration at our end (mid-rotation, an
+    // unset env var), not a settled answer — so it gets the short negative TTL,
+    // not a day. Caching an empty key for a day would silently disable the trial
+    // in Playground, where a token is mandatory, for every install that happened
+    // to ask during the window.
+    set_transient(
+      self::SITE_KEY_TRANSIENT,
+      $config,
+      $config['site_key'] === '' ? 5 * MINUTE_IN_SECONDS : DAY_IN_SECONDS
+    );
+
+    return $config;
   }
 
   /**
@@ -156,13 +213,30 @@ class TrialClient {
    * @return array<string, mixed>
    */
   public function status(): array {
-    $state = $this->state();
+    $state   = $this->state();
+    $started = $this->isStarted();
+
+    // What an unclaimed trial is worth. Read from the cached API config when we
+    // have one and the shipped default otherwise — deliberately NOT fetched here,
+    // because status() renders on every admin load and an offer is not worth an
+    // HTTP request per page view.
+    $cached = get_transient(self::SITE_KEY_TRANSIENT);
+    $grant  = is_array($cached) && isset($cached['credits'])
+      ? (int) $cached['credits']
+      : (int) apply_filters('fswa_ai_trial_grant', self::DEFAULT_GRANT);
+
+    $credits = $started ? $this->creditsRemaining() : $grant;
 
     return [
-      'started'    => $this->isStarted(),
+      'started'    => $started,
       'credits'    => $this->creditsRemaining(),
       'exhausted'  => $this->isExhausted(),
       'expires_at' => (string) ($state['expires_at'] ?? ''),
+      // The offer, for a site that has not claimed one yet.
+      'grant'      => $grant,
+      // Credits → something a human can act on. The UI should not be doing this
+      // arithmetic itself, because the divisor is a measurement that will move.
+      'runs_left'  => (int) max(0, floor($credits / max(1, (int) apply_filters('fswa_ai_trial_credits_per_run', self::CREDITS_PER_RUN)))),
     ];
   }
 }

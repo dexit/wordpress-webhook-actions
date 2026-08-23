@@ -136,20 +136,27 @@ class AgentController extends WP_REST_Controller {
 
     $token = (string) $request->get_param('turnstile_token');
 
-    // Two-step by design. The first call carries no token and just hands back the
-    // challenge config; the browser solves it and calls again. That keeps the
-    // Turnstile site key off every ordinary status render — this route is the
-    // only place it is ever needed.
+    // Two-step, but only where a challenge is actually demanded. The first call
+    // carries no token; if this site needs one we hand back the config, the
+    // browser solves it, and it calls again. That keeps the Turnstile site key
+    // off every ordinary status render — this route is the only place it is ever
+    // needed — and keeps Cloudflare out of the request entirely for the ordinary
+    // install, which is never challenged.
     //
-    // `challenge` marks the second leg. It matters because the challenge legally
-    // yields no token on most sites — Turnstile only renders on hostnames
-    // registered with Cloudflare — and without the marker that empty token would
+    // `challenge` marks the second leg. It matters because the challenge can
+    // legitimately yield no token, and without the marker that empty token would
     // loop straight back to this branch instead of reaching the API.
     if ($token === '' && !$request->get_param('challenge')) {
-      return new WP_REST_Response([
-        'needs_challenge' => true,
-        'site_key'        => $trial->siteKey(),
-      ], 200);
+      $config = $trial->challengeConfig();
+
+      if ($config['required'] && $config['site_key'] !== '') {
+        return new WP_REST_Response([
+          'needs_challenge' => true,
+          'site_key'        => $config['site_key'],
+        ], 200);
+      }
+
+      // Not challenged here: fall through and mint in this one call.
     }
 
     $result = $trial->start($token);

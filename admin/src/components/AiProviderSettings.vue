@@ -4,7 +4,6 @@ import { Loader2, Check, Trash2, KeyRound, Plus, AlertTriangle, Sparkles, Extern
 import { Input, Label, Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui';
 import ProviderLogo from './ProviderLogo.vue';
 import { api } from '@/lib/api';
-import { useTurnstile } from '@/composables/useTurnstile';
 import { __ } from '@/i18n';
 
 const props = defineProps({ status: { type: Object, required: true } });
@@ -107,60 +106,13 @@ const saveWp = () => run('wp', () => api.agent.savePreference({ provider: wpProv
 
 // ---- BYO connectors -------------------------------------------------------
 // ---- Free trial -----------------------------------------------------------
-// The answer to "Build with AI needs an API key before you can see it work".
+// Reported here, never started here. The trial is claimed on the first prompt in
+// the builder — putting a "start my trial" button in front of that would just be
+// the API-key detour again, one step shorter. This panel's job is to say what is
+// left and to offer the ways off it.
 const trial = computed(() => props.status?.trial || null);
 const trialActive = computed(() => trial.value?.started === true && !trial.value?.exhausted);
 const trialSpent = computed(() => trial.value?.started === true && trial.value?.exhausted === true);
-
-const challengeBox = ref(null);
-const trialError = ref('');
-
-async function startTrial() {
-  trialError.value = '';
-  busy.value = 'trial';
-
-  try {
-    // First call returns the challenge config; the browser solves it, then we
-    // call again with the token to actually mint the trial.
-    const first = await api.agent.startTrial({});
-
-    if (!first?.needs_challenge) {
-      emit('update', first);
-      return;
-    }
-
-    // Try the challenge, but never let it block. The widget only renders on
-    // hostnames registered with Cloudflare, so on an ordinary customer domain it
-    // fails by design — and the API only *requires* a token from Playground,
-    // where the hostname is fixed. Anywhere else it falls back to the per-IP
-    // throttle, one-trial-per-site and the global daily cap.
-    let token = '';
-
-    if (first.site_key) {
-      try {
-        token = await useTurnstile(first.site_key).solve(challengeBox.value);
-      } catch {
-        token = '';
-      }
-    }
-
-    // `challenge` marks this as the second leg, so an empty token cannot be read
-    // as another token-less first call and answered with needs_challenge — which
-    // the panel would then emit as if it were a transport status.
-    const second = await api.agent.startTrial({ turnstile_token: token, challenge: 1 });
-
-    if (second?.needs_challenge) {
-      trialError.value = __('The verification challenge could not be completed. Please try again.');
-      return;
-    }
-
-    emit('update', second);
-  } catch (e) {
-    trialError.value = e?.message || __('Could not start the free trial.');
-  } finally {
-    busy.value = '';
-  }
-}
 
 const byokProviders = computed(() => props.status?.byok?.providers || []);
 const byokActive = computed(() => props.status?.byok?.active || null);
@@ -360,21 +312,15 @@ initWp();
               {{ __('Your free trial is used up. Connect your own provider below — Google AI Studio gives you a free Gemini key with no credit card — or get Pro credits.') }}
             </template>
             <template v-else>
-              {{ __('Build with AI needs a model to talk to. Try it free right now with no key and no account, or connect your own provider.') }}
+              {{ __('Nothing to set up: your first builds are free and start the moment you send a prompt. Connect your own provider here whenever you want — it will be used instead of the trial.') }}
             </template>
           </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <Button v-if="!trialSpent" size="sm" :disabled="busy === 'trial'" @click="startTrial">
-            <Loader2 v-if="busy === 'trial'" class="w-4 h-4 animate-spin mr-1.5" />
-            <Sparkles v-else class="w-4 h-4 mr-1.5" />
-            {{ __('Try it free — no key needed') }}
-          </Button>
-
           <a href="https://wpwebhooks.org/docs/get-google-ai-studio-api-key/"
             target="_blank" rel="noopener noreferrer">
-            <Button size="sm" :variant="trialSpent ? 'default' : 'outline'">
+            <Button size="sm">
               <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Get a free Gemini key') }}
             </Button>
           </a>
@@ -385,11 +331,6 @@ initWp();
             </Button>
           </a>
         </div>
-
-        <!-- Turnstile mounts here; interaction-only, so it usually stays empty. -->
-        <div ref="challengeBox"></div>
-
-        <p v-if="trialError" class="text-xs text-destructive">{{ trialError }}</p>
       </div>
 
       <div v-for="p in byokProviders" :key="p.id" class="rounded-md border border-border bg-background">

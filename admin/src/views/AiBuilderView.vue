@@ -18,6 +18,7 @@ import {
 import { Button, Input, Switch, Dialog } from '@/components/ui';
 import ProviderLogo from '@/components/ProviderLogo.vue';
 import AiProviderSettings from '@/components/AiProviderSettings.vue';
+import { claimTrial } from '@/composables/useTrial';
 import AiDevPanel from '@/components/AiDevPanel.vue';
 import ChatMarkdown from '@/components/ChatMarkdown.vue';
 import AiPlanStepper from '@/components/AiPlanStepper.vue';
@@ -68,6 +69,44 @@ const DONE_FLASH_MS = 1200;       // pause on the completed check before chainin
 const showSettings = ref(false);
 const configured = computed(() => status.value?.configured === true);
 
+// ---- Free trial -----------------------------------------------------------
+// A trial we could still claim: never started, never spent. This is what lets a
+// brand-new install skip setup entirely.
+const trialClaimable = computed(
+  () => status.value?.trial?.started === false && status.value?.trial?.exhausted !== true,
+);
+
+// The gate for the whole builder, and the point of the trial: an install with no
+// provider, no key and no account can still type a prompt. We claim the trial
+// lazily when they actually send one — asking them to press "start my trial"
+// first would just be the API-key detour again, one step shorter.
+const canPrompt = computed(() => configured.value || trialClaimable.value);
+
+// Turnstile mounts here. `interaction-only`, so on the overwhelming majority of
+// sites it renders nothing at all and is never even reached — the API only
+// demands a solved challenge from Playground.
+const trialChallenge = ref(null);
+
+/**
+ * Make sure this site can talk to a model, claiming the free trial if that is
+ * the only way. Returns false when it could not, with `error` already set.
+ */
+async function ensureTransport() {
+  if (configured.value) return true;
+  if (!trialClaimable.value) return false;
+
+  try {
+    status.value = await claimTrial(trialChallenge.value);
+    return configured.value;
+  } catch (e) {
+    error.value =
+      e?.message === 'challenge_failed'
+        ? __('The verification challenge could not be completed. Please try again.')
+        : e?.message || __('Could not start the free trial.');
+    return false;
+  }
+}
+
 // Active transport (for the model bar + provider logo).
 const activeProvider = computed(() => status.value?.active_provider || '');
 const activeModel = computed(() => status.value?.active_model || '');
@@ -84,6 +123,150 @@ const activeProviderLabel = computed(() => {
   const byo = status.value?.byok?.providers?.find((p) => p.id === id);
   return wp?.label || byo?.label || PROVIDER_LABELS[id] || id;
 });
+
+// Two states the raw status cannot express in this bar. A site that has not
+// claimed its trial has no active transport at all — but a prompt will work, so
+// showing an empty name and a "?" logo would be a lie in the unhelpful
+// direction. And the trial transport's id ('hosted_trial') is not a provider
+// name, so it would otherwise be printed raw.
+const onTrial = computed(() => status.value?.active_transport === 'hosted_trial');
+const showsTrialIdentity = computed(() => onTrial.value || (!configured.value && trialClaimable.value));
+
+const barProvider = computed(() => (showsTrialIdentity.value ? 'hosted' : activeProvider.value));
+const barTitle = computed(() =>
+  showsTrialIdentity.value ? __('WP Webhooks AI') : activeProviderLabel.value,
+);
+const barSubtitle = computed(() => {
+  if (onTrial.value) return __('Free trial');
+  if (showsTrialIdentity.value) return __('Free trial — starts with your first prompt');
+  return activeModel.value;
+});
+
+// Trial credits chip, mirroring the hosted one. Shown BEFORE the trial is
+// claimed too — "free trial" without a number is a promise you cannot size, and
+// the first question anyone sensible asks is "free how much?". Once claimed,
+// each turn refreshes the status so it counts down as the agent works.
+const trialCredits = computed(() => {
+  if (onTrial.value) return Number(status.value?.trial?.credits || 0);
+  if (showsTrialIdentity.value) return Number(status.value?.trial?.grant || 0) || null;
+  return null;
+});
+const trialCreditsLow = computed(() => onTrial.value && Number(trialCredits.value) < 12);
+
+// The server does this arithmetic: the credits-per-run divisor is a measured
+// average that will move, and it should move in one place.
+const trialRuns = computed(() => Number(status.value?.trial?.runs_left || 0));
+
+const trialTooltip = computed(() => {
+  const runs = trialRuns.value;
+  const head = onTrial.value
+    ? __('%s credits left on your free trial.')
+    : __('Your free trial starts with %s credits — nothing to set up, no card, no account.');
+
+  const detail = runs > 0
+    ? __('That is roughly %s agent runs. A run is one message you send; most integrations take two or three to plan, build and test.')
+        .replace('%s', String(runs))
+    : __('Connect your own provider, or add Pro credits, to keep building.');
+
+  return `${head.replace('%s', Number(trialCredits.value || 0).toLocaleString())} ${detail}`;
+});
+
+// ---- Empty-state composer -------------------------------------------------
+// The blank builder's whole job is to get one sentence out of the user, so the
+// prompt box is the page rather than a control at the bottom of it.
+//
+// The placeholder types itself out, one real prompt after another. A static
+// placeholder reads as a label and gets skipped; watching a sentence being
+// written answers the question that actually keeps a blank builder blank —
+// "what am I supposed to say to it?" — and shows the range of what it accepts
+// without a tour, a modal, or a docs link.
+const PROMPT_EXAMPLES = [
+  __('When a Contact Form 7 form is submitted, send it as JSON to my n8n webhook'),
+  __('Every time a WooCommerce order is completed, post the line items to Airtable'),
+  __('When a new user registers, add them to my CRM and tag them by role'),
+  __('When a post is published, notify my Slack channel with the title and link'),
+];
+
+const TYPE_MS = 34;    // per character while writing
+const DELETE_MS = 14;  // per character while clearing — reading is slower than erasing
+const HOLD_MS = 2200;  // long enough to finish reading the completed sentence
+const GAP_MS = 420;    // beat before the next one starts
+
+const typedPlaceholder = ref('');
+let typeTimer = null;
+let typeState = { example: 0, chars: 0, phase: 'typing' };
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+// Has this build actually said anything? An open-but-empty build (what "New
+// build" makes) is the same moment as no build at all, and must get the same
+// centred prompt box — not a transcript window containing nothing.
+const hasTranscript = computed(() => !!activeId.value && (transcript.value.length > 0 || sending.value));
+
+const composerFocused = ref(false);
+
+function typeTick() {
+  const full = PROMPT_EXAMPLES[typeState.example];
+
+  // Focusing the box settles the animation: finish the sentence being written,
+  // then hold it. Motion directly beside a live caret is where it is least
+  // welcome, and freezing mid-word would read as a glitch rather than a pause —
+  // so "stop" has to mean "complete, then stop". Same path once anything has
+  // been typed, where the placeholder is hidden and the timer would only be
+  // fighting the input.
+  if (composerFocused.value || messageInput.value) {
+    if (typeState.chars < full.length) {
+      typeState.chars += 1;
+      typedPlaceholder.value = full.slice(0, typeState.chars) + '▌';
+      typeTimer = setTimeout(typeTick, TYPE_MS);
+      return;
+    }
+
+    typedPlaceholder.value = full;   // settled, so the caret goes away
+    typeState.phase = 'holding';     // resumes into the delete leg on blur
+    typeTimer = setTimeout(typeTick, 400);
+    return;
+  }
+
+  let next = TYPE_MS;
+
+  if (typeState.phase === 'typing') {
+    typeState.chars += 1;
+    if (typeState.chars >= full.length) {
+      typeState.phase = 'holding';
+      next = HOLD_MS;
+    }
+  } else if (typeState.phase === 'holding') {
+    typeState.phase = 'deleting';
+    next = DELETE_MS;
+  } else {
+    typeState.chars -= 1;
+    next = DELETE_MS;
+    if (typeState.chars <= 0) {
+      typeState.chars = 0;
+      typeState.phase = 'typing';
+      typeState.example = (typeState.example + 1) % PROMPT_EXAMPLES.length;
+      next = GAP_MS;
+    }
+  }
+
+  // The block caret matches the terminal styling used across this admin, and it
+  // is what makes the text read as being written rather than merely truncated.
+  const text = full.slice(0, typeState.chars);
+  typedPlaceholder.value = typeState.phase === 'holding' ? text : text + '▌';
+
+  typeTimer = setTimeout(typeTick, next);
+}
+
+onMounted(() => {
+  if (prefersReducedMotion()) {
+    typedPlaceholder.value = PROMPT_EXAMPLES[0];
+    return;
+  }
+  typeTick();
+});
+onBeforeUnmount(() => { if (typeTimer) clearTimeout(typeTimer); });
 
 // ---- Hosted credits (Pro) -------------------------------------------------
 // Shown while the hosted transport is active; each turn response carries the
@@ -463,6 +646,17 @@ async function send() {
   const text = messageInput.value.trim();
   if (!text || sending.value) return;
 
+  // Claim the trial here, on the first prompt, rather than behind a button on an
+  // onboarding screen. `sending` is set first so the composer shows a spinner
+  // while the (usually invisible) challenge resolves.
+  if (!configured.value) {
+    sending.value = true;
+    error.value = '';
+    const ok = await ensureTransport();
+    sending.value = false;
+    if (!ok) return;
+  }
+
   if (!activeId.value) {
     await newChat();
   }
@@ -774,11 +968,12 @@ async function scrollDown() {
 
     <template v-else>
     <!-- Setup card -------------------------------------------------------- -->
-    <!-- Only when there is NOTHING else to show. With builds to display, the
-         full card would fill the screen above them and bury the one thing that
-         demonstrates what this feature does, so the compact bar below is used
-         instead and the card's own settings live inside it. -->
-    <div v-if="!configured && !conversations.length" class="rounded-lg border border-border bg-card p-6 max-w-2xl">
+    <!-- Last resort only: no provider AND no trial left to claim. A fresh install
+         never sees this — it goes straight to the composer and the trial is
+         claimed on the first prompt. What lands here is a site whose trial is
+         spent and which has connected nothing, i.e. someone who now genuinely
+         does have a decision to make. -->
+    <div v-if="!canPrompt && !conversations.length" class="rounded-lg border border-border bg-card p-6 max-w-2xl">
       <div class="flex items-center gap-2 mb-1">
         <Settings2 class="w-5 h-5 text-primary" />
         <h3 class="text-lg font-semibold text-foreground">{{ __('Connect an AI provider') }}</h3>
@@ -790,13 +985,15 @@ async function scrollDown() {
     </div>
 
     <!-- Builder ----------------------------------------------------------- -->
-    <!-- With a provider: the full builder. Without one: past builds only, read-only.
-         Nothing at all when there is neither — the setup card stands alone. -->
-    <div v-if="configured || conversations.length" class="space-y-4">
-      <!-- No provider, but there ARE builds: a one-line bar rather than the full
-           card, so the builds themselves stay above the fold. Same settings, one
-           click away — it expands into the very same AiProviderSettings. -->
-      <div v-if="!configured" class="rounded-lg border border-border bg-card">
+    <!-- A provider, or a trial we can still claim: the full builder. Neither, but
+         past builds exist: those builds, read-only. Nothing at all when there is
+         neither — the setup card stands alone. -->
+    <div v-if="canPrompt || conversations.length" class="space-y-4">
+      <!-- Nothing to prompt with, but there ARE builds: a one-line bar rather than
+           the full card, so the builds themselves stay above the fold. Same
+           settings, one click away — it expands into the very same
+           AiProviderSettings. -->
+      <div v-if="!canPrompt" class="rounded-lg border border-border bg-card">
         <div class="flex items-center justify-between gap-3 px-4 py-3">
           <div class="flex items-start gap-2 min-w-0 text-sm text-muted-foreground">
             <History class="w-4 h-4 shrink-0 mt-0.5" />
@@ -816,11 +1013,25 @@ async function scrollDown() {
       <div v-else class="rounded-lg border border-border bg-card">
         <div class="flex items-center justify-between gap-3 px-4 py-3">
           <div class="flex items-center gap-2 min-w-0">
-            <ProviderLogo :provider="activeProvider" :size="36" />
+            <ProviderLogo :provider="barProvider" :size="36" />
             <div class="min-w-0">
-              <div class="text-sm font-medium text-foreground truncate">{{ activeProviderLabel }}</div>
-              <div class="text-xs text-muted-foreground truncate font-mono">{{ activeModel }}</div>
+              <div class="text-sm font-medium text-foreground truncate">{{ barTitle }}</div>
+              <div :class="['text-xs text-muted-foreground truncate', !showsTrialIdentity && 'font-mono']">
+                {{ barSubtitle }}
+              </div>
             </div>
+            <span v-if="trialCredits !== null" :title="trialTooltip"
+              :class="['inline-flex cursor-help items-center gap-1 rounded-full border px-2 py-0.5 text-xs tabular-nums shrink-0',
+                trialCreditsLow ? 'border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300'
+                                : 'border-primary/30 bg-primary/10 text-primary']">
+              <Sparkles class="w-3.5 h-3.5" />
+              <template v-if="onTrial">
+                {{ __('%s credits left').replace('%s', trialCredits.toLocaleString()) }}
+              </template>
+              <template v-else>
+                {{ __('%s free credits').replace('%s', trialCredits.toLocaleString()) }}
+              </template>
+            </span>
             <span v-if="hostedCredits" :title="creditsTooltip"
               :class="['inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs tabular-nums shrink-0',
                 creditsLow ? 'border-amber-400/50 bg-amber-50/60 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300'
@@ -852,7 +1063,7 @@ async function scrollDown() {
       </div>
 
       <!-- Builds bar: switcher + delete + new, above the conversation window -->
-      <AiBuildsBar :conversations="conversations" :active-id="activeId" :can-create="configured"
+      <AiBuildsBar :conversations="conversations" :active-id="activeId" :can-create="canPrompt"
         @switch="onSwitchConversation" @delete="removeConversation({ id: activeId })" @new="newChat" />
 
       <div :class="['grid grid-cols-1 gap-6', hasStepper && 'lg:grid-cols-[240px_1fr]']">
@@ -867,16 +1078,73 @@ async function scrollDown() {
            below its content's intrinsic width (wide code blocks scroll inside
            their bubble instead of blowing the grid out sideways). -->
       <section class="space-y-4 min-w-0">
-        <div v-if="!activeId" class="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        <!-- ── Empty state ───────────────────────────────────────────────────
+             Nothing said yet — either no build open, or one opened by "New
+             build" that has no messages in it. Both are the same moment: the one
+             thing that has to happen is that a sentence gets typed, so the
+             prompt box IS the page. Centred, given room, nothing competing.
+             send() creates the build (if there isn't one) and claims the free
+             trial, so this is genuinely the first and only step. -->
+        <div v-if="canPrompt && !hasTranscript" class="flex flex-col items-center py-10 sm:py-16">
+          <BrainCircuit class="w-8 h-8 text-primary mb-3" />
+          <h3 class="text-xl sm:text-2xl font-semibold text-foreground text-center">
+            {{ __('Let’s build something.') }}
+          </h3>
+          <p class="mt-1.5 mb-6 max-w-md text-center text-sm text-muted-foreground">
+            {{ __('Describe the integration in plain words. The agent plans it, then builds and tests it for you.') }}
+          </p>
+
+          <form @submit.prevent="send" class="w-full max-w-2xl">
+            <div class="rounded-2xl border border-border bg-card p-3 transition-colors focus-within:border-primary/60">
+              <!-- Enter sends, Shift+Enter breaks the line: this is a prompt, not
+                   a form field, and the examples it invites are long enough to
+                   want wrapping. -->
+              <!-- The `!` overrides are load-bearing: WordPress admin CSS styles
+                   every textarea with its own border, background and box-shadow,
+                   which would draw a second input box inside this card. -->
+              <textarea v-model="messageInput" rows="2"
+                :placeholder="typedPlaceholder"
+                class="w-full resize-none px-2 pt-1 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground
+                       !border-0 !bg-transparent !shadow-none focus:!outline-none focus:!ring-0 focus:!shadow-none"
+                @focus="composerFocused = true" @blur="composerFocused = false"
+                @keydown.enter.exact.prevent="send"></textarea>
+
+              <div class="flex items-center justify-between gap-3 pt-2">
+                <span class="pl-2 text-xs text-muted-foreground" :title="!configured ? trialTooltip : ''">
+                  <template v-if="!configured && trialRuns > 0">
+                    {{ __('No API key needed — %1$s free credits, about %2$s builds.')
+                        .replace('%1$s', Number(trialCredits || 0).toLocaleString())
+                        .replace('%2$s', String(trialRuns)) }}
+                  </template>
+                  <template v-else-if="!configured">{{ __('No API key needed — your first builds are free.') }}</template>
+                  <template v-else>{{ __('Enter to build, Shift+Enter for a new line.') }}</template>
+                </span>
+                <button type="submit" :disabled="sending || !messageInput.trim()"
+                  class="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                  <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
+                  <WandSparkles v-else class="w-4 h-4" />
+                  {{ __('Build') }}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Nothing to prompt with and no build open: say so, plainly. -->
+        <div v-else-if="!activeId"
+          class="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           {{ __('Start a new build, then describe what you want to integrate.') }}
         </div>
 
-        <template v-else>
+        <!-- Turnstile mounts here on the first prompt of an unconfigured site.
+             `interaction-only`, and only reached where the API asks for a
+             challenge at all — so on an ordinary install it stays empty and
+             Cloudflare is never contacted. -->
+        <div ref="trialChallenge"></div>
+
+        <template v-if="hasTranscript">
           <!-- Transcript -->
           <div ref="transcriptEl" class="rounded-lg border border-border bg-card p-4 max-h-[300px] overflow-y-auto space-y-3">
-            <div v-if="!transcript.length" class="text-sm text-muted-foreground">
-              {{ __('e.g. “When a Contact Form 7 form is submitted, send it as JSON to my n8n webhook.”') }}
-            </div>
             <template v-for="(m, i) in transcript" :key="i">
               <!-- Read activity: abilities the agent ran itself to gather data.
                    Step-result entries are also role "tool" but carry no reads —
@@ -925,13 +1193,17 @@ async function scrollDown() {
             </div>
           </div>
 
-          <!-- Input — only with a provider to send it to. -->
-          <form v-if="configured" @submit.prevent="send" class="flex gap-2">
+          <!-- Composer, compact. Once a conversation is underway the transcript is
+               the subject and this is a control beneath it — the opposite of the
+               empty state, where it is the whole point of the screen. -->
+          <form v-if="canPrompt" @submit.prevent="send" class="flex gap-2">
             <Input v-model="messageInput" type="text" :placeholder="__('Describe what to build…')"
               class="flex-1" />
             <button type="submit" :disabled="sending || !messageInput.trim()"
               class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
-              <WandSparkles class="w-4 h-4" /> {{ __('Build') }}
+              <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
+              <WandSparkles v-else class="w-4 h-4" />
+              {{ __('Build') }}
             </button>
           </form>
 
