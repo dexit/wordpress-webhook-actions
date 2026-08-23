@@ -14,6 +14,8 @@ import {
   Clock3,
   Wrench,
   History,
+  KeyRound,
+  ExternalLink,
 } from 'lucide-vue-next';
 import { Button, Input, Switch, Dialog } from '@/components/ui';
 import ProviderLogo from '@/components/ProviderLogo.vue';
@@ -49,6 +51,9 @@ const plan = ref([]);
 const messageInput = ref('');
 const sending = ref(false);
 const error = ref('');
+// Machine-readable code for the last failure, so the UI can answer specific ones
+// (an exhausted trial needs routes forward, not a red box).
+const errorCode = ref('');
 const transcriptEl = ref(null);
 // Transcript index from which assistant replies are "new this turn" and get the
 // reveal animation. Infinity = animate nothing (loaded history renders instantly).
@@ -156,6 +161,24 @@ const trialCreditsLow = computed(() => onTrial.value && Number(trialCredits.valu
 // The server does this arithmetic: the credits-per-run divisor is a measured
 // average that will move, and it should move in one place.
 const trialRuns = computed(() => Number(status.value?.trial?.runs_left || 0));
+
+// Anything that can answer a prompt other than the trial. Once one of these
+// exists the trial being empty stops mattering, so the "you're out" panel must
+// disappear — otherwise connecting a key leaves a dead-end message on screen.
+const hasOwnModel = computed(() =>
+  status.value?.wp_ai_client?.available === true
+  || (status.value?.byok?.providers || []).some((p) => p.connected)
+  || status.value?.hosted?.available === true,
+);
+
+// Running out of credits is not an error the user made — it is the moment the
+// product asks them to choose. Driven by the persisted flag as well as the live
+// error code, so the routes survive a page reload rather than vanishing with the
+// toast that announced them.
+const trialSpentNoWayForward = computed(() =>
+  !hasOwnModel.value
+  && (status.value?.trial?.exhausted === true || errorCode.value === 'fswa_trial_out_of_credits'),
+);
 
 const trialTooltip = computed(() => {
   const runs = trialRuns.value;
@@ -399,6 +422,7 @@ async function setBuiltWebhookSync(val) {
   if (savingSync.value || !builtWebhookId.value) return;
   savingSync.value = true;
   error.value = '';
+    errorCode.value = '';
   const previous = builtWebhookSync.value;
   builtWebhookSync.value = val; // optimistic
   try {
@@ -415,6 +439,7 @@ async function enableBuiltWebhook() {
   if (enablingWebhook.value || !builtWebhookId.value) return;
   enablingWebhook.value = true;
   error.value = '';
+    errorCode.value = '';
   try {
     await api.webhooks.toggle(builtWebhookId.value);
     builtWebhookEnabled.value = true;
@@ -489,6 +514,7 @@ async function onCreateCredential({ payload, inputKey } = {}) {
   if (creatingCred.value || !payload) return;
   creatingCred.value = true;
   error.value = '';
+    errorCode.value = '';
   try {
     const created = await api.credentials.create(payload);
     await loadCredentials();
@@ -511,6 +537,7 @@ async function onProvisionAppPassword({ inputKey } = {}) {
   if (creatingCred.value) return;
   creatingCred.value = true;
   error.value = '';
+    errorCode.value = '';
   try {
     const created = await api.credentials.provisionAppPassword();
     await loadCredentials();
@@ -662,6 +689,7 @@ async function send() {
   if (!configured.value) {
     sending.value = true;
     error.value = '';
+    errorCode.value = '';
     const ok = await ensureTransport();
     sending.value = false;
     if (!ok) return;
@@ -673,6 +701,7 @@ async function send() {
 
   sending.value = true;
   error.value = '';
+    errorCode.value = '';
   retryMessage.value = null;
   focusedIndex.value = null;
   revealFrom.value = transcript.value.length; // animate replies from this turn on
@@ -689,6 +718,7 @@ async function retrySend() {
   const origin = retryOrigin.value;
   sending.value = true;
   error.value = '';
+    errorCode.value = '';
   retryMessage.value = null;
   revealFrom.value = transcript.value.length; // animate the resumed reply
   await dispatchMessage(text, origin);
@@ -766,8 +796,15 @@ async function dispatchMessage(text, origin = '') {
     // error notice bubble) — show it; retrying the same message resumes there.
     try { await reloadTranscript(convId); } catch { /* keep local view */ }
     error.value = e.message;
+    errorCode.value = e.code || '';
     retryMessage.value = text;
     retryOrigin.value = origin;
+    // A FAILED turn changes the balance too — running out of credits IS the
+    // failure. Successful turns carry the fresh balance in the response, but an
+    // error carries nothing, so the chip would keep showing the credits the user
+    // no longer has, next to a message saying they have none. Only on failure,
+    // so the normal path still costs no extra round-trip.
+    await refreshStatus();
     devPanel.value?.refresh();
   } finally {
     clearInterval(poll);
@@ -784,6 +821,7 @@ async function advance(opts = {}) {
   if (running.value || !activeId.value) return;
   running.value = true;
   error.value = '';
+    errorCode.value = '';
   let continuation = null; // outlives the try: dispatched after `running` clears
   try {
     let first = true;
@@ -926,6 +964,7 @@ async function revertLast() {
   if (running.value || !activeId.value) return;
   running.value = true;
   error.value = '';
+    errorCode.value = '';
   try {
     const res = await api.agent.revert(activeId.value);
     execution.value = res.execution;
@@ -1263,8 +1302,42 @@ async function scrollDown() {
     </div>
     </template>
 
+    <!-- Trial spent. Three ways on, two of them free — shown INSTEAD of the red
+         toast, because "you have run out" with no route forward is the moment a
+         user closes the tab. Everything already built stays on the site. -->
+    <div v-if="trialSpentNoWayForward"
+      class="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+      <div class="flex items-start gap-2">
+        <Sparkles class="w-4 h-4 text-primary shrink-0 mt-0.5" />
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-foreground">
+            {{ __('Your free trial is used up.') }}
+          </p>
+          <p class="mt-0.5 text-xs text-muted-foreground">
+            {{ __('Everything you have built stays on this site. Connect a model to keep going — the first two cost nothing.') }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <Button size="sm" @click="showSettings = true">
+          <KeyRound class="w-4 h-4 mr-1.5" /> {{ __('Connect your own key') }}
+        </Button>
+        <a href="https://wpwebhooks.org/docs/get-google-ai-studio-api-key/"
+          target="_blank" rel="noopener noreferrer">
+          <Button size="sm" variant="outline">
+            <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Get a free Gemini key') }}
+          </Button>
+        </a>
+        <a href="https://wpwebhooks.org/pricing/#credits"
+          target="_blank" rel="noopener noreferrer">
+          <Button size="sm" variant="outline">{{ __('Get Pro credits') }}</Button>
+        </a>
+      </div>
+    </div>
+
     <!-- Error toast -->
-    <div v-if="error" class="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center justify-between gap-3">
+    <div v-if="error && !trialSpentNoWayForward" class="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center justify-between gap-3">
       <span>{{ error }}</span>
       <Button v-if="retryMessage" size="sm" variant="outline" :disabled="sending" @click="retrySend">
         <RotateCcw class="w-4 h-4 mr-1.5" /> {{ __('Retry') }}
