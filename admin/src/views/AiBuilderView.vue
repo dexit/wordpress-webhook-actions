@@ -188,7 +188,8 @@ const PROMPT_EXAMPLES = [
 ];
 
 const TYPE_MS = 34;    // per character while writing
-const DELETE_MS = 14;  // per character while clearing — reading is slower than erasing
+const DELETE_MS = 24;  // clearing, only slightly quicker than writing — a fast
+                       // rewind snaps and pulls the eye; this stays a backspace
 const HOLD_MS = 2200;  // long enough to finish reading the completed sentence
 const GAP_MS = 420;    // beat before the next one starts
 
