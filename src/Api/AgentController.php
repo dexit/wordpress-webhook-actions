@@ -18,6 +18,7 @@ use FlowSystems\WebhookActions\Services\Ai\AgentOrchestrator;
 use FlowSystems\WebhookActions\Services\Ai\AnthropicTransport;
 use FlowSystems\WebhookActions\Services\Ai\OpenAiTransport;
 use FlowSystems\WebhookActions\Services\Ai\GoogleTransport;
+use FlowSystems\WebhookActions\Services\Ai\TrialClient;
 use FlowSystems\WebhookActions\Services\Ai\AgentTraceLog;
 use FlowSystems\WebhookActions\Abilities\AbilityRegistry;
 
@@ -56,6 +57,12 @@ class AgentController extends WP_REST_Controller {
 
     register_rest_route($this->namespace, $base . '/source', [
       ['methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'saveSource'], 'permission_callback' => [$this, 'writeCheck']],
+    ]);
+
+    // Starting a free trial needs a Turnstile token, which only a browser can
+    // produce — hence a route rather than lazy server-side issuance.
+    register_rest_route($this->namespace, $base . '/trial', [
+      ['methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'startTrial'], 'permission_callback' => [$this, 'writeCheck']],
     ]);
 
     register_rest_route($this->namespace, $base . '/byok', [
@@ -112,6 +119,57 @@ class AgentController extends WP_REST_Controller {
     register_rest_route($this->namespace, $base . '/exec-mode', [
       ['methods' => WP_REST_Server::CREATABLE, 'callback' => [$this, 'setExecMode'], 'permission_callback' => [$this, 'writeCheck']],
     ]);
+  }
+
+  /**
+   * POST /agent/trial — start the anonymous free trial for this site.
+   *
+   * Returns the full transport status on success, because the admin UI replaces
+   * its whole status object with each response (same contract as saveSource).
+   */
+  public function startTrial(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    $trial = new TrialClient();
+
+    if ($trial->isStarted()) {
+      return new WP_REST_Response((new LlmTransport())->status(), 200);
+    }
+
+    $token = (string) $request->get_param('turnstile_token');
+
+    // Two-step, but only where a challenge is actually demanded. The first call
+    // carries no token; if this site needs one we hand back the config, the
+    // browser solves it, and it calls again. That keeps the Turnstile site key
+    // off every ordinary status render — this route is the only place it is ever
+    // needed — and keeps Cloudflare out of the request entirely for the ordinary
+    // install, which is never challenged.
+    //
+    // `challenge` marks the second leg. It matters because the challenge can
+    // legitimately yield no token, and without the marker that empty token would
+    // loop straight back to this branch instead of reaching the API.
+    if ($token === '' && !$request->get_param('challenge')) {
+      $config = $trial->challengeConfig();
+
+      if ($config['required'] && $config['site_key'] !== '') {
+        return new WP_REST_Response([
+          'needs_challenge' => true,
+          'site_key'        => $config['site_key'],
+        ], 200);
+      }
+
+      // Not challenged here: fall through and mint in this one call.
+    }
+
+    $result = $trial->start($token);
+
+    if (is_wp_error($result)) {
+      return $result;
+    }
+
+    $this->activity->log('agent.trial_started', 'agent', null, 'free trial', [
+      'new' => ['credits' => $result['credits'] ?? 0],
+    ]);
+
+    return new WP_REST_Response((new LlmTransport())->status(), 200);
   }
 
   public function readCheck(WP_REST_Request $request): bool|WP_Error {
@@ -389,7 +447,7 @@ class AgentController extends WP_REST_Controller {
       $message,
       (string) ($request->get_param('origin') ?? '')
     );
-    return is_wp_error($result) ? $result : rest_ensure_response($this->withHostedStatus($result));
+    return is_wp_error($result) ? $result : rest_ensure_response($this->withCreditStatus($result));
   }
 
   /**
@@ -403,7 +461,7 @@ class AgentController extends WP_REST_Controller {
       is_array($plan) ? $plan : null,
       $confirmed
     );
-    return is_wp_error($result) ? $result : rest_ensure_response($this->withHostedStatus($result));
+    return is_wp_error($result) ? $result : rest_ensure_response($this->withCreditStatus($result));
   }
 
   /**
@@ -444,7 +502,7 @@ class AgentController extends WP_REST_Controller {
       }
     }
     $result = $this->orchestrator->advanceStep((int) $request->get_param('id'), $opts);
-    return is_wp_error($result) ? $result : rest_ensure_response($this->withHostedStatus($result));
+    return is_wp_error($result) ? $result : rest_ensure_response($this->withCreditStatus($result));
   }
 
   /**
@@ -456,18 +514,30 @@ class AgentController extends WP_REST_Controller {
   }
 
   /**
-   * Attach the (Pro-supplied) hosted credit balance to a turn response. The
-   * transport persists the fresh balance during the turn, so the UI can update
-   * its credits chip from every reply without an extra status round-trip.
+   * Attach the credit balances to a turn response — the (Pro-supplied) hosted
+   * one and the anonymous trial. Both transports persist the fresh balance
+   * during the turn, so the UI updates its chip from every reply without an
+   * extra status round-trip.
+   *
+   * The trial belongs here for the same reason hosted does. Without it the chip
+   * shows whatever it read at page load and never moves, so a trial that is
+   * quietly draining looks free — and the moment it runs out arrives with no
+   * warning at all.
    *
    * @param array<string, mixed> $result
    * @return array<string, mixed>
    */
-  private function withHostedStatus(array $result): array {
+  private function withCreditStatus(array $result): array {
     $hosted = apply_filters('fswa_ai_hosted_status', null);
     if (is_array($hosted)) {
       $result['hosted'] = $hosted;
     }
+
+    $trial = new TrialClient();
+    if ($trial->isStarted()) {
+      $result['trial'] = $trial->status();
+    }
+
     return $result;
   }
 

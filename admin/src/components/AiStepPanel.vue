@@ -100,6 +100,14 @@ const emit = defineEmits([
       <Button v-if="reviewPreRun" :disabled="running" @click="emit('advance')">
         <Play class="w-4 h-4 mr-1.5" /> {{ __('Run plan') }}
       </Button>
+      <!-- Say that nothing is happening. A plan sitting at "pending" with a
+           button beside it is indistinguishable from a plan that is stuck, and
+           "Review plan before running" is a toggle you set once and forget — so
+           the screen has to name the reason it is waiting, not just offer the
+           cure. -->
+      <span v-if="reviewPreRun" class="text-xs text-muted-foreground">
+        {{ __('Review is on — nothing runs until you start it.') }}
+      </span>
       <Button v-else-if="canContinue" :disabled="running" @click="emit('advance')">
         <Play class="w-4 h-4 mr-1.5" /> {{ __('Continue build') }}
       </Button>

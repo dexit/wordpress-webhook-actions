@@ -105,6 +105,15 @@ function onWpProvider(id) {
 const saveWp = () => run('wp', () => api.agent.savePreference({ provider: wpProvider.value, model: wpModel.value }));
 
 // ---- BYO connectors -------------------------------------------------------
+// ---- Free trial -----------------------------------------------------------
+// Reported here, never started here. The trial is claimed on the first prompt in
+// the builder — putting a "start my trial" button in front of that would just be
+// the API-key detour again, one step shorter. This panel's job is to say what is
+// left and to offer the ways off it.
+const trial = computed(() => props.status?.trial || null);
+const trialActive = computed(() => trial.value?.started === true && !trial.value?.exhausted);
+const trialSpent = computed(() => trial.value?.started === true && trial.value?.exhausted === true);
+
 const byokProviders = computed(() => props.status?.byok?.providers || []);
 const byokActive = computed(() => props.status?.byok?.active || null);
 
@@ -112,7 +121,7 @@ const byokActive = computed(() => props.status?.byok?.active || null);
 // the panel is asking for an API key from someone who may not have one yet and
 // has no idea a free option exists. Only then do we surface the two ways out.
 const needsFirstKey = computed(
-  () => !byokProviders.value.some((p) => p.connected) && !hostedAvailable.value,
+  () => !byokProviders.value.some((p) => p.connected) && !hostedAvailable.value && !trialActive.value,
 );
 
 // Per-provider UI state: connect form open, key/model drafts, show-all toggle.
@@ -206,7 +215,7 @@ initWp();
           {{ __('Monthly credits reset on %s.').replace('%s', hostedResetDate) }}
         </p>
         <div class="flex items-center gap-3 pt-1">
-          <a href="https://wpwebhooks.org/pricing/#credits" target="_blank" rel="noopener noreferrer">
+          <a href="https://wpwebhooks.org/pricing/#pricing" target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="outline">
               <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Buy credits') }}
             </Button>
@@ -279,14 +288,35 @@ initWp();
 
       <!-- No connector, no key, no credits: don't leave them staring at an empty
            key field. One route is free and takes two minutes; the other is Pro. -->
+      <!-- Trial in progress: show what is left, and nothing else to do. -->
+      <div v-if="trialActive" class="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1.5">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <Sparkles class="w-3.5 h-3.5 text-primary" /> {{ __('Free trial') }}
+          </span>
+          <span class="text-sm font-medium text-foreground tabular-nums">
+            {{ __('%s credits left').replace('%s', fmt(trial.credits)) }}
+          </span>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          {{ __('No API key needed. Connect your own provider below at any time — it will be used instead of the trial.') }}
+        </p>
+      </div>
+
       <div v-if="needsFirstKey"
         class="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2.5">
         <div class="flex items-start gap-2">
           <Sparkles class="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <p class="text-xs text-foreground">
-            {{ __('Build with AI needs a model to talk to. You do not have to pay for one — Google AI Studio gives you a free Gemini key with no credit card.') }}
+            <template v-if="trialSpent">
+              {{ __('Your free trial is used up. Connect your own provider below — Google AI Studio gives you a free Gemini key with no credit card — or get Pro credits.') }}
+            </template>
+            <template v-else>
+              {{ __('Nothing to set up: your first builds are free and start the moment you send a prompt. Connect your own provider here whenever you want — it will be used instead of the trial.') }}
+            </template>
           </p>
         </div>
+
         <div class="flex flex-wrap items-center gap-2">
           <a href="https://wpwebhooks.org/docs/get-google-ai-studio-api-key/"
             target="_blank" rel="noopener noreferrer">
@@ -294,10 +324,10 @@ initWp();
               <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Get a free Gemini key') }}
             </Button>
           </a>
-          <a href="https://wpwebhooks.org/pricing/#credits"
+          <a href="https://wpwebhooks.org/pricing/#pricing"
             target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="outline">
-              {{ __('Or use Pro AI credits — no key needed') }}
+              {{ __('Or use Pro AI credits') }}
             </Button>
           </a>
         </div>
