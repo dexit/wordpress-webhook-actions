@@ -969,7 +969,7 @@ async function scrollDown() {
       <h2 class="text-xl font-semibold text-foreground">{{ __('Build with AI') }}</h2>
     </div>
     <p class="text-sm text-muted-foreground mb-6">
-      {{ __('Describe the integration or automation you want. The agent proposes a plan you can edit, then builds and tests it for you.') }}
+      {{ __('Describe the integration or automation you want. The agent proposes a plan you can review and ask for changes, then builds and tests it for you.') }}
     </p>
 
     <div v-if="loading" class="flex items-center gap-2 text-muted-foreground">
