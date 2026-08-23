@@ -41,6 +41,19 @@ class TrialClient {
    */
   private const CREDITS_PER_RUN = 11;
 
+  /**
+   * `accept` is not decoration. Laravel renders framework-level failures — a
+   * throttle, a malformed request, a 500 — as an HTML error page for a client
+   * that did not ask for JSON. json_decode then returns null, every one of those
+   * collapses into the same generic "could not start the trial", and the user is
+   * told nothing they can act on. Asking for JSON is what makes the real reason
+   * survive the trip.
+   */
+  private const JSON_HEADERS = [
+    'content-type' => 'application/json',
+    'accept'       => 'application/json',
+  ];
+
   public static function apiBase(): string {
     return rtrim((string) apply_filters('fswa_ai_api_base', self::DEFAULT_API_BASE), '/');
   }
@@ -78,6 +91,7 @@ class TrialClient {
 
     $response = wp_remote_get($url, [
       'timeout' => (int) apply_filters('fswa_ai_http_timeout', 15),
+      'headers' => self::JSON_HEADERS,
     ]);
 
     $miss = ['site_key' => '', 'required' => false, 'credits' => self::DEFAULT_GRANT];
@@ -127,7 +141,7 @@ class TrialClient {
   public function start(string $turnstileToken): array|WP_Error {
     $response = wp_remote_post(self::apiBase() . '/api/ai/trial', [
       'timeout' => (int) apply_filters('fswa_ai_http_timeout', 30),
-      'headers' => ['content-type' => 'application/json'],
+      'headers' => self::JSON_HEADERS,
       'body'    => wp_json_encode([
         'site_url'        => home_url(),
         'turnstile_token' => $turnstileToken,
@@ -140,11 +154,12 @@ class TrialClient {
 
     $code = (int) wp_remote_retrieve_response_code($response);
     $data = json_decode((string) wp_remote_retrieve_body($response), true);
+    $data = is_array($data) ? $data : [];
 
     if ($code < 200 || $code >= 300 || empty($data['license_key'])) {
       return new WP_Error(
         'fswa_trial_start_failed',
-        (string) ($data['message'] ?? __('Could not start the free trial. Please try again.', 'flowsystems-webhook-actions')),
+        (string) ($data['message'] ?? $this->fallbackMessage($code)),
         ['status' => $code, 'error' => $data['error'] ?? null]
       );
     }
@@ -160,6 +175,24 @@ class TrialClient {
     update_option(self::OPTION, $state, false);
 
     return $state;
+  }
+
+  /**
+   * Something to say when the response carried no message of its own — a proxy
+   * error page, a gateway timeout, anything that never reached the application.
+   * Keyed on status because "try again" and "wait an hour" are different
+   * instructions, and guessing wrong wastes the user's time twice.
+   */
+  private function fallbackMessage(int $code): string {
+    if ($code === 429) {
+      return __('Too many trial requests from this network. Please try again in an hour.', 'flowsystems-webhook-actions');
+    }
+
+    if ($code >= 500) {
+      return __('The trial service is not responding right now. Please try again in a few minutes.', 'flowsystems-webhook-actions');
+    }
+
+    return __('Could not start the free trial. Please try again.', 'flowsystems-webhook-actions');
   }
 
   /** @return array<string, mixed> */

@@ -18,6 +18,12 @@ use WP_Error;
  * this transport works inside the Live Preview, which is the whole point.
  */
 class HostedTrialTransport implements LlmTransportInterface {
+  /** See TrialClient::JSON_HEADERS — `accept` keeps error bodies parseable. */
+  private const JSON_HEADERS = [
+    'content-type' => 'application/json',
+    'accept'       => 'application/json',
+  ];
+
   /** Reported by the API; the model is chosen server-side, not here. */
   private string $model = 'wpwebhooks-hosted';
 
@@ -61,7 +67,7 @@ class HostedTrialTransport implements LlmTransportInterface {
 
     $this->lastRequest = [
       'endpoint' => $endpoint,
-      'headers'  => ['content-type' => 'application/json'],
+      'headers'  => self::JSON_HEADERS,
       // The licence key is a credential: it must never reach a trace the user
       // can copy into a support thread.
       'body'     => ['license_key' => '[redacted]'] + $body,
@@ -69,7 +75,7 @@ class HostedTrialTransport implements LlmTransportInterface {
 
     $response = wp_remote_post($endpoint, [
       'timeout' => (int) apply_filters('fswa_ai_http_timeout', 120),
-      'headers' => ['content-type' => 'application/json'],
+      'headers' => self::JSON_HEADERS,
       'body'    => wp_json_encode($body),
     ]);
 
