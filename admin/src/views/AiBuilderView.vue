@@ -349,6 +349,17 @@ function applyCredits(res) {
   }
 }
 
+// The provider panel lives ABOVE the chat, so opening it from a button further
+// down the page silently expands something off-screen — the click appears to do
+// nothing. Scroll it into view after Vue has actually mounted it.
+const providerPanel = ref(null);
+
+async function openProviderSettings() {
+  showSettings.value = true;
+  await nextTick();
+  providerPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 // The settings component returns a fresh status payload after every change.
 function onSettingsUpdate(newStatus, action = '') {
   status.value = newStatus;
@@ -1053,7 +1064,7 @@ async function scrollDown() {
             {{ __('Connect') }}
           </Button>
         </div>
-        <div v-if="showSettings" class="border-t border-border p-4">
+        <div v-if="showSettings" ref="providerPanel" class="border-t border-border p-4">
           <AiProviderSettings :status="status" @update="onSettingsUpdate" />
         </div>
       </div>
@@ -1106,7 +1117,7 @@ async function scrollDown() {
           </div>
         </div>
 
-        <div v-if="showSettings" class="border-t border-border p-4">
+        <div v-if="showSettings" ref="providerPanel" class="border-t border-border p-4">
           <AiProviderSettings :status="status" @update="onSettingsUpdate" />
         </div>
       </div>
@@ -1320,7 +1331,7 @@ async function scrollDown() {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <Button size="sm" @click="showSettings = true">
+        <Button size="sm" @click="openProviderSettings">
           <KeyRound class="w-4 h-4 mr-1.5" /> {{ __('Connect your own key') }}
         </Button>
         <a href="https://wpwebhooks.org/docs/get-google-ai-studio-api-key/"
@@ -1329,7 +1340,7 @@ async function scrollDown() {
             <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Get a free Gemini key') }}
           </Button>
         </a>
-        <a href="https://wpwebhooks.org/pricing/#credits"
+        <a href="https://wpwebhooks.org/pricing/#pricing"
           target="_blank" rel="noopener noreferrer">
           <Button size="sm" variant="outline">{{ __('Get Pro credits') }}</Button>
         </a>

@@ -215,7 +215,7 @@ initWp();
           {{ __('Monthly credits reset on %s.').replace('%s', hostedResetDate) }}
         </p>
         <div class="flex items-center gap-3 pt-1">
-          <a href="https://wpwebhooks.org/pricing/#credits" target="_blank" rel="noopener noreferrer">
+          <a href="https://wpwebhooks.org/pricing/#pricing" target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="outline">
               <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Buy credits') }}
             </Button>
@@ -324,7 +324,7 @@ initWp();
               <ExternalLink class="w-4 h-4 mr-1.5" /> {{ __('Get a free Gemini key') }}
             </Button>
           </a>
-          <a href="https://wpwebhooks.org/pricing/#credits"
+          <a href="https://wpwebhooks.org/pricing/#pricing"
             target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="outline">
               {{ __('Or use Pro AI credits') }}

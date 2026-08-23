@@ -230,6 +230,12 @@ class TrialClient {
 
     if ($remaining !== null) {
       $state['credits'] = max(0, $remaining);
+      // A balance is the whole truth about exhaustion, so it must be able to
+      // clear the flag as well as set it. Only ever setting it meant a licence
+      // that got credits back — a top-up, a grant, a correction — stayed marked
+      // spent forever, and the panel kept offering a way out of a state the site
+      // was no longer in.
+      $state['exhausted'] = $state['credits'] <= 0;
     }
     if ($exhausted) {
       $state['exhausted'] = true;
