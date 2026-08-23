@@ -311,9 +311,18 @@ const resetCountdown = computed(() => {
   return sprintf(__('resets in %1$dh %2$dm'), hours, mins % 60);
 });
 
-function applyHosted(res) {
-  if (res?.hosted && status.value) {
+// Every turn response carries the balances the turn just changed, so the credits
+// chip counts down as the agent works instead of showing whatever it read at
+// page load. The trial needs this as much as the Pro balance does: a chip frozen
+// at the full grant makes a draining trial look free right up until it isn't.
+function applyCredits(res) {
+  if (!status.value) return;
+
+  if (res?.hosted) {
     status.value = { ...status.value, hosted: res.hosted };
+  }
+  if (res?.trial) {
+    status.value = { ...status.value, trial: res.trial };
   }
 }
 
@@ -728,7 +737,7 @@ async function dispatchMessage(text, origin = '') {
   try {
     const res = await api.agent.message(convId, text, origin);
     clearInterval(poll);
-    applyHosted(res);
+    applyCredits(res);
     try {
       await reloadTranscript(convId);
     } catch {
@@ -784,7 +793,7 @@ async function advance(opts = {}) {
       const res = await api.agent.step(activeId.value, first ? opts : {});
       continuation = res.continuation || null;
       first = false;
-      applyHosted(res);
+      applyCredits(res);
       // Hold the "running" presentation so even instant steps are noticeable,
       // THEN apply the result (the step flips to done / blocked in one beat).
       const hold = MIN_STEP_MS - (Date.now() - startedAt);

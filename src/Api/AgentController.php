@@ -447,7 +447,7 @@ class AgentController extends WP_REST_Controller {
       $message,
       (string) ($request->get_param('origin') ?? '')
     );
-    return is_wp_error($result) ? $result : rest_ensure_response($this->withHostedStatus($result));
+    return is_wp_error($result) ? $result : rest_ensure_response($this->withCreditStatus($result));
   }
 
   /**
@@ -461,7 +461,7 @@ class AgentController extends WP_REST_Controller {
       is_array($plan) ? $plan : null,
       $confirmed
     );
-    return is_wp_error($result) ? $result : rest_ensure_response($this->withHostedStatus($result));
+    return is_wp_error($result) ? $result : rest_ensure_response($this->withCreditStatus($result));
   }
 
   /**
@@ -502,7 +502,7 @@ class AgentController extends WP_REST_Controller {
       }
     }
     $result = $this->orchestrator->advanceStep((int) $request->get_param('id'), $opts);
-    return is_wp_error($result) ? $result : rest_ensure_response($this->withHostedStatus($result));
+    return is_wp_error($result) ? $result : rest_ensure_response($this->withCreditStatus($result));
   }
 
   /**
@@ -514,18 +514,30 @@ class AgentController extends WP_REST_Controller {
   }
 
   /**
-   * Attach the (Pro-supplied) hosted credit balance to a turn response. The
-   * transport persists the fresh balance during the turn, so the UI can update
-   * its credits chip from every reply without an extra status round-trip.
+   * Attach the credit balances to a turn response — the (Pro-supplied) hosted
+   * one and the anonymous trial. Both transports persist the fresh balance
+   * during the turn, so the UI updates its chip from every reply without an
+   * extra status round-trip.
+   *
+   * The trial belongs here for the same reason hosted does. Without it the chip
+   * shows whatever it read at page load and never moves, so a trial that is
+   * quietly draining looks free — and the moment it runs out arrives with no
+   * warning at all.
    *
    * @param array<string, mixed> $result
    * @return array<string, mixed>
    */
-  private function withHostedStatus(array $result): array {
+  private function withCreditStatus(array $result): array {
     $hosted = apply_filters('fswa_ai_hosted_status', null);
     if (is_array($hosted)) {
       $result['hosted'] = $hosted;
     }
+
+    $trial = new TrialClient();
+    if ($trial->isStarted()) {
+      $result['trial'] = $trial->status();
+    }
+
     return $result;
   }
 
