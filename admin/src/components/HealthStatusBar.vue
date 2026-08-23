@@ -133,7 +133,7 @@ const formatDuration = (ms) => {
         <div class="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
           <Zap class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
           <span class="text-muted-foreground">{{ __('Sent today') }}</span>
-          <span class="font-medium tabular-nums">{{ formatNumber(velocity.last_day) }}</span>
+          <span class="font-medium tabular-nums">{{ formatNumber(logs.sent_today) }}</span>
         </div>
         <div class="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
           <Share2 class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />

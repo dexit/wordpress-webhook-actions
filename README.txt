@@ -4,7 +4,7 @@ Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.8.0
+Stable tag: 2.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -143,12 +143,5 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.8.0 — 2026-08-24 =
-- Added: Build with AI now works without an API key. A fresh install can describe what it wants built straight away — the first builds run on free credits from WP Webhooks, with no account, no card and nothing to connect first. Enough to plan, build and test an automation or two.
-- Added: the model bar shows how many free credits are left and roughly how many builds that is, counting down as the agent works.
-- Added: when the free credits run out, Build with AI offers the ways forward — connect your own key, get a free Gemini key, or Pro credits — instead of only reporting that they are gone. Everything already built stays on the site.
-- Changed: Build with AI opens on a single prompt box instead of a provider setup screen, with real example prompts typing themselves out to show what it accepts.
-- Changed: with "Review plan before running" switched on, a proposed plan now says it is waiting for you to start it, rather than sitting silently while it looks stuck.
-- Fixed: filtered and paginated admin screens returned "not found" on sites using plain permalinks — the WordPress default on a fresh install. Delivery log filters, pagination and the AI dev trace all failed to load.
-- Fixed: the AI credits balance stopped updating after a request that failed because the credits had run out — the one moment it most needed to be right.
-- Fixed: errors coming back from the AI service were collapsed into one generic message, so a rate limit was indistinguishable from an outage.
+= 2.8.1 — 2026-08-24 =
+- Fixed: the header could show "Sent today" as a bigger number than "Total sent" — today's count exceeding the all-time count, which is impossible and reads as a broken counter. "Sent today" was counting every log row from the last 24 hours, including deliveries a condition skipped, deliveries still queued, and manual test dispatches — none of which were ever sent. It now counts the same thing "Total sent" does, just for today.

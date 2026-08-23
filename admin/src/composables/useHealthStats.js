@@ -41,6 +41,7 @@ export function useHealthStats() {
   const logs = computed(() => stats.value?.logs ?? {
     total: 0,
     total_all_time: 0,
+    sent_today: 0,
     success: 0,
     error: 0,
     pending: 0,

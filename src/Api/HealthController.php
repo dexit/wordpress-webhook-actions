@@ -72,6 +72,20 @@ class HealthController extends WP_REST_Controller {
       ? round(($totalSuccess / $totalDeliveries) * 100, 1)
       : 0.0;
 
+    // "Sent today" comes from the SAME table and columns as "Total sent", just
+    // windowed to today — so the pair can never contradict itself.
+    //
+    // It used to be getVelocityStats()['last_day'], a raw COUNT(*) of log rows in
+    // the last 24h. That counts rows that were never sent: `skipped` (a condition
+    // filtered the event out), `pending` (not dispatched yet) and `test` (a manual
+    // test dispatch). None of them appear in `total_sent`, so a site could show
+    // "Sent today 5 / Total sent 4" — today exceeding all time, which is
+    // impossible and reads as a broken counter. A fresh Live Preview hit it every
+    // time, because the seeded conditions demo deliberately produces one skipped
+    // delivery.
+    $todayStats = $this->statsRepository->getPeriodStats(null, 0);
+    $sentToday  = $todayStats['success'] + $todayStats['permanently_failed'];
+
     // Get recent stats (persistent + transient) for the logs view
     $recentPersistent = $this->statsRepository->getPeriodStats(null, 7);
     $recentTransient  = $this->logRepository->getTransientStats(null, 7);
@@ -106,6 +120,7 @@ class HealthController extends WP_REST_Controller {
       'logs' => [
         'total' => $recentLogStats['total'],
         'total_all_time' => $totalSent,
+        'sent_today' => $sentToday,
         'success' => $recentLogStats['success'],
         'error' => $recentLogStats['error'],
         'pending' => $recentLogStats['pending'],
