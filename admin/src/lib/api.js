@@ -11,9 +11,34 @@ const getSettings = () => window.fswaSettings || {}
  * @param {object} options - Fetch options
  * @returns {Promise<any>}
  */
+/**
+ * Join the REST base to an endpoint that may already carry a query string.
+ *
+ * With pretty permalinks the base is a path (`/wp-json/fswa/v1/`) and plain
+ * concatenation is fine. With PLAIN permalinks — the WordPress default on a
+ * fresh install, and what Playground boots with — the base is itself a query
+ * string:
+ *
+ *   https://example.com/index.php?rest_route=/fswa/v1/
+ *
+ * Appending `agent/traces?limit=50` then produces a second `?`, so WordPress
+ * reads the route as the literal `/fswa/v1/agent/traces?limit=50`, matches
+ * nothing, and returns 404. Every filtered or paginated GET/DELETE in the admin
+ * fails that way — logs, traces, pagination — on exactly the sites least likely
+ * to have touched their settings.
+ */
+function buildUrl(base, endpoint) {
+  if (base.includes('?') && endpoint.includes('?')) {
+    // Only the first separator: any further `?` belongs to a value.
+    return base + endpoint.replace('?', '&')
+  }
+
+  return base + endpoint
+}
+
 async function request(endpoint, options = {}) {
   const settings = getSettings()
-  const url = `${settings.restUrl}${endpoint}`
+  const url = buildUrl(settings.restUrl || '', endpoint)
 
   const headers = {
     'Content-Type': 'application/json',
