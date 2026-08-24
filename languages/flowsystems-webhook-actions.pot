@@ -5595,3 +5595,10 @@ msgid ""
 "💡 Local installs (%1$slocalhost%2$s, %1$s*.local%2$s, %1$s*.test%2$s) "
 "don't count toward your site limit."
 msgstr ""
+
+#: admin/src/views/ProView.vue
+msgid ""
+"💡 Staging and dev copies share their site's slot — %1$sstaging.%2$s, "
+"%1$sdev.%2$s, %1$sstage.%2$s, %1$stest.%2$s, %1$sqa.%2$s and similar "
+"subdomains of a licensed domain."
+msgstr ""

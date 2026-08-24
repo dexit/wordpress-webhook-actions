@@ -221,6 +221,7 @@ onMounted(loadStatus)
             </a>
           </p>
           <p class="text-xs text-muted-foreground" v-html="sprintf(__('💡 Local installs (%1$slocalhost%2$s, %1$s*.local%2$s, %1$s*.test%2$s) don\'t count toward your site limit.'), '<span class=&quot;font-mono&quot;>', '</span>')"></p>
+          <p class="text-xs text-muted-foreground" v-html="sprintf(__('💡 Staging and dev copies share their site\'s slot — %1$sstaging.%2$s, %1$sdev.%2$s, %1$sstage.%2$s, %1$stest.%2$s, %1$sqa.%2$s and similar subdomains of a licensed domain.'), '<span class=&quot;font-mono&quot;>', '</span>')"></p>
         </div>
       </Card>
     </template>
@@ -260,6 +261,7 @@ onMounted(loadStatus)
             </div>
           </dl>
           <p class="text-xs text-muted-foreground pt-1" v-html="sprintf(__('💡 Local installs (%1$slocalhost%2$s, %1$s*.local%2$s, %1$s*.test%2$s) don\'t count toward your site limit.'), '<span class=&quot;font-mono&quot;>', '</span>')"></p>
+          <p class="text-xs text-muted-foreground" v-html="sprintf(__('💡 Staging and dev copies share their site\'s slot — %1$sstaging.%2$s, %1$sdev.%2$s, %1$sstage.%2$s, %1$stest.%2$s, %1$sqa.%2$s and similar subdomains of a licensed domain.'), '<span class=&quot;font-mono&quot;>', '</span>')"></p>
         </div>
       </Card>
 
