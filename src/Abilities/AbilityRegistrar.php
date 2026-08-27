@@ -22,28 +22,43 @@ class AbilityRegistrar {
   }
 
   /**
-   * Hook into the Abilities API init action when available.
+   * Hook into the Abilities API init actions when available.
+   *
+   * Categories and abilities have SEPARATE init hooks — core rejects a category
+   * registered from inside `wp_abilities_api_init`.
    */
   public function init(): void {
     if (!function_exists('wp_register_ability')) {
       return; // Abilities API not present — agent still works via direct execution.
     }
 
+    add_action('wp_abilities_api_categories_init', [$this, 'registerCategory']);
     add_action('wp_abilities_api_init', [$this, 'register']);
   }
 
   /**
-   * Register the category and every ability definition.
+   * Register the ability category.
+   *
+   * Must run on `wp_abilities_api_categories_init`; core emits a _doing_it_wrong
+   * and drops the category anywhere else.
    */
-  public function register(): void {
+  public function registerCategory(): void {
     if (function_exists('wp_register_ability_category')) {
       wp_register_ability_category('webhook-actions', [
-        'label' => __('Webhook Actions', 'flowsystems-webhook-actions'),
+        'label'       => __('Webhook Actions', 'flowsystems-webhook-actions'),
+        // Required by core — a category without a description is silently dropped,
+        // taking every ability assigned to it with it.
+        'description' => __('Create and manage outgoing webhooks: triggers, field mappings, conditions, chains, credentials and delivery logs.', 'flowsystems-webhook-actions'),
       ]);
     }
+  }
 
+  /**
+   * Register every ability definition.
+   */
+  public function register(): void {
     foreach ($this->registry->definitions() as $name => $def) {
-      $abilityName = AbilityRegistry::NAMESPACE . '/' . $name;
+      $abilityName = AbilityRegistry::NAMESPACE . '/' . self::publicSlug($name);
       $scope       = $def['scope'] ?? 'read';
 
       wp_register_ability($abilityName, [
@@ -62,9 +77,35 @@ class AbilityRegistrar {
         },
         'meta'              => [
           'requires_confirm' => $def['requires_confirm'] ?? false,
+          // Without this the ability registers but stays invisible: `public` seeds
+          // `show_in_rest`, and both the /wp-abilities/v1/ list and run controllers
+          // hard-filter on `show_in_rest` — so MCP clients never see it either.
+          'public'           => true,
+          // `public` alone is NOT enough for MCP in the wild. WooCommerce and
+          // IvyForms each bundle their own older `wordpress/mcp-adapter` in
+          // vendor/ (0.1.0 and 0.5.0 as of 2026-08), and whichever copy the
+          // autoloader resolves first serves the whole request. The older ones
+          // only honour the nested flag, so on a WooCommerce site `meta.public`
+          // is silently ignored and every ability reads as "mcp.public!=true".
+          // Declaring both is what WooCommerce's own abilities do.
+          'mcp'              => [
+            'public' => true,
+            'type'   => 'tool',
+          ],
         ],
       ]);
     }
+  }
+
+  /**
+   * Map an internal registry key to a valid Abilities API slug.
+   *
+   * Core validates names against `/^[a-z0-9-]+\/[a-z0-9-]+$/` — underscores are
+   * rejected outright. The registry's own keys (and the AI Builder's tool names)
+   * stay snake_case; only the public Abilities/MCP surface uses dashes.
+   */
+  private static function publicSlug(string $name): string {
+    return str_replace('_', '-', $name);
   }
 
   /**
