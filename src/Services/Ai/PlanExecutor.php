@@ -987,27 +987,10 @@ class PlanExecutor {
    * as webhook 0. Falls back to the step's own input (pre-run UI metadata).
    */
   private function stepNeedsConfirm(array $step, ?array $input = null): bool {
-    $ability     = (string) ($step['ability'] ?? '');
-    $definitions = $this->registry->definitions();
-    $policy      = $definitions[$ability]['requires_confirm'] ?? false;
-    $input     ??= (array) ($step['input'] ?? []);
-
-    return match ($policy) {
-      'always'             => true,
-      // `id` for webhook-target abilities (enable/update/delete), `webhook_id`
-      // for abilities that attach TO a webhook (assign_snippet, set_mapping…).
-      'when_live'          => $this->webhookIsLive((int) ($input['id'] ?? $input['webhook_id'] ?? 0)),
-      'when_destructive_method' => in_array(strtoupper((string) ($input['method'] ?? 'GET')), ['PUT', 'PATCH', 'DELETE'], true),
-      default              => false,
-    };
-  }
-
-  private function webhookIsLive(int $webhookId): bool {
-    if ($webhookId <= 0) {
-      return false;
-    }
-    $webhook = (new WebhookRepository())->find($webhookId);
-    return $webhook !== null && !empty($webhook['is_enabled']);
+    return $this->registry->requiresConfirmation(
+      (string) ($step['ability'] ?? ''),
+      $input ?? (array) ($step['input'] ?? [])
+    );
   }
 
   /**

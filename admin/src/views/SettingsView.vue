@@ -16,6 +16,7 @@ const settings = ref({
   activity_log_retention_days: 90,
   ai_trace_enabled: false,
   ai_debug_enabled: true,
+  mcp_expose_writes: true,
 })
 const info = ref(null)
 const archive = ref(null)
@@ -515,6 +516,14 @@ onMounted(loadData)
               </div>
               <p class="text-sm text-muted-foreground">
                 {{ __('Adds a diagnostic panel to Build with AI where you can read and export the recorded trace. Independent of logging above.') }}
+              </p>
+
+              <div class="flex items-center space-x-2 pt-2">
+                <Switch v-model="settings.mcp_expose_writes" />
+                <Label>{{ __('Let connected AI tools build webhooks') }}</Label>
+              </div>
+              <p class="text-sm text-muted-foreground">
+                {{ __('External AI tools connected over MCP — Claude, Cursor and the like — can create, edit and test webhooks for you, the same way Build with AI does. Deleting a webhook, taking one live or firing a test always needs an explicit confirmation first. Turn this off to hold connected tools to read-only; Build with AI is unaffected either way.') }}
               </p>
             </div>
 
