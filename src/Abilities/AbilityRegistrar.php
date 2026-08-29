@@ -113,7 +113,7 @@ class AbilityRegistrar {
         'label'             => $def['label'] ?? $name,
         'description'       => $def['description'] ?? '',
         'category'          => $def['category'] ?? 'webhook-actions',
-        'input_schema'      => $def['input_schema'] ?? ['type' => 'object'],
+        'input_schema'      => self::inputSchema($def['input_schema'] ?? ['type' => 'object']),
         'output_schema'     => ['type' => 'object'],
         'execute_callback'  => function (array $input) use ($name) {
           // The plan gate in PlanExecutor only guards the AI Builder. Anything
@@ -139,11 +139,16 @@ class AbilityRegistrar {
           return self::permitted($scope);
         },
         'meta'              => [
-          // MCP tool annotations. Clients group and gate tools by these — the
-          // default server exposes our abilities as discrete tools, so this is
-          // what puts delete_webhook in a client's "destructive" bucket instead
-          // of leaving every tool unclassified. `destructive` deliberately
-          // mirrors the confirm gate above: one rule, one place to change it.
+          // Core ability annotations. These are honest metadata about each
+          // ability, and core's /run controller uses `readonly` to decide that
+          // a read is fetched with GET rather than POSTed.
+          //
+          // They do NOT currently reach MCP clients as per-tool hints: the MCP
+          // Adapter's server publishes a fixed trio of meta-tools and routes
+          // everything through execute-ability, so a client sees one tool, not
+          // 26. That is exactly why the confirm gate above has to live here
+          // rather than being delegated to the client's own approval UI.
+          // `destructive` mirrors that gate: one rule, one place to change it.
           'annotations'      => [
             'readonly'   => $isRead,
             'destructive' => !$isRead && $confirm !== false,
@@ -168,6 +173,28 @@ class AbilityRegistrar {
         ],
       ]);
     }
+  }
+
+  /**
+   * Give an input schema a default, so a zero-argument call validates.
+   *
+   * A client calling `list_webhooks` sends no arguments, and without a `default`
+   * the absent input never normalises to an object — validation then rejects it
+   * with "input is not of type object" and every argument-less ability is
+   * unusable over MCP. Supplying the default also turns the error for a genuinely
+   * incomplete call into "missing required property", which is the useful one.
+   *
+   * @param array<string, mixed> $schema
+   * @return array<string, mixed>
+   */
+  private static function inputSchema(array $schema): array {
+    if (!array_key_exists('default', $schema)) {
+      // An empty ARRAY, not (object) [] — core hands the default straight to the
+      // execute callback, which is typed `array $input`, so an object default
+      // makes every zero-argument call die on a TypeError instead of running.
+      $schema['default'] = [];
+    }
+    return $schema;
   }
 
   /**
