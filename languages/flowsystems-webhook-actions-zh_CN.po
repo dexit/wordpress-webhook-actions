@@ -5677,3 +5677,13 @@ msgid ""
 "💡 Local installs (%1$slocalhost%2$s, %1$s*.local%2$s, %1$s*.test%2$s) "
 "don't count toward your site limit."
 msgstr "💡 本地安装（%1$slocalhost%2$s、%1$s*.local%2$s、%1$s*.test%2$s）不计入你的站点限额。"
+
+#: admin/src/views/ProView.vue
+msgid ""
+"💡 Staging and dev copies share their site's slot — %1$sstaging.%2$s, "
+"%1$sdev.%2$s, %1$sstage.%2$s, %1$stest.%2$s, %1$sqa.%2$s and similar "
+"subdomains of a licensed domain."
+msgstr ""
+"💡 "
+"预发布和开发副本与主站共用同一个站点名额——%1$sstaging.%2$s、%1$sdev.%2$s、%1$sstage.%2$s、%1$stest.%2$"
+"s、%1$sqa.%2$s 等已授权域名的子域名会与主域名合并计算。"

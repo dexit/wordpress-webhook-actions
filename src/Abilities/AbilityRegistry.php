@@ -5,6 +5,7 @@ namespace FlowSystems\WebhookActions\Abilities;
 defined('ABSPATH') || exit;
 
 use FlowSystems\WebhookActions\Api\AuthHelper;
+use FlowSystems\WebhookActions\Repositories\WebhookRepository;
 use WP_Error;
 
 /**
@@ -82,6 +83,42 @@ class AbilityRegistry {
     }
     $names[] = 'list_credentials';
     return $names;
+  }
+
+  /**
+   * Whether an ability requires explicit confirmation for this input.
+   *
+   * Single source of truth for the `requires_confirm` policy, shared by the AI
+   * Builder's plan gate (PlanExecutor::stepNeedsConfirm) and the Abilities/MCP
+   * boundary (AbilityRegistrar), so the two can never drift apart.
+   *
+   * Deliberately NOT enforced inside execute(): undo (StepReverter) and the
+   * executor's own rollback call delete_webhook/enable_webhook to put things
+   * back, and a build that failed halfway must always be able to clean up after
+   * itself. Confirmation belongs at the entry points, which is where a human is.
+   *
+   * @param array<string, mixed> $input
+   */
+  public function requiresConfirmation(string $name, array $input): bool {
+    $definitions = $this->definitions();
+    $policy      = $definitions[$name]['requires_confirm'] ?? false;
+
+    return match ($policy) {
+      'always'                  => true,
+      // `id` for webhook-target abilities (enable/update/delete), `webhook_id`
+      // for abilities that attach TO a webhook (assign_snippet, set_mapping…).
+      'when_live'               => $this->webhookIsLive((int) ($input['id'] ?? $input['webhook_id'] ?? 0)),
+      'when_destructive_method' => in_array(strtoupper((string) ($input['method'] ?? 'GET')), ['PUT', 'PATCH', 'DELETE'], true),
+      default                   => false,
+    };
+  }
+
+  private function webhookIsLive(int $webhookId): bool {
+    if ($webhookId <= 0) {
+      return false;
+    }
+    $webhook = (new WebhookRepository())->find($webhookId);
+    return $webhook !== null && !empty($webhook['is_enabled']);
   }
 
   /**

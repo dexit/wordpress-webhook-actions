@@ -24,6 +24,9 @@ class ReadAbilities {
   /** Max triggers a single list_triggers read returns (use search to narrow). */
   private const TRIGGERS_LIST_MAX = 200;
 
+  /** Max description characters list_webhooks returns per webhook. */
+  private const DESCRIPTION_SNIPPET_MAX = 200;
+
   public function listTriggers(array $input): array {
     $triggers = (new HookDiscoveryService())->discoverWithRuntimeHooks();
 
@@ -53,7 +56,32 @@ class ReadAbilities {
   }
 
   public function listWebhooks(array $input): array {
-    return ['webhooks' => (new WebhookRepository())->getAll()];
+    $webhooks = array_map(
+      fn(array $w): array => $this->trimDescription($this->redactSecrets($w)),
+      (new WebhookRepository())->getAll()
+    );
+    return ['webhooks' => $webhooks];
+  }
+
+  /**
+   * Cut a webhook's description down to a snippet for the LIST read.
+   *
+   * Descriptions became a first-class feature in 2.4.0 and published builds ship
+   * long markdown ones — on a real site they are the bulk of this response, and
+   * every read here is replayed to the model on later rounds. The agent uses this
+   * list to find a webhook by name or id, which a snippet serves just as well;
+   * get_webhook still returns the description in full when it actually matters.
+   *
+   * @param array<string, mixed> $webhook
+   * @return array<string, mixed>
+   */
+  private function trimDescription(array $webhook): array {
+    $description = (string) ($webhook['description'] ?? '');
+    if (mb_strlen($description) > self::DESCRIPTION_SNIPPET_MAX) {
+      $webhook['description']           = mb_substr($description, 0, self::DESCRIPTION_SNIPPET_MAX) . '…';
+      $webhook['description_truncated'] = true;
+    }
+    return $webhook;
   }
 
   public function getWebhook(array $input): array|WP_Error {
@@ -62,7 +90,31 @@ class ReadAbilities {
       return $this->notFound();
     }
     $webhook['schemas'] = (new SchemaRepository())->getByWebhook((int) $webhook['id']);
-    return ['webhook' => $webhook];
+    return ['webhook' => $this->redactSecrets($webhook)];
+  }
+
+  /**
+   * Mask the legacy plaintext auth_header before a webhook leaves this class.
+   *
+   * Everything on the abilities path is consumed by an AI: Build with AI replays
+   * these results into the model's context on later rounds, and external MCP/REST
+   * callers read them directly. Neither should ever receive a live credential, so
+   * this is unconditional — unlike WebhooksController::prepareWebhook(), which
+   * gates on AuthHelper::canRevealSecrets() because it also serves the admin UI,
+   * where an administrator is entitled to see the value they typed in.
+   *
+   * Vault credentials never needed this: only the non-secret auth_credential_id
+   * reference is stored on the webhook, and CredentialRepository selects a
+   * public column list that excludes the ciphertext entirely.
+   *
+   * @param array<string, mixed> $webhook
+   * @return array<string, mixed>
+   */
+  private function redactSecrets(array $webhook): array {
+    if (!empty($webhook['auth_header'])) {
+      $webhook['auth_header'] = '[redacted]';
+    }
+    return $webhook;
   }
 
   public function getTriggerSchema(array $input): array|WP_Error {

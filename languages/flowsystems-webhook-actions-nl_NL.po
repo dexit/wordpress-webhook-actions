@@ -6100,3 +6100,13 @@ msgid ""
 msgstr ""
 "💡 Lokale installaties (%1$slocalhost%2$s, %1$s*.local%2$s, %1$s*.test%2$s) "
 "tellen niet mee voor je sitelimiet."
+
+#: admin/src/views/ProView.vue
+msgid ""
+"💡 Staging and dev copies share their site's slot — %1$sstaging.%2$s, "
+"%1$sdev.%2$s, %1$sstage.%2$s, %1$stest.%2$s, %1$sqa.%2$s and similar "
+"subdomains of a licensed domain."
+msgstr ""
+"💡 Staging- en dev-kopieën delen de plek van hun site — %1$sstaging.%2$s, "
+"%1$sdev.%2$s, %1$sstage.%2$s, %1$stest.%2$s, %1$sqa.%2$s en vergelijkbare "
+"subdomeinen van een gelicentieerd domein tellen samen als één site."

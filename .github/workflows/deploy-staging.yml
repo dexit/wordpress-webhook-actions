@@ -1,0 +1,63 @@
+name: Deploy to staging
+
+# Ships the free plugin to https://staging.wpwebhooks.org/ on every push to
+# `staging`. The runner lives on the same VPS as the staging stack, so the
+# deploy is a local rsync — no secrets, no SSH, no build step (vendor/ and
+# admin/dist/ are tracked).
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+    inputs:
+      refresh_mcp_adapter:
+        description: 'Reinstall the MCP Adapter even if the pinned version is present'
+        type: boolean
+        default: false
+
+concurrency:
+  group: staging-deploy-free
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, fswa-staging]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy plugin
+        run: ./scripts/deploy-staging.sh
+
+      - name: Ensure MCP Adapter
+        env:
+          # A forced refresh just clears the version so the script reinstalls.
+          ADAPTER_VERSION: ${{ inputs.refresh_mcp_adapter && '0.6.1-force' || '0.6.1' }}
+        run: |
+          if [ "${ADAPTER_VERSION}" = "0.6.1-force" ]; then
+            rm -rf /srv/docker/staging.wpwebhooks/wordpress/wp-content/plugins/mcp-adapter
+            export ADAPTER_VERSION=0.6.1
+          fi
+          ./scripts/staging-ensure-mcp-adapter.sh
+
+      - name: Verify abilities are exposed
+        run: |
+          docker exec caloriehub_wordpress wp eval '
+            $ours = array_keys(wp_get_abilities([
+              "namespace" => "flowsystems-webhook-actions",
+              "meta"      => ["show_in_rest" => true],
+            ]));
+            echo "REST/MCP-visible abilities: " . count($ours) . "\n";
+            if (count($ours) === 0) { exit(1); }
+          ' --allow-root
+
+      - name: Summary
+        run: |
+          {
+            echo "### Staging deploy"
+            echo ""
+            echo "- Site: https://staging.wpwebhooks.org/"
+            echo "- Free plugin: \`$(docker exec caloriehub_wordpress wp plugin get flowsystems-webhook-actions --field=version --allow-root)\`"
+            echo "- MCP Adapter: \`$(docker exec caloriehub_wordpress wp plugin get mcp-adapter --field=version --allow-root)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
