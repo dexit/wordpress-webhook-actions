@@ -4,7 +4,7 @@ Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.8.1
+Stable tag: 2.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -143,5 +143,12 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.8.1 — 2026-08-24 =
-- Fixed: the header could show "Sent today" as a bigger number than "Total sent" — today's count exceeding the all-time count, which is impossible and reads as a broken counter. "Sent today" was counting every log row from the last 24 hours, including deliveries a condition skipped, deliveries still queued, and manual test dispatches — none of which were ever sent. It now counts the same thing "Total sent" does, just for today.
+= 2.9.0 — 2026-08-30 =
+- Added: connect an external AI tool to your site over MCP. Everything Build with AI can do — reading your triggers, mapping fields, creating and testing webhooks — is now reachable from Claude Code, Cursor and Claude on the web, driving the same toolset against your real configuration. See the setup guides at https://wpwebhooks.org/docs/
+- Fixed: the abilities registered since 2.0.0 never actually reached the WordPress Abilities API, so nothing could discover them. Three separate causes, all silent: ability names used underscores, which core rejects; the category was registered on the wrong hook and was dropped along with everything assigned to it; and the metadata that makes an ability visible over REST and MCP was missing. All 26 are now discoverable and executable.
+- Fixed: abilities that take no arguments — listing your webhooks, triggers or snippets — failed over MCP with a generic error, while abilities taking a parameter worked. Their input schema declared no default, so an empty argument set never validated.
+- Fixed: the AI-facing webhook read now masks a manually entered authorization header, matching what the plugin's own REST endpoints have always done. This only applied to webhooks using the manual header field rather than the Credentials Vault — vault secrets are stored encrypted and have always come back as names and masked hints. Deliveries are unaffected and still send the real header.
+- Added: destructive abilities now require explicit confirmation when called from outside the plugin. Deleting a webhook, taking one live, firing a test delivery or provisioning an application password are refused unless the call confirms the intent, so a connected AI cannot perform them on its own initiative.
+- Added: API tokens now work against the Abilities REST route, honouring their scope exactly as the plugin's own endpoints do — a read token cannot reach a write ability, and the agent token can build without ever revealing a stored secret.
+- Added: a setting to hold connected AI tools to read-only. Building is on by default; switching it off leaves reads working and does not affect Build with AI.
+- Changed: listing webhooks now returns a short snippet of each description rather than the whole thing, so a site with long documented builds no longer sends thousands of words of context on every AI read. Fetching a single webhook still returns the full description.
