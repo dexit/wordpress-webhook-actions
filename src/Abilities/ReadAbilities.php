@@ -53,7 +53,7 @@ class ReadAbilities {
   }
 
   public function listWebhooks(array $input): array {
-    return ['webhooks' => (new WebhookRepository())->getAll()];
+    return ['webhooks' => array_map([$this, 'redactSecrets'], (new WebhookRepository())->getAll())];
   }
 
   public function getWebhook(array $input): array|WP_Error {
@@ -62,7 +62,31 @@ class ReadAbilities {
       return $this->notFound();
     }
     $webhook['schemas'] = (new SchemaRepository())->getByWebhook((int) $webhook['id']);
-    return ['webhook' => $webhook];
+    return ['webhook' => $this->redactSecrets($webhook)];
+  }
+
+  /**
+   * Mask the legacy plaintext auth_header before a webhook leaves this class.
+   *
+   * Everything on the abilities path is consumed by an AI: Build with AI replays
+   * these results into the model's context on later rounds, and external MCP/REST
+   * callers read them directly. Neither should ever receive a live credential, so
+   * this is unconditional — unlike WebhooksController::prepareWebhook(), which
+   * gates on AuthHelper::canRevealSecrets() because it also serves the admin UI,
+   * where an administrator is entitled to see the value they typed in.
+   *
+   * Vault credentials never needed this: only the non-secret auth_credential_id
+   * reference is stored on the webhook, and CredentialRepository selects a
+   * public column list that excludes the ciphertext entirely.
+   *
+   * @param array<string, mixed> $webhook
+   * @return array<string, mixed>
+   */
+  private function redactSecrets(array $webhook): array {
+    if (!empty($webhook['auth_header'])) {
+      $webhook['auth_header'] = '[redacted]';
+    }
+    return $webhook;
   }
 
   public function getTriggerSchema(array $input): array|WP_Error {
