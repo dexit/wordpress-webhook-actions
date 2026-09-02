@@ -121,9 +121,10 @@ class SettingsController extends WP_REST_Controller {
       'ai_debug_enabled'            => (bool) get_option('fswa_ai_debug', AgentTraceLog::DEFAULT_ENABLED),
       'mcp_expose_writes'           => AbilityRegistrar::writesExposed(),
       'glue_token_writes'           => (new GluePermissions())->tokenWritesEnabled(),
-      // Read-only: when the site has code editing switched off, Code Glue is
-      // unavailable to everyone and the toggle above cannot change that.
-      'glue_file_editing_disabled'  => (new GluePermissions())->fileEditingDisabled(),
+      // Read-only: whether Code Glue can be written here at all, and why not.
+      // The admin renders the reason rather than guessing at it, because only
+      // one of the three has a switch on this screen.
+      'glue'                        => (new GluePermissions())->status(),
     ];
 
     return rest_ensure_response($settings);

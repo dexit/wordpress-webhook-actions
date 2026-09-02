@@ -18,7 +18,7 @@ const settings = ref({
   ai_debug_enabled: true,
   mcp_expose_writes: true,
   glue_token_writes: false,
-  glue_file_editing_disabled: false,
+  glue: { can_write: true, reason: '', message: '', fixable_in_settings: false },
 })
 const info = ref(null)
 const archive = ref(null)
@@ -524,14 +524,14 @@ onMounted(loadData)
               </p>
 
               <div class="flex items-center space-x-2 pt-2">
-                <Switch v-model="settings.glue_token_writes" :disabled="settings.glue_file_editing_disabled" />
+                <Switch v-model="settings.glue_token_writes" :disabled="settings.glue.reason === 'file_editing_disabled'" />
                 <Label>{{ __('Let API tokens write Code Glue') }}</Label>
               </div>
               <p class="text-sm text-muted-foreground">
                 {{ __('Code Glue snippets are PHP that runs on this site, so writing one normally requires a signed-in user who is allowed to edit plugin code. Turning this on lets a full-scope API token — including a connected AI tool over MCP — write and assign snippets too. That makes the token as powerful as a plugin editor, so leave it off unless you need it. Reading snippets never required it.') }}
               </p>
-              <p v-if="settings.glue_file_editing_disabled" class="text-sm text-muted-foreground">
-                {{ __('This site has code editing switched off (DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS), so nobody can write Code Glue here — existing snippets keep running.') }}
+              <p v-if="!settings.glue.can_write" class="text-sm text-muted-foreground">
+                {{ settings.glue.message }}
               </p>
             </div>
 
