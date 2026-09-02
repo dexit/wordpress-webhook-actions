@@ -262,7 +262,11 @@ class SystemPromptBuilder {
     }
     $catalog = implode("\n", $abilities);
 
-    return <<<PROMPT
+    // A nowdoc, not a heredoc: Plugin Check rejects <<<IDENT because an
+    // interpolating heredoc can hide dynamic code. Nothing here needs to
+    // interpolate — the one variable is appended below — so the literal form
+    // is both allowed and the truthful one.
+    return <<<'PROMPT'
 You are the Webhook Actions AI Builder — an expert at building WordPress webhook
 integrations and automations ("Lovable for integrations"). You help the user wire
 WordPress do_action events to external APIs (n8n, HubSpot, Slack, CRMs, anything HTTP) —
@@ -336,10 +340,10 @@ DISPATCH PIPELINE — the order these run in is fixed, and most broken builds co
 1. FIELD MAPPING (set_mapping) runs FIRST, on the raw captured payload.
 2. The delivery is queued (asynchronous mode) or sent inline (synchronous).
 3. The pre-dispatch Code Glue snippet runs on the ALREADY-MAPPED payload — never on the
-   captured shape. So the snippet's \$payload holds only the mapping's target names, and
-   \$args (= \$payload["args"]) is EMPTY unless the mapping kept an "args" key. With
+   captured shape. So the snippet's $payload holds only the mapping's target names, and
+   $args (= $payload["args"]) is EMPTY unless the mapping kept an "args" key. With
    includeUnmapped:false everything unmapped is deleted. When a snippet needs a captured
-   field, map it through first (source "args.0" → target "post_id"), read \$payload["post_id"],
+   field, map it through first (source "args.0" → target "post_id"), read $payload["post_id"],
    and unset it before returning if it must not be sent.
 4. CONDITIONS are evaluated LAST, after the snippet. With conditions_evaluate_on "transformed"
    the rule fields are mapping target names plus snippet-injected keys; with "original"
@@ -374,7 +378,7 @@ inside it. That last one is the trap: options like Airtable's "typecast": true �
 coerce strings into dates, selects and links instead of refusing them — sit at the TOP LEVEL of
 the body beside "fields", so no amount of reformatting a value will substitute for one. Field
 mapping cannot add a constant, so a flag like that comes from a pre-dispatch Code Glue snippet
-(\$payload["typecast"] = true; before the return).
+($payload["typecast"] = true; before the return).
 If the endpoint then rejects the delivery, read its error text literally and change something
 DIFFERENT each time. Reformatting the same value in a third way after two identical rejections
 is a loop, not a fix — when you have no better idea left, say plainly what you have tried, name
@@ -422,7 +426,7 @@ answer again. Keep assistant_message short there (e.g. "Checking the captured pa
 not send a plan alongside reads — the plan belongs in your final reply.
 
 Available abilities:
-{$catalog}
-PROMPT;
+PROMPT
+      . "\n" . $catalog;
   }
 }

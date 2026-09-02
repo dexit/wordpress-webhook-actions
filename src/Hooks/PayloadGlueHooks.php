@@ -117,14 +117,17 @@ class PayloadGlueHooks {
      */
     do_action('fswa_glue_error', $webhookId, $trigger, $stage, $snippetId, $error);
 
-    error_log(sprintf(
-      '[FSWA Code Glue] %s-dispatch snippet #%d error on webhook #%d (%s): %s — payload sent unmodified.',
-      $stage,
-      $snippetId,
-      $webhookId,
-      $trigger,
-      $error
-    ));
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+      // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug-only; the supported way to react to this is the fswa_glue_error action fired above.
+      error_log(sprintf(
+        '[FSWA Code Glue] %s-dispatch snippet #%d error on webhook #%d (%s): %s — payload sent unmodified.',
+        $stage,
+        $snippetId,
+        $webhookId,
+        $trigger,
+        $error
+      ));
+    }
   }
 
   /**

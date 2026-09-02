@@ -70,7 +70,10 @@ class ActivityLogService {
       ]);
     } catch (\Throwable $e) {
       // Never let a logging failure break the caller
-      error_log('[FSWA Activity Log] Failed to log action "' . $action . '": ' . $e->getMessage());
+      if (defined('WP_DEBUG') && WP_DEBUG) {
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug-only: activity logging is best-effort and must never surface to the caller.
+        error_log('[FSWA Activity Log] Failed to log action "' . $action . '": ' . $e->getMessage());
+      }
     }
   }
 
@@ -96,7 +99,7 @@ class ActivityLogService {
 
       // Build a minimal request from PHP superglobals so ApiTokenService can extract headers
       $request = new \WP_REST_Request(
-        $_SERVER['REQUEST_METHOD'] ?? 'GET',
+        isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : 'GET',
         ''
       );
 
@@ -104,8 +107,10 @@ class ActivityLogService {
         $request->add_header($name, $value);
       }
 
+      // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Reading a REST request's own token parameter to attribute an audit entry; the token itself is what authenticates, and nothing is written from $_GET.
       if (!empty($_GET['api_token'])) {
-        $request->set_query_params($_GET);
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Same request, same reason; the values are validated by ApiTokenService below.
+        $request->set_query_params(wp_unslash($_GET));
       }
 
       $token = (new ApiTokenService())->validateFromRequest($request);

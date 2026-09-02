@@ -115,6 +115,7 @@ class App {
    * Load the plugin text domain so translations resolve.
    */
   public function loadTextdomain(): void {
+    // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Automatic loading only finds wp-content/languages/plugins before WP 6.7; this plugin ships its own /languages and supports WP 6.0.
     load_plugin_textdomain(
       'flowsystems-webhook-actions',
       false,

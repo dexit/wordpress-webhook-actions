@@ -191,7 +191,7 @@ class BuildImporter {
 
     $newId = $this->webhooks->create($data);
     if (!$newId) {
-      throw new \RuntimeException('Failed to create imported webhook: ' . ($webhook['name'] ?? ''));
+      throw new \RuntimeException('Failed to create imported webhook: ' . esc_html((string) ($webhook['name'] ?? '')));
     }
     $newId = (int) $newId;
     $created['webhooks']++;

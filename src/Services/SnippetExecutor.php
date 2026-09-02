@@ -50,10 +50,15 @@ class SnippetExecutor {
         . ($payload === [] ? '(none)' : implode(', ', array_keys($payload)));
     }
 
+    // A snippet's warnings and notices have to reach its author, so they are
+    // promoted to exceptions for the duration of the eval and restored below.
+    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler -- Scoped to the snippet run; restore_error_handler() below puts the previous handler back.
     $prevHandler = set_error_handler(function (int $errno, string $errstr, string $errfile, int $errline) {
+      // phpcs:ignore PluginCheck.CodeAnalysis.PHPErrorReporting.DirectErrorReportingCall, WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting -- Read, never set: this is how PHP signals a diagnostic the @ operator suppressed.
       if (error_reporting() === 0) {
         return false;
       }
+      // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught below and returned as JSON for the editor to render as text; escaping here would show entities to the snippet author.
       throw new \ErrorException($errstr, $errno, 0, $errfile, $errline);
     });
 
@@ -64,9 +69,9 @@ class SnippetExecutor {
         $originalPayload = $postContext['originalPayload'] ?? null;
         $responseCode    = $postContext['responseCode'] ?? 0;
         $responseBody    = $postContext['responseBody'] ?? '';
-        eval($code); // phpcs:ignore Squiz.PHP.Eval.Discouraged
+        eval($code); // phpcs:ignore Squiz.PHP.Eval.Discouraged, Generic.PHP.ForbiddenFunctions.Found -- Code Glue IS the feature: user-authored PHP, gated by GluePermissions (edit_plugins, or an explicit opt-in for API tokens).
       } else {
-        $evalResult = eval($code); // phpcs:ignore Squiz.PHP.Eval.Discouraged
+        $evalResult = eval($code); // phpcs:ignore Squiz.PHP.Eval.Discouraged, Generic.PHP.ForbiddenFunctions.Found -- Code Glue IS the feature: user-authored PHP, gated by GluePermissions (edit_plugins, or an explicit opt-in for API tokens).
         if (is_array($evalResult)) {
           $result = $evalResult;
         }

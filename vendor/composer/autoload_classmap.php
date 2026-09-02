@@ -108,8 +108,10 @@ return array(
     'FlowSystems\\WebhookActions\\Services\\RestRouteInspector' => $baseDir . '/src/Services/RestRouteInspector.php',
     'FlowSystems\\WebhookActions\\Services\\RetryPolicy' => $baseDir . '/src/Services/RetryPolicy.php',
     'FlowSystems\\WebhookActions\\Services\\Scheduler' => $baseDir . '/src/Services/Scheduler.php',
+    'FlowSystems\\WebhookActions\\Services\\SiteEnvironment' => $baseDir . '/src/Services/SiteEnvironment.php',
     'FlowSystems\\WebhookActions\\Services\\SnippetExecutor' => $baseDir . '/src/Services/SnippetExecutor.php',
     'FlowSystems\\WebhookActions\\Services\\StatsService' => $baseDir . '/src/Services/StatsService.php',
     'FlowSystems\\WebhookActions\\Services\\WPHttpTransport' => $baseDir . '/src/Services/WPHttpTransport.php',
     'FlowSystems\\WebhookActions\\Services\\WpAppPasswordService' => $baseDir . '/src/Services/WpAppPasswordService.php',
+    'FlowSystems\\WebhookActions\\Support\\Arr' => $baseDir . '/src/Support/Arr.php',
 );

@@ -69,10 +69,10 @@ final class ProbeInterpreter {
         'kind'    => 'inconclusive',
         'status'  => $status,
         'message' => sprintf(
+          // Deliberately one long literal: a translator function cannot take a
+          // concatenation, and wrapping it hides the string from the .pot file.
           /* translators: %d: HTTP status code returned to the empty-body probe. */
-          __('The endpoint is reachable but answered %d — expected, because a probe sends an EMPTY body. This does'
-            . ' NOT show the integration works. Validate it with a test delivery (test_dispatch), which sends the real'
-            . ' mapped payload, before going live.', 'flowsystems-webhook-actions'),
+          __('The endpoint is reachable but answered %d — expected, because a probe sends an EMPTY body. This does NOT show the integration works. Validate it with a test delivery (test_dispatch), which sends the real mapped payload, before going live.', 'flowsystems-webhook-actions'),
           $status
         ),
       ];

@@ -20,6 +20,7 @@ class ApiTokenRepository {
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     return $wpdb->get_results(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "SELECT id, name, scope, token_hint, expires_at, last_used_at, rotated_at, created_at FROM {$this->table} ORDER BY created_at DESC",
       ARRAY_A
     ) ?: [];
@@ -34,6 +35,7 @@ class ApiTokenRepository {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $row = $wpdb->get_row(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, name, scope, token_hint, expires_at, last_used_at, rotated_at, created_at FROM {$this->table} WHERE id = %d",
         $id
       ),
@@ -52,6 +54,7 @@ class ApiTokenRepository {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $row = $wpdb->get_row(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, name, scope, token_hint, expires_at, last_used_at, rotated_at, created_at FROM {$this->table} WHERE token_hash = %s",
         $hash
       ),
@@ -113,7 +116,7 @@ class ApiTokenRepository {
   public function delete(int $id): bool {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $result = $wpdb->delete($this->table, ['id' => $id], ['%d']);
 
     return $result !== false && $result > 0;

@@ -14,6 +14,7 @@ class TriggerSnippetsRepository {
     global $wpdb;
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $row = $wpdb->get_row($wpdb->prepare(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "SELECT * FROM {$this->table()} WHERE webhook_id = %d AND trigger_name = %s",
       $webhookId,
       $trigger

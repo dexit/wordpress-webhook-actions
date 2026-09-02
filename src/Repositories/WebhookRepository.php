@@ -432,8 +432,9 @@ class WebhookRepository {
     // Delete existing non-synthetic triggers. Chain link triggers
     // (fswa_chain_link:*) are managed by ChainLinkRepository and must
     // survive a WP-hook trigger sync from WebhooksController.
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $wpdb->query($wpdb->prepare(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "DELETE FROM {$this->triggersTable} WHERE webhook_id = %d AND trigger_name NOT LIKE %s",
       $webhookId,
       $wpdb->esc_like('fswa_chain_link:') . '%'

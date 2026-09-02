@@ -123,10 +123,12 @@ class ComposerStaticInitc0ce2bc8198701bec5d04d2f8a349398
         'FlowSystems\\WebhookActions\\Services\\RestRouteInspector' => __DIR__ . '/../..' . '/src/Services/RestRouteInspector.php',
         'FlowSystems\\WebhookActions\\Services\\RetryPolicy' => __DIR__ . '/../..' . '/src/Services/RetryPolicy.php',
         'FlowSystems\\WebhookActions\\Services\\Scheduler' => __DIR__ . '/../..' . '/src/Services/Scheduler.php',
+        'FlowSystems\\WebhookActions\\Services\\SiteEnvironment' => __DIR__ . '/../..' . '/src/Services/SiteEnvironment.php',
         'FlowSystems\\WebhookActions\\Services\\SnippetExecutor' => __DIR__ . '/../..' . '/src/Services/SnippetExecutor.php',
         'FlowSystems\\WebhookActions\\Services\\StatsService' => __DIR__ . '/../..' . '/src/Services/StatsService.php',
         'FlowSystems\\WebhookActions\\Services\\WPHttpTransport' => __DIR__ . '/../..' . '/src/Services/WPHttpTransport.php',
         'FlowSystems\\WebhookActions\\Services\\WpAppPasswordService' => __DIR__ . '/../..' . '/src/Services/WpAppPasswordService.php',
+        'FlowSystems\\WebhookActions\\Support\\Arr' => __DIR__ . '/../..' . '/src/Support/Arr.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

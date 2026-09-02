@@ -30,7 +30,9 @@ class SiteEnvironment {
       return true;
     }
 
-    $software = (string) ($_SERVER['SERVER_SOFTWARE'] ?? '');
+    $software = isset($_SERVER['SERVER_SOFTWARE'])
+      ? sanitize_text_field(wp_unslash($_SERVER['SERVER_SOFTWARE']))
+      : '';
     if (stripos($software, 'php.wasm') !== false || stripos($software, 'playground') !== false) {
       return true;
     }
