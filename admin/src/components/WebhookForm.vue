@@ -861,7 +861,10 @@ const handleSubmit = () => {
     </Dialog>
 
     <!-- Synchronous Execution -->
-    <div class="space-y-2 border-t pt-5">
+    <!-- space-y-4, not 2: the only sibling gap here is the one between the
+         toggle row and the warning it reveals, and a callout crowding the
+         control it belongs to reads as a validation error. -->
+    <div class="space-y-4 border-t pt-5">
       <div class="flex items-center space-x-2">
         <Switch
           :model-value="form.is_synchronous"
