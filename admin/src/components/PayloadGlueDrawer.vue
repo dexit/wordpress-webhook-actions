@@ -8,6 +8,7 @@ import { Button, Input, Label, Alert, Badge } from '@/components/ui'
 import SnippetEditor from '@/components/SnippetEditor.vue'
 import { useSnippets, useTriggerSnippet } from '@/composables/useSnippets'
 import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
+import { useGlueStatus } from '@/composables/useGlueStatus'
 import api from '@/lib/api'
 import { __, sprintf } from '@/i18n'
 
@@ -30,6 +31,13 @@ const emit = defineEmits(['close', 'glue-preview', 'glue-post-preview', 'glue-sa
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
 const activeTab = ref('pre')
+
+// The server refuses every snippet write — save, assign, delete, and preview,
+// which runs PHP — when Code Glue is switched off for this site or this user.
+// The drawer stays useful as a reader: an assigned snippet keeps running at
+// dispatch, so being able to see what it does still matters.
+const { glue } = useGlueStatus()
+const readOnly = computed(() => !glue.value.can_write)
 
 // ── Trigger snippet assignment ───────────────────────────────────────────────
 const {
@@ -300,6 +308,9 @@ const defaultCode = {
 }
 
 const ensureDefaultCode = (tab) => {
+  // Starter code is an invitation to write one. With writing off it would read
+  // as a snippet that exists, in an editor that cannot save it.
+  if (readOnly.value) return
   if (tab === 'pre' && !preCode.value) preCode.value = defaultCode.pre
   if (tab === 'post' && !postCode.value) postCode.value = defaultCode.post
 }
@@ -361,6 +372,17 @@ const copyCode = () => {
           </div>
 
           <template v-else>
+            <div
+              v-if="readOnly"
+              class="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+            >
+              <AlertCircle class="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <span>
+                <span class="font-medium">{{ glue.headline }}</span>
+                {{ glue.detail }}
+              </span>
+            </div>
+
             <!-- Current assignment chip + library button -->
             <div class="flex items-center gap-2 flex-wrap">
               <Badge v-if="currentSnippetName" variant="secondary" class="gap-1 text-xs">
@@ -369,7 +391,7 @@ const copyCode = () => {
               </Badge>
               <span v-else class="text-xs text-muted-foreground">{{ __('No snippet assigned') }}</span>
 
-              <Button size="sm" variant="outline" class="ml-auto gap-1.5" @click="toggleLibrary">
+              <Button v-if="!readOnly" size="sm" variant="outline" class="ml-auto gap-1.5" @click="toggleLibrary">
                 <Library class="h-3.5 w-3.5" />
                 {{ __('Browse Library') }}
                 <component :is="showLibrary ? ChevronUp : ChevronDown" class="h-3 w-3" />
@@ -454,23 +476,26 @@ const copyCode = () => {
               <SnippetEditor
                 v-if="activeTab === 'pre'"
                 :modelValue="preCode"
+                :readonly="readOnly"
                 @update:modelValue="preCode = $event"
               />
               <SnippetEditor
                 v-else
                 :modelValue="postCode"
+                :readonly="readOnly"
                 @update:modelValue="postCode = $event"
               />
             </div>
 
             <!-- No payload warning -->
-            <div v-if="!examplePayload" class="flex items-center gap-2 text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/20">
+            <div v-if="!examplePayload && !readOnly" class="flex items-center gap-2 text-xs text-muted-foreground border rounded-md px-3 py-2 bg-muted/20">
               <AlertCircle class="h-3.5 w-3.5 shrink-0" />
               {{ __('Capture an example payload to enable live preview.') }}
             </div>
 
             <!-- Run preview button -->
             <Button
+              v-if="!readOnly"
               size="sm"
               variant="outline"
               :disabled="!examplePayload || (activeTab === 'pre' ? preRunning : postRunning)"
@@ -525,7 +550,7 @@ const copyCode = () => {
             </template>
 
             <!-- Save section -->
-            <div class="border-t pt-4 space-y-3">
+            <div v-if="!readOnly" class="border-t pt-4 space-y-3">
               <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1">
                   <Label class="text-xs">{{ __('Snippet Name') }}</Label>

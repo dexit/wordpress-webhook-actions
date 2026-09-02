@@ -13,6 +13,7 @@ import {
   Waypoints,
   Code2,
   Pencil,
+  Eye,
   Info,
   Share2,
 } from 'lucide-vue-next';
@@ -24,6 +25,7 @@ import PayloadGlueDrawer from '@/components/PayloadGlueDrawer.vue';
 import { useSchemas, useUserTriggers } from '@/composables/useSchemas';
 import { usePro } from '@/composables/usePro';
 import { useTriggerSnippet } from '@/composables/useSnippets';
+import { useGlueStatus } from '@/composables/useGlueStatus';
 import { applyMappingTransform } from '@/utils/payloadTransform';
 import { formatJsonWithHighlight } from '@/utils/jsonHighlight';
 import { __, sprintf } from '@/i18n';
@@ -91,6 +93,12 @@ const localConditionsEvaluateOn = ref({});
 
 // Code Glue state
 const glueDrawer = ref({ open: false, trigger: '', tab: 'pre' });
+// wp-config (DISALLOW_FILE_EDIT), the user's role, or a token without the
+// opt-in can all take snippet writing off the table. Assigned snippets keep
+// running at dispatch, so the sections stay — they just stop offering an
+// editor nobody here is allowed to save from.
+const { glue } = useGlueStatus();
+const glueWritable = computed(() => glue.value.can_write);
 const gluePreviewPayloads = ref({}); // trigger → preview result (virtual effective payload for mapping/conditions)
 watch(gluePreviewPayloads, (val) => emit('glue-preview-change', val), { deep: true });
 const gluePreviewSaved = ref({});    // trigger → bool: pre preview was saved (clears warning without clearing payload)
@@ -109,6 +117,9 @@ const openGlueDrawer = (trigger, tab = 'pre') => {
 // Marks result as saved so no warning is shown — same as if the user had run + saved manually.
 const autoApplyGluePreview = async (trigger, assignment) => {
   if (!assignment?.pre_enabled || !assignment?.pre_snippet?.code) return;
+  // A preview runs arbitrary PHP, so the server counts it as a write. Asking
+  // for one we already know will be refused just spends a request on a 403.
+  if (!glueWritable.value) return;
   const payload = getMappedPayload(trigger);
   if (!payload) return;
   try {
@@ -674,12 +685,25 @@ watch(
                   <p class="text-xs text-muted-foreground" v-html="sprintf(__('Runs after the mapping above, on the mapped payload — %1$s$args%2$s is empty unless %1$sargs%2$s was mapped through.'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>
                 </div>
                 <div class="flex items-center gap-2 ml-4">
-                  <Button size="sm" variant="outline" class="gap-1" @click.stop="openGlueDrawer(trigger, 'pre')">
-                    <Pencil class="h-3.5 w-3.5" />
-                    {{ triggerSnippetAssignments[trigger]?.pre_snippet_id ? __('Edit') : __('Add') }}
+                  <!-- Nothing to open when writing is off and no snippet is
+                       assigned: there would be only an empty read-only editor. -->
+                  <Button
+                    v-if="glueWritable || triggerSnippetAssignments[trigger]?.pre_snippet_id"
+                    size="sm"
+                    variant="outline"
+                    class="gap-1"
+                    @click.stop="openGlueDrawer(trigger, 'pre')"
+                  >
+                    <component :is="glueWritable ? Pencil : Eye" class="h-3.5 w-3.5" />
+                    {{ glueWritable ? (triggerSnippetAssignments[trigger]?.pre_snippet_id ? __('Edit') : __('Add')) : __('View') }}
                   </Button>
                 </div>
               </div>
+
+              <p v-if="!glueWritable" class="mt-2 text-xs text-muted-foreground">
+                <span class="font-medium">{{ glue.headline }}</span>
+                {{ __('Snippets already assigned keep running, but they cannot be edited or previewed here.') }}
+              </p>
 
               <!-- What the snippet actually produced. This is the payload that
                    goes on the wire, so it belongs next to the mapping preview
@@ -766,12 +790,23 @@ watch(
                   <p class="text-xs text-muted-foreground" v-html="sprintf(__('PHP runs after successful dispatch; %1$s$responseBody%2$s and %1$s$originalPayload%2$s available'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>
                 </div>
                 <div class="flex items-center gap-2 ml-4">
-                  <Button size="sm" variant="outline" class="gap-1" @click.stop="openGlueDrawer(trigger, 'post')">
-                    <Pencil class="h-3.5 w-3.5" />
-                    {{ triggerSnippetAssignments[trigger]?.post_snippet_id ? __('Edit') : __('Add') }}
+                  <Button
+                    v-if="glueWritable || triggerSnippetAssignments[trigger]?.post_snippet_id"
+                    size="sm"
+                    variant="outline"
+                    class="gap-1"
+                    @click.stop="openGlueDrawer(trigger, 'post')"
+                  >
+                    <component :is="glueWritable ? Pencil : Eye" class="h-3.5 w-3.5" />
+                    {{ glueWritable ? (triggerSnippetAssignments[trigger]?.post_snippet_id ? __('Edit') : __('Add')) : __('View') }}
                   </Button>
                 </div>
               </div>
+
+              <p v-if="!glueWritable" class="mt-2 text-xs text-muted-foreground">
+                <span class="font-medium">{{ glue.headline }}</span>
+                {{ __('Snippets already assigned keep running, but they cannot be edited or previewed here.') }}
+              </p>
             </div>
           </div>
 

@@ -5,7 +5,7 @@ const STORAGE_KEY = 'fswa_glue_notice_dismissed'
 
 // Shared across every view that asks, so the banner and the Settings screen
 // never disagree and the answer is fetched once per page load.
-const status = ref({ can_write: true, reason: '', message: '', fixable_in_settings: false })
+const status = ref({ can_write: true, reason: '', headline: '', detail: '', message: '', fixable_in_settings: false })
 const dismissed = ref(localStorage.getItem(STORAGE_KEY) === '1')
 let fetched = false
 
