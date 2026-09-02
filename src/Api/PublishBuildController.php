@@ -14,6 +14,7 @@ use FlowSystems\WebhookActions\Services\Export\BuildExporter;
 use FlowSystems\WebhookActions\Services\Export\ConversationBuildResolver;
 use FlowSystems\WebhookActions\Services\Builds\PublishBuildClient;
 use FlowSystems\WebhookActions\Services\Builds\PublishedPageProbe;
+use FlowSystems\WebhookActions\Services\SiteEnvironment;
 
 /**
  * POST fswa/v1/pro/publish — publish a build to wpwebhooks.org.
@@ -30,6 +31,12 @@ class PublishBuildController {
   private const COLLECTIONS = ['integrations', 'automations'];
 
   public function registerRoutes(): void {
+    register_rest_route($this->namespace, '/' . $this->rest_base . '/eligibility', [
+      'methods'             => WP_REST_Server::READABLE,
+      'callback'            => [$this, 'eligibility'],
+      'permission_callback' => [$this, 'readPermissionsCheck'],
+    ]);
+
     register_rest_route($this->namespace, '/' . $this->rest_base, [
       'methods'             => WP_REST_Server::CREATABLE,
       'callback'            => [$this, 'publish'],
@@ -55,6 +62,21 @@ class PublishBuildController {
   }
 
   /**
+   * GET fswa/v1/pro/publish/eligibility — may this site publish at all?
+   *
+   * Answered server-side so the admin can hide the CTA for the same reason the
+   * publish route would refuse, rather than sniffing the hostname itself.
+   */
+  public function eligibility(WP_REST_Request $request): WP_REST_Response {
+    $allowed = (new SiteEnvironment())->canPublishBuild();
+
+    return rest_ensure_response([
+      'can_publish' => $allowed === true,
+      'reason'      => $allowed === true ? '' : (string) $allowed,
+    ]);
+  }
+
+  /**
    * GET fswa/v1/pro/publish/status — is the published page live yet?
    *
    * The website is static and rebuilds after a publish, so the URL the API
@@ -67,6 +89,13 @@ class PublishBuildController {
   }
 
   public function publish(WP_REST_Request $request): WP_REST_Response|WP_Error {
+    // A Playground sandbox or a dev box has no integration anyone runs, and
+    // publishing from one only fills the catalogue with pages nobody can use.
+    $allowed = (new SiteEnvironment())->canPublishBuild();
+    if ($allowed !== true) {
+      return new WP_Error('fswa_publish_not_publishable', (string) $allowed, ['status' => 403]);
+    }
+
     $title      = trim((string) $request->get_param('title'));
     $collection = (string) $request->get_param('collection');
 

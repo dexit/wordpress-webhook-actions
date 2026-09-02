@@ -944,7 +944,15 @@ const shareMode = ref('export');
 const canShareBuild = computed(() =>
   !!activeId.value && execSteps.value.some((s) => s.status === 'done')
 );
-const canPublishBuild = computed(() => canShareBuild.value);
+// Publishing is refused server-side from a Playground sandbox or an address
+// nothing on the internet can reach, so ask rather than sniffing the hostname.
+const publishEligibility = ref({ can_publish: true, reason: '' });
+api.builds.publishEligibility()
+  .then((d) => { publishEligibility.value = d; })
+  .catch(() => {});
+
+const canPublishBuild = computed(() => canShareBuild.value && publishEligibility.value.can_publish);
+const publishBlockedReason = computed(() => publishEligibility.value.reason || '');
 
 function openShare(mode) {
   shareMode.value = mode;

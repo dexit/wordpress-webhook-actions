@@ -4,7 +4,7 @@ Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.10.0
+Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -143,13 +143,13 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
 
-= 2.10.0 — 2026-09-02 =
+= 3.0.0 — 2026-09-02 =
 - Changed: Code Glue, dynamic URL templates, per-webhook retry limits and backoff strategies, unlimited AND/OR conditions and publishing a build are now part of the free plugin. They used to require Webhook Actions Pro. Nothing is lost on upgrade — existing snippets, assignments and retry settings keep working exactly as they were.
 - Added: Code Glue — PHP snippets that reshape the payload before a delivery or run side effects after the response — with a preview that runs your code against a real captured payload before you assign it.
 - Added: dynamic `{{ field.path }}` templates in the endpoint URL, resolved against the payload at dispatch time.
 - Added: per-webhook retry limit and backoff strategy (exponential, linear or fixed), each falling back to a site-wide default you can set in Settings.
 - Added: conditions are no longer limited to a single rule — build as many as you need, group them, and match on ANY or ALL.
-- Added: publish a build to wpwebhooks.org and earn AI credits, from any site, including one running only the free AI trial.
+- Added: publish a build to wpwebhooks.org and earn AI credits, from any site, including one running only the free AI trial. Publishing is not offered from a WordPress Playground demo or from an address the internet cannot reach, and the library keeps one page per recipe — if a build like yours is already there, you are pointed at it rather than adding a near-identical second page.
 - Security: writing a Code Glue snippet now requires the same capability WordPress uses for editing plugin code (`edit_plugins`), and is refused entirely on sites that set DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS. API tokens — including connected AI tools over MCP — cannot write snippets unless you explicitly allow it in Settings. Reading snippets is unchanged.
 - Note: Webhook Actions Pro 1.9.0 or later is required alongside this release. An older Pro keeps running its own copies of the moved features until you update it, so nothing breaks in the meantime.
 

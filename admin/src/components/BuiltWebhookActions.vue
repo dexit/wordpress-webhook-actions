@@ -20,7 +20,7 @@ defineProps({
   hasRevertible: { type: Boolean, default: false },
   running: { type: Boolean, default: false },
   canShare: { type: Boolean, default: false },  // export this build as portable JSON
-  canPublish: { type: Boolean, default: false }, // publish it on wpwebhooks.org (Pro)
+  canPublish: { type: Boolean, default: false }, // publish it on wpwebhooks.org
 });
 
 defineEmits(['enable', 'toggle-sync', 'revert', 'share', 'publish']);

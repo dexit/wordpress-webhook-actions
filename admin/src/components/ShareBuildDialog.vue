@@ -42,6 +42,7 @@ const error = ref('')
 const rejectedCategories = ref([])
 const published = ref(null)     // API payload once the build is accepted
 const duplicate = ref(null)     // the page this build already has, if any
+const duplicateIsOthers = ref(false) // that page belongs to someone else's build
 
 const items = ref([])          // [{ kind, id, name, description }]
 const drafts = ref({})         // key -> edited description
@@ -111,6 +112,7 @@ watch(() => props.open, (open) => {
   rejectedCategories.value = []
   published.value = null
   duplicate.value = null
+  duplicateIsOthers.value = false
   items.value = []
   drafts.value = {}
   expanded.value = new Set()
@@ -170,6 +172,7 @@ const runPublish = async () => {
   error.value = ''
   rejectedCategories.value = []
   duplicate.value = null
+  duplicateIsOthers.value = false
   try {
     // Descriptions become the body of the published page, so they are saved to
     // the objects first — exactly as in export mode.
@@ -190,10 +193,12 @@ const runPublish = async () => {
   } catch (e) {
     error.value = e?.message || __('Publishing failed.')
     rejectedCategories.value = e?.data?.data?.categories || []
-    // Same build, second attempt: point at the page it already has instead of
-    // inviting a retry that will fail the same way.
-    if (e?.code === 'fswa_publish_duplicate') {
+    // Two ways this build already has a page: it is the author's own second
+    // attempt, or someone else already published the same recipe. Neither is a
+    // retryable failure, so both point at the existing page instead.
+    if (e?.code === 'fswa_publish_duplicate' || e?.code === 'fswa_publish_similar') {
       duplicate.value = e?.data?.data?.published || {}
+      duplicateIsOthers.value = e?.code === 'fswa_publish_similar'
     }
   } finally {
     exporting.value = false
@@ -315,7 +320,10 @@ const runPublish = async () => {
         >
           {{ duplicate.url }} <ExternalLink class="w-3.5 h-3.5 shrink-0" />
         </a>
-        <p class="text-xs text-muted-foreground">
+        <p v-if="duplicateIsOthers" class="text-xs text-muted-foreground">
+          {{ __('Read that build first. If yours does something it does not — another destination, an extra step, different conditions — make that difference part of the build and publish again.') }}
+        </p>
+        <p v-else class="text-xs text-muted-foreground">
           {{ __('Change what this build contains — add or remove a webhook — to publish it as a separate page.') }}
         </p>
       </div>

@@ -137,6 +137,26 @@ class PublishBuildClient {
       );
     }
 
+    // Someone else already published this recipe. Not the author's own
+    // duplicate, so it gets its own code and its own copy — the useful thing
+    // is the existing page, which the API names.
+    if ($code === 409 && ($data['error'] ?? '') === 'similar_build_exists') {
+      $published = is_array($data['published'] ?? null) ? $data['published'] : [];
+
+      return new WP_Error(
+        'fswa_publish_similar',
+        $apiMessage !== '' ? $apiMessage : __('The library already has a build like this one.', 'flowsystems-webhook-actions'),
+        [
+          'status'    => 409,
+          'published' => [
+            'slug'  => (string) ($published['slug'] ?? ''),
+            'url'   => (string) ($published['url'] ?? ''),
+            'title' => (string) ($published['title'] ?? ''),
+          ],
+        ]
+      );
+    }
+
     if ($code === 403) {
       return new WP_Error(
         'fswa_publish_license',
