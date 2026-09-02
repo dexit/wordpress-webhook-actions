@@ -349,6 +349,8 @@ class AbilityCatalog {
       ],
     ];
 
-    return $definitions;
+    // Code Glue keeps its definitions next to their implementations — there are
+    // seven of them and they carry the longest descriptions in the toolset.
+    return $definitions + $r->glue()->definitions();
   }
 }

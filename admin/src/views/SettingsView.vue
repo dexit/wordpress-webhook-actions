@@ -17,6 +17,8 @@ const settings = ref({
   ai_trace_enabled: false,
   ai_debug_enabled: true,
   mcp_expose_writes: true,
+  glue_token_writes: false,
+  glue_file_editing_disabled: false,
 })
 const info = ref(null)
 const archive = ref(null)
@@ -122,18 +124,13 @@ const loadData = async () => {
   error.value = null
 
   try {
-    const promises = [
+    const [settingsData, infoData, archiveData, cronData, proSettingsData] = await Promise.all([
       api.settings.get(),
       api.settings.info(),
       api.settings.archive(),
       api.cron.info(),
-    ]
-
-    if (proActive.value) {
-      promises.push(api.proSettings.get())
-    }
-
-    const [settingsData, infoData, archiveData, cronData, proSettingsData] = await Promise.all(promises)
+      api.proSettings.get(),
+    ])
 
     settings.value = settingsData
     savedMenuUnderTools.value = settingsData.menu_under_tools
@@ -525,6 +522,17 @@ onMounted(loadData)
               <p class="text-sm text-muted-foreground">
                 {{ __('External AI tools connected over MCP — Claude, Cursor and the like — can create, edit and test webhooks for you, the same way Build with AI does. Deleting a webhook, taking one live or firing a test always needs an explicit confirmation first. Turn this off to hold connected tools to read-only; Build with AI is unaffected either way.') }}
               </p>
+
+              <div class="flex items-center space-x-2 pt-2">
+                <Switch v-model="settings.glue_token_writes" :disabled="settings.glue_file_editing_disabled" />
+                <Label>{{ __('Let API tokens write Code Glue') }}</Label>
+              </div>
+              <p class="text-sm text-muted-foreground">
+                {{ __('Code Glue snippets are PHP that runs on this site, so writing one normally requires a signed-in user who is allowed to edit plugin code. Turning this on lets a full-scope API token — including a connected AI tool over MCP — write and assign snippets too. That makes the token as powerful as a plugin editor, so leave it off unless you need it. Reading snippets never required it.') }}
+              </p>
+              <p v-if="settings.glue_file_editing_disabled" class="text-sm text-muted-foreground">
+                {{ __('This site has code editing switched off (DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS), so nobody can write Code Glue here — existing snippets keep running.') }}
+              </p>
             </div>
 
             <div class="mt-6">
@@ -534,18 +542,16 @@ onMounted(loadData)
             </div>
           </Card>
 
-          <!-- Retry Settings (Pro) -->
+          <!-- Retry Settings -->
           <Card class="p-6 space-y-6">
             <div class="flex items-center gap-2 mb-4">
               <h3 class="text-lg font-medium">
                 <RotateCcw class="inline h-5 w-5 mr-2" />
                 {{ __('Retry Settings') }}
               </h3>
-              <UpgradeBadge v-if="!proActive" />
             </div>
 
-            <template v-if="proActive">
-              <div class="space-y-6">
+            <div class="space-y-6">
                 <!-- Max Attempts -->
                 <div class="space-y-2">
                   <div class="flex items-center gap-1.5">
@@ -671,13 +677,6 @@ onMounted(loadData)
                   {{ __('Save Retry Settings') }}
                 </Button>
               </div>
-            </template>
-
-            <template v-else>
-              <p class="text-sm text-muted-foreground">
-                {{ __('Configure retry attempts and backoff delay strategy for failed webhooks, globally and per webhook.') }}
-              </p>
-            </template>
           </Card>
 
           <!-- Archive Info -->

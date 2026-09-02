@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '2.3.0';
+  private const CURRENT_VERSION = '2.4.0';
 
   /**
    * Run pending migrations
@@ -91,6 +91,7 @@ class Migrator {
       '2.1.0'  => [self::class, 'migration_2_1_0'],
       '2.2.0'  => [self::class, 'migration_2_2_0'],
       '2.3.0'  => [self::class, 'migration_2_3_0'],
+      '2.4.0'  => [self::class, 'migration_2_4_0'],
     ];
   }
 
@@ -778,6 +779,49 @@ class Migrator {
       $wpdb->query("ALTER TABLE {$table} ADD COLUMN description TEXT NULL AFTER name");
     }
     // phpcs:enable
+  }
+
+  /**
+   * Migration 2.4.0 - Adopt the Code Glue tables.
+   *
+   * Code Glue used to ship in Webhook Actions Pro, which created these two
+   * tables itself. They now belong to this plugin.
+   *
+   * The names keep their `fswa_pro_` prefix ON PURPOSE. On every site that
+   * already ran Pro they hold the customer's snippets and assignments, and
+   * `dbDelta` on the same names simply adopts them. Renaming would buy a
+   * cosmetic win and risk losing live data on any install where the two plugins
+   * are briefly out of step — so do not "clean this up" later.
+   */
+  public static function migration_2_4_0(): void {
+    global $wpdb;
+    $charset = $wpdb->get_charset_collate();
+
+    $snippets = "CREATE TABLE {$wpdb->prefix}fswa_pro_snippets (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(255) NOT NULL DEFAULT '',
+      tags TEXT NULL,
+      code LONGTEXT NOT NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      PRIMARY KEY (id)
+    ) $charset;";
+
+    $triggerSnippets = "CREATE TABLE {$wpdb->prefix}fswa_pro_trigger_snippets (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      webhook_id BIGINT UNSIGNED NOT NULL,
+      trigger_name VARCHAR(255) NOT NULL,
+      pre_snippet_id BIGINT UNSIGNED NULL,
+      pre_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      post_snippet_id BIGINT UNSIGNED NULL,
+      post_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_wh_trigger (webhook_id, trigger_name)
+    ) $charset;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta($snippets);
+    dbDelta($triggerSnippets);
   }
 
   /**

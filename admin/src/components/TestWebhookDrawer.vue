@@ -1,10 +1,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { X, FlaskConical, CheckCircle2, XCircle, ExternalLink, AlertTriangle, Clock, Code2 } from 'lucide-vue-next'
-import { Button, Label, Alert, Badge, UpgradeBadge, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, RadioGroup, RadioGroupItem } from '@/components/ui'
+import { Button, Label, Alert, Badge, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, RadioGroup, RadioGroupItem } from '@/components/ui'
 import JsonEditor from '@/components/JsonEditor.vue'
 import api from '@/lib/api'
-import { usePro } from '@/composables/usePro'
 import { useRouter } from 'vue-router'
 import { formatUtcDate } from '@/lib/dates'
 import { __, sprintf } from '@/i18n'
@@ -18,7 +17,6 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const router = useRouter()
-const { proActive } = usePro()
 
 const source = ref('captured')
 const selectedTrigger = ref('')
@@ -33,14 +31,14 @@ const glueAssignment = ref(null)
 const glueAssignmentSources = ['pre_glue', 'full_glue']
 
 const hasPreGlue = computed(() =>
-  proActive.value && !!(glueAssignment.value?.pre_enabled && glueAssignment.value?.pre_snippet_id)
+  !!(glueAssignment.value?.pre_enabled && glueAssignment.value?.pre_snippet_id)
 )
 const hasPostGlue = computed(() =>
-  proActive.value && !!(glueAssignment.value?.post_enabled && glueAssignment.value?.post_snippet_id)
+  !!(glueAssignment.value?.post_enabled && glueAssignment.value?.post_snippet_id)
 )
 
 const fetchGlueAssignment = async () => {
-  if (!proActive.value || !props.webhook?.id || !selectedTrigger.value) {
+  if (!props.webhook?.id || !selectedTrigger.value) {
     glueAssignment.value = null
     return
   }
@@ -218,20 +216,18 @@ const formatJson = (data) => {
                   <div class="text-xs text-muted-foreground">{{ __('Captured payload with field mapping applied') }}</div>
                 </label>
               </div>
-              <div v-if="hasPreGlue || !proActive" class="flex items-start gap-2">
-                <RadioGroupItem id="src-pre-glue" value="pre_glue" class="mt-0.5" :disabled="!proActive" />
+              <div v-if="hasPreGlue" class="flex items-start gap-2">
+                <RadioGroupItem id="src-pre-glue" value="pre_glue" class="mt-0.5" />
                 <label for="src-pre-glue" class="cursor-pointer select-none flex flex-col items-start gap-0.5">
                   <div class="text-sm font-medium">{{ __('Captured + Mapping + Pre-dispatch Glue') }}</div>
                   <div class="text-xs text-muted-foreground">{{ __('Field mapping applied first, then pre-dispatch Code Glue — the dispatch order') }}</div>
-                  <UpgradeBadge v-if="!proActive" />
                 </label>
               </div>
-              <div v-if="(hasPreGlue && hasPostGlue) || !proActive" class="flex items-start gap-2">
-                <RadioGroupItem id="src-full-glue" value="full_glue" class="mt-0.5" :disabled="!proActive" />
+              <div v-if="hasPreGlue && hasPostGlue" class="flex items-start gap-2">
+                <RadioGroupItem id="src-full-glue" value="full_glue" class="mt-0.5" />
                 <label for="src-full-glue" class="cursor-pointer select-none flex flex-col items-start gap-0.5">
                   <div class="text-sm font-medium">{{ __('Captured + Mapping + Pre-dispatch Glue + Post-dispatch Glue') }}</div>
                   <div class="text-xs text-muted-foreground">{{ __('Full pipeline in dispatch order — post-dispatch Code Glue fires after delivery') }}</div>
-                  <UpgradeBadge v-if="!proActive" />
                 </label>
               </div>
               <div class="flex items-start gap-2">

@@ -16,7 +16,7 @@ import {
   Info,
   Share2,
 } from 'lucide-vue-next';
-import { Button, Card, Badge, Switch, Label, Alert, Tooltip, UpgradeBadge } from '@/components/ui';
+import { Button, Card, Badge, Switch, Label, Alert, Tooltip } from '@/components/ui';
 import { formatUtcDate } from '@/lib/dates';
 import MappingEditor from '@/components/MappingEditor.vue';
 import ConditionsEditor from '@/components/ConditionsEditor.vue';
@@ -51,7 +51,6 @@ const {
   getSchemaForTrigger,
 } = useSchemas(props.webhookId);
 const { userTriggers, fetchUserTriggers, isUserTrigger } = useUserTriggers();
-const { proActive } = usePro();
 
 // Track expanded triggers
 const expandedTriggers = ref({});
@@ -152,7 +151,7 @@ const triggerHasActiveGlue = (trigger) => {
 const onGlueDrawerClose = async () => {
   const trigger = glueDrawer.value.trigger;
   glueDrawer.value = { ...glueDrawer.value, open: false };
-  if (trigger && proActive.value) {
+  if (trigger) {
     try {
       const { api } = await import('@/lib/api');
       const a = await api.snippets.getTriggerSnippet(props.webhookId, trigger);
@@ -172,7 +171,7 @@ const toggleExpanded = async (trigger) => {
     [trigger]: !wasExpanded,
   };
   // Lazy-load trigger snippet assignment on first expand (pro only)
-  if (!wasExpanded && proActive.value && triggerSnippetAssignments.value[trigger] === undefined) {
+  if (!wasExpanded && triggerSnippetAssignments.value[trigger] === undefined) {
     try {
       const { api } = await import('@/lib/api');
       const a = await api.snippets.getTriggerSnippet(props.webhookId, trigger);
@@ -401,7 +400,7 @@ const isSaving = (trigger) => {
 };
 
 const preloadGlueAssignments = async () => {
-  if (!proActive.value || !props.triggers.length) return;
+  if (!props.triggers.length) return;
   const { api } = await import('@/lib/api');
   await Promise.all(
     props.triggers.map(async (trigger) => {
@@ -527,7 +526,7 @@ watch(
             </Badge>
 
             <Badge
-              v-if="proActive && triggerSnippetAssignments[trigger]?.pre_enabled && triggerSnippetAssignments[trigger]?.pre_snippet_id"
+              v-if="triggerSnippetAssignments[trigger]?.pre_enabled && triggerSnippetAssignments[trigger]?.pre_snippet_id"
               variant="default"
               class="text-xs"
             >
@@ -536,7 +535,7 @@ watch(
             </Badge>
 
             <Badge
-              v-if="proActive && triggerSnippetAssignments[trigger]?.post_enabled && triggerSnippetAssignments[trigger]?.post_snippet_id"
+              v-if="triggerSnippetAssignments[trigger]?.post_enabled && triggerSnippetAssignments[trigger]?.post_snippet_id"
               variant="default"
               class="text-xs"
             >
@@ -654,24 +653,22 @@ watch(
           <div class="border-t pt-2">
             <button
               class="w-full flex items-center gap-2 py-2 hover:text-foreground text-left transition-colors"
-              :disabled="!proActive"
-              @click.stop="proActive && toggleSection(trigger, 'pre-glue')"
+              @click.stop="toggleSection(trigger, 'pre-glue')"
             >
               <component :is="isSectionExpanded(trigger, 'pre-glue') ? ChevronDown : ChevronRight" class="h-4 w-4 text-muted-foreground shrink-0" />
               <Code2 class="h-5 w-5 shrink-0" />
               <span class="text-sm font-semibold">{{ __('Pre-dispatch Code Glue') }}</span>
-              <UpgradeBadge v-if="!proActive" class="ml-1" />
-              <Badge v-else-if="triggerSnippetAssignments[trigger]?.pre_snippet_id" variant="default" class="text-xs ml-1">
+              <Badge v-if="triggerSnippetAssignments[trigger]?.pre_snippet_id" variant="default" class="text-xs ml-1">
                 {{ __('Active') }}
               </Badge>
               <!-- Collapsed-state signal: the preview drives Transformed Conditions below,
                    so it must stay visible without expanding the section. -->
-              <span v-if="proActive && gluePreviewPayloads[trigger]" class="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+              <span v-if="gluePreviewPayloads[trigger]" class="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                 <Check class="h-3 w-3 shrink-0" />
                 {{ __('Preview active') }}
               </span>
             </button>
-            <div v-if="proActive && isSectionExpanded(trigger, 'pre-glue')" class="pt-2">
+            <div v-if="isSectionExpanded(trigger, 'pre-glue')" class="pt-2">
               <div class="flex items-center justify-between p-3 border rounded-md bg-background">
                 <div>
                   <p class="text-xs text-muted-foreground" v-html="sprintf(__('Runs after the mapping above, on the mapped payload — %1$s$args%2$s is empty unless %1$sargs%2$s was mapped through.'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>
@@ -745,7 +742,6 @@ watch(
               <ConditionsEditor
                 :modelValue="getConditionsValue(trigger)"
                 :examplePayload="getConditionsPayload(trigger)"
-                :is-pro="proActive"
                 @update:modelValue="handleConditionsChange(trigger, $event)"
               />
             </div>
@@ -755,18 +751,16 @@ watch(
           <div class="border-t pt-2">
             <button
               class="w-full flex items-center gap-2 py-2 hover:text-foreground text-left transition-colors"
-              :disabled="!proActive"
-              @click.stop="proActive && toggleSection(trigger, 'post-glue')"
+              @click.stop="toggleSection(trigger, 'post-glue')"
             >
               <component :is="isSectionExpanded(trigger, 'post-glue') ? ChevronDown : ChevronRight" class="h-4 w-4 text-muted-foreground shrink-0" />
               <Code2 class="h-5 w-5 shrink-0" />
               <span class="text-sm font-semibold">{{ __('Post-dispatch Code Glue') }}</span>
-              <UpgradeBadge v-if="!proActive" class="ml-1" />
-              <Badge v-else-if="triggerSnippetAssignments[trigger]?.post_snippet_id" variant="default" class="text-xs ml-1">
+              <Badge v-if="triggerSnippetAssignments[trigger]?.post_snippet_id" variant="default" class="text-xs ml-1">
                 {{ __('Active') }}
               </Badge>
             </button>
-            <div v-if="proActive && isSectionExpanded(trigger, 'post-glue')" class="pt-2">
+            <div v-if="isSectionExpanded(trigger, 'post-glue')" class="pt-2">
               <div class="flex items-center justify-between p-3 border rounded-md bg-background">
                 <div>
                   <p class="text-xs text-muted-foreground" v-html="sprintf(__('PHP runs after successful dispatch; %1$s$responseBody%2$s and %1$s$originalPayload%2$s available'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>

@@ -29,10 +29,8 @@ import AiBuildsBar from '@/components/AiBuildsBar.vue';
 import BuiltWebhookActions from '@/components/BuiltWebhookActions.vue';
 import ShareBuildDialog from '@/components/ShareBuildDialog.vue';
 import { api } from '@/lib/api';
-import { usePro } from '@/composables/usePro';
 import { __, sprintf } from '@/i18n';
 
-const { proActive } = usePro();
 
 // The dev trace panel always renders under the Vite dev server, and in
 // production when the site opts in via Settings → AI Builder (trace_enabled).
@@ -946,7 +944,7 @@ const shareMode = ref('export');
 const canShareBuild = computed(() =>
   !!activeId.value && execSteps.value.some((s) => s.status === 'done')
 );
-const canPublishBuild = computed(() => canShareBuild.value && proActive.value);
+const canPublishBuild = computed(() => canShareBuild.value);
 
 function openShare(mode) {
   shareMode.value = mode;

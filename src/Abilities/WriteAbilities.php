@@ -130,22 +130,6 @@ class WriteAbilities {
       return $conditions;
     }
 
-    // Mirror the REST endpoint's free-tier limits (SchemasController::updateSchema):
-    // groups and more than one rule are Pro; free is locked to 'and'.
-    $proActive = class_exists('FlowSystems\WebhookActions\Pro\License\LicenseManager')
-      && (new \FlowSystems\WebhookActions\Pro\License\LicenseManager())->isActive();
-    if (!$proActive && !empty($conditions['rules'])) {
-      foreach ($conditions['rules'] as $rule) {
-        if (($rule['type'] ?? '') === 'group') {
-          return new WP_Error('fswa_pro_required', __('Condition groups require a Pro license — propose a single simple rule instead.', 'flowsystems-webhook-actions'), ['status' => 403]);
-        }
-      }
-      if (count($conditions['rules']) > 1) {
-        return new WP_Error('fswa_pro_required', __('More than 1 condition requires a Pro license — propose a single simple rule instead.', 'flowsystems-webhook-actions'), ['status' => 403]);
-      }
-      $conditions['type'] = 'and';
-    }
-
     $schemaId = (new SchemaRepository())->upsert($webhookId, $trigger, [
       'conditions'             => $conditions,
       'conditions_evaluate_on' => $input['conditions_evaluate_on'] ?? 'original',

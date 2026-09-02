@@ -117,7 +117,7 @@ onMounted(loadStatus)
       <div class="mb-6">
         <h2 class="text-xl font-semibold text-foreground">{{ __('Upgrade to Pro') }}</h2>
         <p class="text-sm text-muted-foreground mt-1">
-          {{ __('AI credits included, more sites, advanced conditions, and priority support.') }}
+          {{ __('AI credits included, External Cron, more sites, and priority support. Everything else is free.') }}
         </p>
       </div>
 
@@ -127,6 +127,11 @@ onMounted(loadStatus)
             { text: __('Build with AI (bring your own API key)'), pro: false },
             { text: __('Automation Chains'), pro: false },
             { text: __('Reliable webhooks with queue & retries'), pro: false },
+            { text: __('Code Glue — PHP snippets before and after dispatch'), pro: false },
+            { text: __('Dynamic URL templates resolved from the payload'), pro: false },
+            { text: __('Per-webhook retry limit and backoff strategy'), pro: false },
+            { text: __('Unlimited conditions and AND / OR groups'), pro: false },
+            { text: __('Publish a build and earn AI credits'), pro: false },
             { text: __('Delivery logs & replay'), pro: false },
             { text: __('Test webhook delivery on demand'), pro: false },
             { text: __('Payload mapping'), pro: false },
@@ -134,10 +139,7 @@ onMounted(loadStatus)
             { text: __('Activity Log'), pro: false },
             { text: __('AI credits included — hosted AI, no API keys needed'), pro: true },
             { text: __('External Cron (bypass WP-Cron)'), pro: true },
-            { text: __('Unlimited conditions per trigger'), pro: true },
-            { text: __('Condition groups with AND / OR logic'), pro: true },
-            { text: __('Per-webhook retry limit override'), pro: true },
-            { text: __('Custom backoff strategy (exponential, linear, fixed)'), pro: true },
+            { text: __('More sites per licence'), pro: true },
             { text: __('Priority support'), pro: true },
           ]" :key="feature.text" class="flex items-start gap-3 text-sm">
             <CheckCircle2 v-if="feature.pro" class="w-4 h-4 mt-0.5 shrink-0 text-primary" />

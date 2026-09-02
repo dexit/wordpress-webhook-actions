@@ -20,7 +20,6 @@ import MarkdownField from '@/components/MarkdownField.vue'
 import BuildPublishFields from '@/components/BuildPublishFields.vue'
 import BuildPublishProgress from '@/components/BuildPublishProgress.vue'
 import { useBuildExport } from '@/composables/useBuildExport'
-import { usePro } from '@/composables/usePro'
 import api from '@/lib/api'
 import { __, sprintf } from '@/i18n'
 
@@ -34,7 +33,6 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const { exportBuild } = useBuildExport()
-const { proActive } = usePro()
 
 const includeTranscript = ref(false)
 const anonymizeSiteUrl = ref(false)
@@ -152,7 +150,7 @@ const runExport = async () => {
     await exportBuild({
       options: {
         conversation_id: Number(props.conversationId),
-        include_ai_transcript: proActive.value && includeTranscript.value,
+        include_ai_transcript: includeTranscript.value,
         anonymize_site_url: anonymizeSiteUrl.value,
       },
     }, props.title)
@@ -273,7 +271,7 @@ const runPublish = async () => {
 
       <!-- Provenance + privacy -->
       <div class="space-y-4 border-t pt-4">
-        <div v-if="proActive" class="space-y-2">
+        <div class="space-y-2">
           <label class="flex items-start gap-2 cursor-pointer">
             <Checkbox class="mt-0.5" :model-value="includeTranscript" @update:model-value="includeTranscript = $event" />
             <span class="text-sm font-medium">{{ __('Include the AI conversation') }}</span>
@@ -282,10 +280,6 @@ const runPublish = async () => {
             {{ __('Adds your prompts and the assistant\'s replies so the recipient can see how this build was made. Read results are never included and obvious secrets are masked, but the conversation may still mention details about your site — review before sharing publicly.') }}
           </p>
         </div>
-        <p v-else class="text-xs text-muted-foreground">
-          {{ __('Sharing the AI conversation alongside a build is a Pro feature.') }}
-        </p>
-
         <div class="space-y-2">
           <label class="flex items-start gap-2 cursor-pointer">
             <Checkbox class="mt-0.5" :model-value="anonymizeSiteUrl" @update:model-value="anonymizeSiteUrl = $event" />

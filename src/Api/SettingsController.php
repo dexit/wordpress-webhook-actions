@@ -10,6 +10,7 @@ use WP_Error;
 use FlowSystems\WebhookActions\Services\LogArchiver;
 use FlowSystems\WebhookActions\Repositories\LogRepository;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
+use FlowSystems\WebhookActions\Services\GluePermissions;
 use FlowSystems\WebhookActions\Services\Ai\AgentTraceLog;
 use FlowSystems\WebhookActions\Abilities\AbilityRegistrar;
 
@@ -64,6 +65,9 @@ class SettingsController extends WP_REST_Controller {
           'mcp_expose_writes' => [
             'type' => 'boolean',
           ],
+          'glue_token_writes' => [
+            'type' => 'boolean',
+          ],
         ],
       ],
     ]);
@@ -116,6 +120,10 @@ class SettingsController extends WP_REST_Controller {
       'ai_trace_enabled'            => (bool) get_option('fswa_ai_trace_enabled', self::DEFAULT_AI_TRACE_ENABLED),
       'ai_debug_enabled'            => (bool) get_option('fswa_ai_debug', AgentTraceLog::DEFAULT_ENABLED),
       'mcp_expose_writes'           => AbilityRegistrar::writesExposed(),
+      'glue_token_writes'           => (new GluePermissions())->tokenWritesEnabled(),
+      // Read-only: when the site has code editing switched off, Code Glue is
+      // unavailable to everyone and the toggle above cannot change that.
+      'glue_file_editing_disabled'  => (new GluePermissions())->fileEditingDisabled(),
     ];
 
     return rest_ensure_response($settings);
@@ -175,6 +183,16 @@ class SettingsController extends WP_REST_Controller {
       $oldValues['mcp_expose_writes'] = (bool) get_option(AbilityRegistrar::OPTION_EXPOSE_WRITES, true);
       update_option(AbilityRegistrar::OPTION_EXPOSE_WRITES, $val);
       $newValues['mcp_expose_writes'] = $val;
+    }
+
+    // Turning this on makes a full-scope API token able to run PHP on this
+    // site, so it is only ever changed by an admin session that could do that
+    // anyway — never by a token.
+    if ($request->has_param('glue_token_writes') && current_user_can('manage_options')) {
+      $val = (bool) $request->get_param('glue_token_writes');
+      $oldValues['glue_token_writes'] = (new GluePermissions())->tokenWritesEnabled();
+      update_option(GluePermissions::OPTION_TOKEN_WRITES, $val);
+      $newValues['glue_token_writes'] = $val;
     }
 
     if (!empty($newValues)) {

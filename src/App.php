@@ -12,7 +12,10 @@ use FlowSystems\WebhookActions\Services\QueueService;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
 use FlowSystems\WebhookActions\Services\HookDiscoveryService;
 use FlowSystems\WebhookActions\Services\LocalDevHttp;
+use FlowSystems\WebhookActions\Services\ProCompatibility;
 use FlowSystems\WebhookActions\Services\Scheduler;
+use FlowSystems\WebhookActions\Hooks\PayloadGlueHooks;
+use FlowSystems\WebhookActions\Hooks\BuildGlueExportHooks;
 use FlowSystems\WebhookActions\Integrations\IntegrationLoader;
 use FlowSystems\WebhookActions\Abilities\AbilityRegistrar;
 
@@ -81,6 +84,19 @@ class App {
     // Expose the AI Builder toolset to the WordPress Abilities API (WP 6.9+/7.0)
     // when available — additive, so the agent works on older versions too.
     (new AbilityRegistrar())->init();
+
+    // Code Glue and {{ }} URL templates. A Pro older than 1.9.0 still ships its
+    // own copies of these hooks, and two registrations mean every pre-dispatch
+    // snippet runs TWICE on live deliveries — so while one is installed, we
+    // stand down and let it keep doing the job. See ProCompatibility.
+    $proCompat = new ProCompatibility();
+    if ($proCompat->ownsMovedFeatures()) {
+      (new PayloadGlueHooks())->init();
+      (new BuildGlueExportHooks())->init();
+    }
+    if (is_admin()) {
+      $proCompat->registerNotice();
+    }
 
     // Register cleanup cron
     add_action('fswa_cleanup_logs', [$this, 'runLogCleanup']);

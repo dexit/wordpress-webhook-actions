@@ -6,6 +6,7 @@ defined('ABSPATH') || exit;
 
 use FlowSystems\WebhookActions\Abilities\AbilityRegistry;
 use FlowSystems\WebhookActions\Repositories\SchemaRepository;
+use FlowSystems\WebhookActions\Services\GluePermissions;
 use FlowSystems\WebhookActions\Repositories\WebhookRepository;
 
 /**
@@ -64,15 +65,19 @@ class SystemPromptBuilder {
   }
 
   /**
-   * Whether Webhook Actions Pro is active on this site — judged by whether its
-   * abilities actually made it into the catalog. A class_exists check lies
-   * here: Pro's autoloader loads even when Pro bails out at plugins_loaded
-   * (e.g. free-version mismatch), and the prompt would then advertise Code Glue
-   * abilities the plan executor silently drops. create_snippet is registered
-   * exactly when Pro booted AND holds an active license.
+   * Whether Webhook Actions Pro is active on this site.
+   *
+   * Judged by whether hosted AI credits are actually available — the one thing
+   * only a booted Pro plugin with a live licence can answer. A class_exists
+   * check lies here (Pro's autoloader loads even when Pro bails out at
+   * plugins_loaded), and probing for an ability no longer works either now that
+   * Code Glue ships in the free plugin and create_snippet exists everywhere.
+   *
+   * Used only for the delivery-mode hint: Pro implies External Cron, which
+   * implies the queue really does drain.
    */
   private function proIsActive(): bool {
-    return isset($this->registry->definitions()['create_snippet']);
+    return apply_filters('fswa_ai_hosted_status', null) !== null;
   }
 
   /**
@@ -86,20 +91,25 @@ class SystemPromptBuilder {
   }
 
   /**
-   * Tell the model which tier the site runs so it plans set_conditions (and Pro
-   * abilities) correctly — the static ability description alone can't tell it
-   * whether the Pro limits apply HERE.
+   * What this site lets the agent build with.
+   *
+   * Conditions and Code Glue are no longer tier-gated — every install gets
+   * unlimited AND/OR rules and PHP snippets. What CAN differ is whether writing
+   * a snippet is permitted at all: it runs PHP, so it needs `edit_plugins`, and
+   * a site with DISALLOW_FILE_EDIT set has no Code Glue at all. Saying so up
+   * front is the difference between a plan that works and one whose snippet
+   * step 403s halfway through a build.
    */
   private function licenseContext(): string {
-    $proActive = $this->proIsActive();
+    $conditions = "\n\nCONDITIONS: set_conditions accepts multiple rules, nested groups and \"or\" matching — use them freely when the user's logic needs more than one rule.";
 
-    if ($proActive) {
-      return "\n\nLICENSE: Webhook Actions Pro is ACTIVE on this site. set_conditions accepts multiple rules, nested groups and \"or\" matching — use them freely when the user's logic needs more than one rule. Any Pro abilities listed in the catalog above are available."
+    if ((new GluePermissions())->canWriteNow()) {
+      return $conditions
         . " CODE / STATIC VALUES: create_webhook and update_webhook have NO code_glue / code / script field — any such key you invent is silently dropped. To inject a static or computed value (a generated password, a constant, a timestamp) or to reshape the body beyond moving existing fields, add a Code Glue snippet as SEPARATE plan steps: create_snippet (plain PHP, NO <?php tag, ending `return \$payload;`) → preview_snippet → assign_snippet at stage \"pre\". Snippets are PHP — never write JavaScript in one.";
     }
 
-    return "\n\nLICENSE: this site runs the FREE tier. set_conditions accepts only ONE simple rule with type \"and\" — never propose multiple rules or condition groups. If the user's logic needs more, pick the single most important rule and mention the rest requires Webhook Actions Pro."
-      . " CODE / STATIC VALUES: create_webhook has NO code_glue / code / script field — any such key is silently dropped, and this free tier has no Code Glue, so you cannot inject static or computed values (a generated password, a constant) into the payload; say so plainly and note it needs Webhook Actions Pro. You can still build powerful automations without any code: point endpoint_url at THIS site's own WP REST API (see SITE) to create or update WordPress content — set_mapping maps existing form/event fields straight onto REST body fields, which covers most internal automations with no snippet at all.";
+    return $conditions
+      . " CODE / STATIC VALUES: Code Glue is UNAVAILABLE on this site — it runs PHP, and this site has code editing switched off or this user cannot edit code. Do not plan create_snippet / assign_snippet steps; they will be refused. So you cannot inject static or computed values (a generated password, a constant) into the payload — say so plainly. You can still build powerful automations without any code: point endpoint_url at THIS site's own WP REST API (see SITE) to create or update WordPress content — set_mapping maps existing form/event fields straight onto REST body fields, which covers most internal automations with no snippet at all.";
   }
 
   /**
