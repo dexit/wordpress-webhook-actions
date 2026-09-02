@@ -28,12 +28,9 @@ const { proActive } = usePro();
 
 // Code Glue can be switched off by the server (DISALLOW_FILE_EDIT) or by the
 // user's role, and neither is visible from the editor itself — the sections
-// simply refuse when used. Say so once, everywhere except Settings, which
-// already explains it in place.
+// simply refuse when used. Say so once, on every screen, until dismissed.
 const { glue, dismissed: glueNoticeDismissed, dismiss: dismissGlueNotice } = useGlueStatus();
-const showGlueNotice = computed(() =>
-  !glue.value.can_write && !glueNoticeDismissed.value && !route.path.startsWith('/settings')
-);
+const showGlueNotice = computed(() => !glue.value.can_write && !glueNoticeDismissed.value);
 
 const navItems = [
   { path: '/ai-builder', label: __('Build with AI'), icon: BrainCircuit },
@@ -108,8 +105,8 @@ const isActive = (path) => {
       class="mb-5 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
     >
       <div class="flex-1 min-w-0 space-y-1">
-        <p class="font-medium">{{ __('Code Glue is unavailable on this site') }}</p>
-        <p class="text-xs opacity-90">{{ glue.message }}</p>
+        <p class="font-medium">{{ glue.headline }}</p>
+        <p class="text-xs opacity-90">{{ glue.detail }}</p>
         <p v-if="glue.fixable_in_settings" class="text-xs">
           <RouterLink to="/settings" class="underline">{{ __('Open Settings') }}</RouterLink>
         </p>

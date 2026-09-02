@@ -18,8 +18,12 @@ const settings = ref({
   ai_debug_enabled: true,
   mcp_expose_writes: true,
   glue_token_writes: false,
-  glue: { can_write: true, reason: '', message: '', fixable_in_settings: false },
+  glue: { can_write: true, reason: '', headline: '', detail: '', message: '', fixable_in_settings: false },
 })
+
+// wp-config has taken Code Glue off the table entirely, so the token switch
+// below cannot change anything — dim it and everything explaining it.
+const glueWritesLocked = computed(() => settings.value.glue.reason === 'file_editing_disabled')
 const info = ref(null)
 const archive = ref(null)
 const cronInfo = ref(null)
@@ -523,15 +527,21 @@ onMounted(loadData)
                 {{ __('External AI tools connected over MCP — Claude, Cursor and the like — can create, edit and test webhooks for you, the same way Build with AI does. Deleting a webhook, taking one live or firing a test always needs an explicit confirmation first. Turn this off to hold connected tools to read-only; Build with AI is unaffected either way.') }}
               </p>
 
-              <div class="flex items-center space-x-2 pt-2">
-                <Switch v-model="settings.glue_token_writes" :disabled="settings.glue.reason === 'file_editing_disabled'" />
-                <Label>{{ __('Let API tokens write Code Glue') }}</Label>
+              <!-- The whole group dims together when wp-config has taken Code
+                   Glue off the table: a live-looking paragraph above a dead
+                   switch reads as a bug rather than as a setting that cannot
+                   apply here. -->
+              <div>
+                <div class="flex items-center space-x-2 pt-2">
+                  <Switch v-model="settings.glue_token_writes" :disabled="glueWritesLocked" />
+                  <Label :class="{ 'opacity-50': glueWritesLocked }">{{ __('Let API tokens write Code Glue') }}</Label>
+                </div>
+                <p class="text-sm text-muted-foreground mt-2" :class="{ 'opacity-50': glueWritesLocked }">
+                  {{ __('Code Glue snippets are PHP that runs on this site, so writing one normally requires a signed-in user who is allowed to edit plugin code. Turning this on lets a full-scope API token — including a connected AI tool over MCP — write and assign snippets too. That makes the token as powerful as a plugin editor, so leave it off unless you need it. Reading snippets never required it.') }}
+                </p>
               </div>
-              <p class="text-sm text-muted-foreground">
-                {{ __('Code Glue snippets are PHP that runs on this site, so writing one normally requires a signed-in user who is allowed to edit plugin code. Turning this on lets a full-scope API token — including a connected AI tool over MCP — write and assign snippets too. That makes the token as powerful as a plugin editor, so leave it off unless you need it. Reading snippets never required it.') }}
-              </p>
-              <p v-if="!settings.glue.can_write" class="text-sm text-muted-foreground">
-                {{ settings.glue.message }}
+              <p v-if="glueWritesLocked" class="text-sm text-muted-foreground">
+                {{ __('Greyed out because this site sets DISALLOW_FILE_EDIT — see the notice above.') }}
               </p>
             </div>
 

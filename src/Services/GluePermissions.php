@@ -56,11 +56,7 @@ class GluePermissions {
    */
   public function canWrite(): bool|WP_Error {
     if ($this->fileEditingDisabled()) {
-      return new WP_Error(
-        'fswa_glue_file_editing_disabled',
-        $this->reasonMessage(self::REASON_FILE_EDIT_DISABLED),
-        ['status' => 403, 'reason' => self::REASON_FILE_EDIT_DISABLED]
-      );
+      return $this->refusal('fswa_glue_file_editing_disabled', self::REASON_FILE_EDIT_DISABLED);
     }
 
     // A signed-in user is judged on their capability, never on the token they
@@ -68,22 +64,32 @@ class GluePermissions {
     if (get_current_user_id() > 0) {
       return $this->capabilityAllows()
         ? true
-        : new WP_Error(
-          'fswa_glue_forbidden',
-          $this->reasonMessage(self::REASON_CAPABILITY),
-          ['status' => 403, 'reason' => self::REASON_CAPABILITY]
-        );
+        : $this->refusal('fswa_glue_forbidden', self::REASON_CAPABILITY);
     }
 
     if ($this->tokenWritesEnabled()) {
       return true;
     }
 
-    return new WP_Error(
-      'fswa_glue_token_writes_disabled',
-      $this->reasonMessage(self::REASON_TOKEN_WRITES_OFF),
-      ['status' => 403, 'reason' => self::REASON_TOKEN_WRITES_OFF]
-    );
+    return $this->refusal('fswa_glue_token_writes_disabled', self::REASON_TOKEN_WRITES_OFF);
+  }
+
+  /**
+   * A refusal carrying both halves of the explanation.
+   *
+   * `message` is the two joined, because a REST client gets nothing but the
+   * message and it has to stand on its own. The admin renders the halves
+   * separately — a heading plus the detail — so nothing is said twice.
+   */
+  private function refusal(string $code, string $reason): WP_Error {
+    [$headline, $detail] = $this->reasonText($reason);
+
+    return new WP_Error($code, $headline . ' ' . $detail, [
+      'status'   => 403,
+      'reason'   => $reason,
+      'headline' => $headline,
+      'detail'   => $detail,
+    ]);
   }
 
   /**
@@ -97,20 +103,26 @@ class GluePermissions {
   /**
    * The state of Code Glue for the current request, for the admin to render.
    *
-   * @return array{can_write: bool, reason: string, message: string, fixable_in_settings: bool}
+   * @return array{can_write: bool, reason: string, headline: string, detail: string, message: string, fixable_in_settings: bool}
    */
   public function status(): array {
     $result = $this->canWrite();
 
     if ($result === true) {
-      return ['can_write' => true, 'reason' => '', 'message' => '', 'fixable_in_settings' => false];
+      return [
+        'can_write' => true, 'reason' => '', 'headline' => '', 'detail' => '',
+        'message' => '', 'fixable_in_settings' => false,
+      ];
     }
 
-    $reason = (string) ($result->get_error_data()['reason'] ?? self::REASON_CAPABILITY);
+    $data   = $result->get_error_data();
+    $reason = (string) ($data['reason'] ?? self::REASON_CAPABILITY);
 
     return [
       'can_write' => false,
       'reason'    => $reason,
+      'headline'  => (string) ($data['headline'] ?? ''),
+      'detail'    => (string) ($data['detail'] ?? ''),
       'message'   => $result->get_error_message(),
       // Only one of the three has a switch in this plugin. The other two are
       // wp-config.php and the user's role, and saying otherwise would send
@@ -165,15 +177,29 @@ class GluePermissions {
       && current_user_can('manage_options');
   }
 
-  private function reasonMessage(string $reason): string {
+  /**
+   * The two halves of a refusal: what is wrong, then what to do about it.
+   *
+   * @return array{0: string, 1: string} headline, detail
+   */
+  private function reasonText(string $reason): array {
     return match ($reason) {
-      self::REASON_FILE_EDIT_DISABLED => __('Code Glue is unavailable: this site sets DISALLOW_FILE_EDIT in wp-config.php, which turns off editing code from the dashboard. That is a server-level choice and nothing in this plugin can override it — a site owner who wants Code Glue here has to change it in wp-config.php. Snippets that are already assigned keep running.', 'flowsystems-webhook-actions'),
-      self::REASON_TOKEN_WRITES_OFF   => __('This API token cannot write Code Glue. A token that could would be able to run arbitrary PHP on this site, so it is off by default — turn on "Let API tokens write Code Glue" in Settings to enable it.', 'flowsystems-webhook-actions'),
-      default                         => sprintf(
-        /* translators: %s: WordPress capability name, e.g. edit_plugins. */
-        __('Writing Code Glue runs PHP on this site, so it needs the "%s" capability — the same one WordPress requires to edit plugin code. Ask an administrator to make the change, or to grant your role that capability.', 'flowsystems-webhook-actions'),
-        $this->capability()
-      ),
+      self::REASON_FILE_EDIT_DISABLED => [
+        __('Code Glue is switched off in wp-config.php.', 'flowsystems-webhook-actions'),
+        __('This site defines DISALLOW_FILE_EDIT, which turns off editing code from the dashboard. That is a server-level choice and nothing in this plugin can override it — it has to be changed in wp-config.php. Snippets that are already assigned keep running.', 'flowsystems-webhook-actions'),
+      ],
+      self::REASON_TOKEN_WRITES_OFF => [
+        __('This API token cannot write Code Glue.', 'flowsystems-webhook-actions'),
+        __('A token that could would be able to run arbitrary PHP on this site, so it is off by default. Turn on "Let API tokens write Code Glue" in Settings to allow it.', 'flowsystems-webhook-actions'),
+      ],
+      default => [
+        sprintf(
+          /* translators: %s: WordPress capability name, e.g. edit_plugins. */
+          __('Writing Code Glue needs the "%s" capability.', 'flowsystems-webhook-actions'),
+          $this->capability()
+        ),
+        __('Snippets are PHP that runs on this site, so WordPress gates them the same way it gates editing plugin code. Ask an administrator to make the change, or to grant your role that capability.', 'flowsystems-webhook-actions'),
+      ],
     };
   }
 
