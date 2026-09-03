@@ -20,7 +20,7 @@ Describe an integration in chat and the AI builds it — outgoing webhooks from 
 
 **Sources — anything in WordPress that fires an action.** Webhook Actions turns any `do_action` into a trigger, so form submissions, WooCommerce orders, user registrations, post publishes and your own custom plugin events can all start an automation. That covers Elementor Forms, WPForms, Forminator, Fluent Forms, Gravity Forms, WooCommerce and your own code — there is no per-plugin add-on to hunt down. Contact Form 7 and IvyForms go one step further with built-in support: their submissions are normalized into clean JSON payloads automatically.
 
-**Destinations — any HTTP endpoint.** The plugin sends outgoing webhooks to anything that accepts a request: an n8n, Make, Zapier or Pabbly webhook node, a Slack or Discord incoming-webhook URL for order and form notifications, Airtable, Google Sheets, Mailchimp, HubSpot, Salesforce, Notion, your CRM, an internal microservice, or an AI agent API. There are no bundled per-service connectors and none are needed — point a webhook at a URL, map the fields, and send. Every delivery is queued, retried on failure and logged with full request and response history.
+**Destinations — any HTTP endpoint.** The plugin sends outgoing webhooks to anything that accepts a request: an n8n, Make (formerly Integromat), Zapier or Pabbly webhook node, a Slack or Discord incoming-webhook URL for order and form notifications, Airtable, Google Sheets, Mailchimp, HubSpot, Salesforce, Notion, your CRM, an internal microservice, or an AI agent API. There are no bundled per-service connectors and none are needed — point a webhook at a URL, map the fields, and send. Every delivery is queued, retried on failure and logged with full request and response history.
 
 That makes it a no-code way to sync WordPress data outward: describe what you want in chat and let the AI build it, or wire it up by hand in the admin UI. No PHP required either way.
 
@@ -33,7 +33,7 @@ That makes it a no-code way to sync WordPress data outward: describe what you wa
 
 = What the AI works from =
 
-The agent doesn't guess — it works from your site's real data. It maps fields against actually captured payloads, edits existing webhooks by name or id instead of duplicating them, validates endpoints with a guarded probe (SSRF-protected, secrets always redacted), and verifies the result with a real test delivery. Every operation is also published as a WordPress Ability, so external AI tools (Claude Code, Cursor) can drive the same toolset over MCP with scoped API tokens.
+The agent doesn't guess — it works from your site's real data. It maps fields against actually captured payloads, edits existing webhooks by name or id instead of duplicating them, validates endpoints with a guarded probe (SSRF-protected, secrets always redacted), and verifies the result with a real test delivery. Every operation is also published as a WordPress Ability, so external AI tools (Claude Code, Cursor) can drive the same toolset over the Model Context Protocol (MCP) with scoped API tokens.
 
 = The engine underneath (free) =
 
@@ -103,6 +103,14 @@ Yes. The core plugin is completely free and licensed under GPL. Webhook Actions 
 
 Yes. Any WordPress or WooCommerce action can be a trigger. The plugin delivers to any HTTP endpoint — n8n, Make, Zapier webhook nodes, internal services, or AI agent APIs. Scoped API tokens let Claude Code, Cursor, or any automation tool read logs, retry deliveries, and toggle webhooks without WordPress credentials.
 
+= Is this a Zapier or Make alternative? =
+
+For the WordPress half of the job, yes — and it is worth being precise about which half. Zapier, Make and Pabbly are multi-app orchestrators with large connector catalogues and a visual canvas. If your workflow joins several SaaS products that have nothing to do with WordPress, that is what they are for, and this plugin is not an alternative to it.
+
+What it does replace is the metered hop out of WordPress. Rather than spending a task every time an order or a form entry leaves your site, your own server sends it — queued, retried with exponential backoff, and logged with full request and response history. Webhook Chains let one delivery trigger the next on a 2xx response, so a multi-step flow can stay on your own infrastructure. There is no connector catalogue here: you point a webhook at a URL and map the fields.
+
+Plenty of sites run both — this plugin as the unmetered, self-hosted exit from WordPress, with a Zapier or Make node on the far end when a workflow genuinely needs their catalogue.
+
 = Does it work with Elementor Forms, WPForms, Forminator, Fluent Forms or Gravity Forms? =
 
 Yes. These plugins fire their own WordPress actions when a form is submitted, and Webhook Actions can use any of them as a trigger — so you can send an Elementor Forms or WPForms submission straight to a webhook without a dedicated add-on. Pick the plugin's submit action in the trigger list, capture a real submission to see the payload, then map the fields you want. Contact Form 7 and IvyForms additionally ship with built-in normalization; the others use the generic trigger path.
@@ -117,7 +125,7 @@ No. Both integrations are built in. When CF7 or IvyForms is active, submissions 
 
 = How does retry work? =
 
-5xx and 429 responses retry automatically with exponential backoff (delays of ~30s, 60s, 120s, 240s, 480s, capped at 1 hour). 4xx and 3xx responses are marked `permanently_failed` immediately — bad payloads are not worth retrying. Default maximum is 5 attempts; override with the `fswa_max_attempts` filter or **(Pro)** per-webhook settings.
+The dispatcher retries 5xx and 429 responses automatically with exponential backoff (delays of ~30s, 60s, 120s, 240s, 480s, capped at 1 hour). 4xx and 3xx responses are marked `permanently_failed` immediately — bad payloads are not worth retrying. Default maximum is 5 attempts; override with the `fswa_max_attempts` filter or **(Pro)** per-webhook settings.
 
 = Can I access the REST API without a WordPress login? =
 
