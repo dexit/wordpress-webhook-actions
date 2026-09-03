@@ -4,7 +4,7 @@ namespace FlowSystems\WebhookActions\Database;
 
 class Migrator {
   private const OPTION_KEY = 'fswa_db_version';
-  private const CURRENT_VERSION = '2.3.0';
+  private const CURRENT_VERSION = '2.4.0';
 
   /**
    * Run pending migrations
@@ -91,6 +91,7 @@ class Migrator {
       '2.1.0'  => [self::class, 'migration_2_1_0'],
       '2.2.0'  => [self::class, 'migration_2_2_0'],
       '2.3.0'  => [self::class, 'migration_2_3_0'],
+      '2.4.0'  => [self::class, 'migration_2_4_0'],
     ];
   }
 
@@ -278,7 +279,7 @@ class Migrator {
 
     dbDelta($sqlStats);
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     $exists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$logsTable} LIKE %s",
       'stats_recorded'
@@ -287,7 +288,7 @@ class Migrator {
       $wpdb->query("ALTER TABLE {$logsTable} ADD COLUMN stats_recorded TINYINT(1) NOT NULL DEFAULT 0");
       $wpdb->query("ALTER TABLE {$logsTable} ADD KEY idx_stats_recorded (stats_recorded)");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -327,7 +328,7 @@ class Migrator {
 
     $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     $exists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
       'conditions'
@@ -335,7 +336,7 @@ class Migrator {
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN conditions LONGTEXT DEFAULT NULL");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -347,7 +348,7 @@ class Migrator {
     $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
     $schemasTable  = $wpdb->prefix . 'fswa_trigger_schemas';
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     // Drop conditions from webhooks if it was added by 1.4.0
     $webhookConditionsExists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
@@ -365,7 +366,7 @@ class Migrator {
     if (!$schemaConditionsExists) {
       $wpdb->query("ALTER TABLE {$schemasTable} ADD COLUMN conditions LONGTEXT DEFAULT NULL");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -376,7 +377,7 @@ class Migrator {
 
     $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     $exists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
       'retry_limit'
@@ -384,7 +385,7 @@ class Migrator {
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN retry_limit INT UNSIGNED NULL DEFAULT NULL");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -401,7 +402,7 @@ class Migrator {
       'backoff_max_delay'  => "ALTER TABLE {$webhooksTable} ADD COLUMN backoff_max_delay INT UNSIGNED NULL DEFAULT NULL",
     ];
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     foreach ($columns as $column => $sql) {
       $exists = $wpdb->get_var($wpdb->prepare(
         "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
@@ -411,7 +412,7 @@ class Migrator {
         $wpdb->query($sql);
       }
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -422,7 +423,7 @@ class Migrator {
 
     $queueTable = $wpdb->prefix . 'fswa_queue';
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     $exists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$queueTable} LIKE %s",
       'is_test'
@@ -430,7 +431,7 @@ class Migrator {
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$queueTable} ADD COLUMN is_test TINYINT(1) NOT NULL DEFAULT 0");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -489,7 +490,7 @@ class Migrator {
       'url_params'     => "ALTER TABLE {$table} ADD COLUMN url_params TEXT NULL",
     ];
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     foreach ($columns as $column => $sql) {
       $exists = $wpdb->get_var($wpdb->prepare(
         "SHOW COLUMNS FROM {$table} LIKE %s",
@@ -499,7 +500,7 @@ class Migrator {
         $wpdb->query($sql);
       }
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -515,7 +516,7 @@ class Migrator {
       'request_url'     => "ALTER TABLE {$table} ADD COLUMN request_url TEXT NULL",
     ];
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     foreach ($columns as $column => $sql) {
       $exists = $wpdb->get_var($wpdb->prepare(
         "SHOW COLUMNS FROM {$table} LIKE %s",
@@ -525,7 +526,7 @@ class Migrator {
         $wpdb->query($sql);
       }
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -536,7 +537,7 @@ class Migrator {
 
     $table = $wpdb->prefix . 'fswa_webhooks';
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     $exists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$table} LIKE %s",
       'is_synchronous'
@@ -544,7 +545,7 @@ class Migrator {
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$table} ADD COLUMN is_synchronous TINYINT(1) NOT NULL DEFAULT 0");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -555,7 +556,7 @@ class Migrator {
 
     $table = $wpdb->prefix . 'fswa_trigger_schemas';
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     $exists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$table} LIKE %s",
       'conditions_evaluate_on'
@@ -563,7 +564,7 @@ class Migrator {
     if (!$exists) {
       $wpdb->query("ALTER TABLE {$table} ADD COLUMN conditions_evaluate_on VARCHAR(20) NOT NULL DEFAULT 'original'");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -670,7 +671,7 @@ class Migrator {
     // Add auth_credential_id reference to webhooks (guarded ALTER).
     $webhooksTable = $wpdb->prefix . 'fswa_webhooks';
 
-    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
     $exists = $wpdb->get_var($wpdb->prepare(
       "SHOW COLUMNS FROM {$webhooksTable} LIKE %s",
       'auth_credential_id'
@@ -679,7 +680,7 @@ class Migrator {
       $wpdb->query("ALTER TABLE {$webhooksTable} ADD COLUMN auth_credential_id BIGINT UNSIGNED NULL DEFAULT NULL");
       $wpdb->query("ALTER TABLE {$webhooksTable} ADD KEY idx_auth_credential (auth_credential_id)");
     }
-    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.NotPrepared
   }
 
   /**
@@ -778,6 +779,49 @@ class Migrator {
       $wpdb->query("ALTER TABLE {$table} ADD COLUMN description TEXT NULL AFTER name");
     }
     // phpcs:enable
+  }
+
+  /**
+   * Migration 2.4.0 - Adopt the Code Glue tables.
+   *
+   * Code Glue used to ship in Webhook Actions Pro, which created these two
+   * tables itself. They now belong to this plugin.
+   *
+   * The names keep their `fswa_pro_` prefix ON PURPOSE. On every site that
+   * already ran Pro they hold the customer's snippets and assignments, and
+   * `dbDelta` on the same names simply adopts them. Renaming would buy a
+   * cosmetic win and risk losing live data on any install where the two plugins
+   * are briefly out of step — so do not "clean this up" later.
+   */
+  public static function migration_2_4_0(): void {
+    global $wpdb;
+    $charset = $wpdb->get_charset_collate();
+
+    $snippets = "CREATE TABLE {$wpdb->prefix}fswa_pro_snippets (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(255) NOT NULL DEFAULT '',
+      tags TEXT NULL,
+      code LONGTEXT NOT NULL,
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      PRIMARY KEY (id)
+    ) $charset;";
+
+    $triggerSnippets = "CREATE TABLE {$wpdb->prefix}fswa_pro_trigger_snippets (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      webhook_id BIGINT UNSIGNED NOT NULL,
+      trigger_name VARCHAR(255) NOT NULL,
+      pre_snippet_id BIGINT UNSIGNED NULL,
+      pre_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      post_snippet_id BIGINT UNSIGNED NULL,
+      post_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_wh_trigger (webhook_id, trigger_name)
+    ) $charset;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta($snippets);
+    dbDelta($triggerSnippets);
   }
 
   /**

@@ -208,9 +208,11 @@ class Dispatcher {
         );
 
         if ($result['shouldRetry']) {
-          // Retryable failure — hand off to queue starting at attempt 1
-          // First retry delay mirrors rescheduleWithBackoff() for attempt 1: min(2^1 * 30, 3600)
-          $firstRetryDelay = max(1, (int) apply_filters('fswa_backoff_delay', min(pow(2, 1) * 30, 3600), 1, $webhookId));
+          // Retryable failure — hand off to queue starting at attempt 1.
+          // First retry delay mirrors rescheduleWithBackoff() for attempt 1:
+          // the default min(2^1 * 30, 3600), then the configured backoff.
+          $firstRetryDelay = (new RetryPolicy())->backoffDelay($webhookId, 1, (int) min(pow(2, 1) * 30, 3600));
+          $firstRetryDelay = max(1, (int) apply_filters('fswa_backoff_delay', $firstRetryDelay, 1, $webhookId));
           $retryAt = new \DateTime('now', new \DateTimeZone('UTC'));
           $retryAt->modify("+{$firstRetryDelay} seconds");
 

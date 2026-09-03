@@ -909,10 +909,7 @@ class PlanExecutor {
       $trigger = (string) ($step['input']['trigger'] ?? '');
       return sprintf(
         /* translators: %s: trigger (do_action hook) name. */
-        __('The example payload for "%s" has now been captured, so the field paths are readable. Read it with'
-          . ' get_trigger_schema and finish the build: set the field mapping from the REAL paths, add a'
-          . ' pre-dispatch Code Glue snippet if the destination needs a shape mapping alone cannot produce,'
-          . ' then test_dispatch before enabling.', 'flowsystems-webhook-actions'),
+        __('The example payload for "%s" has now been captured, so the field paths are readable. Read it with get_trigger_schema and finish the build: set the field mapping from the REAL paths, add a pre-dispatch Code Glue snippet if the destination needs a shape mapping alone cannot produce, then test_dispatch before enabling.', 'flowsystems-webhook-actions'),
         $trigger
       );
     }

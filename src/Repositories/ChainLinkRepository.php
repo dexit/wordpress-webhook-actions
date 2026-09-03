@@ -19,6 +19,7 @@ class ChainLinkRepository {
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     return $wpdb->get_results(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "SELECT id, chain_id, source_webhook_id, target_webhook_id, created_at FROM {$this->table} ORDER BY id ASC",
       ARRAY_A
     ) ?: [];
@@ -30,6 +31,7 @@ class ChainLinkRepository {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     return $wpdb->get_results(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, chain_id, source_webhook_id, target_webhook_id, created_at FROM {$this->table} WHERE chain_id = %d ORDER BY id ASC",
         $chainId
       ),
@@ -43,6 +45,7 @@ class ChainLinkRepository {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     return $wpdb->get_results(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, chain_id, source_webhook_id, target_webhook_id, created_at FROM {$this->table} WHERE source_webhook_id = %d",
         $sourceWebhookId
       ),
@@ -56,6 +59,7 @@ class ChainLinkRepository {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     return $wpdb->get_results(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, chain_id, source_webhook_id, target_webhook_id, created_at FROM {$this->table} WHERE target_webhook_id = %d",
         $targetWebhookId
       ),
@@ -69,6 +73,7 @@ class ChainLinkRepository {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     return $wpdb->get_results(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, chain_id, source_webhook_id, target_webhook_id, created_at FROM {$this->table} WHERE source_webhook_id = %d OR target_webhook_id = %d",
         $webhookId,
         $webhookId
@@ -83,6 +88,7 @@ class ChainLinkRepository {
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     $row = $wpdb->get_row(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, chain_id, source_webhook_id, target_webhook_id, created_at FROM {$this->table} WHERE id = %d",
         $id
       ),
@@ -138,14 +144,14 @@ class ChainLinkRepository {
 
     $triggerName = 'fswa_chain_link:' . $id;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $wpdb->delete(
       $this->triggersTable,
       ['trigger_name' => $triggerName],
       ['%s']
     );
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $result = $wpdb->delete($this->table, ['id' => $id], ['%d']);
     return $result !== false && $result > 0;
   }

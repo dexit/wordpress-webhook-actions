@@ -2,6 +2,8 @@
 
 namespace FlowSystems\WebhookActions\Services;
 
+use FlowSystems\WebhookActions\Support\Arr;
+
 defined('ABSPATH') || exit;
 
 /**
@@ -24,7 +26,7 @@ class HookDiscoveryService {
   public function discover(): array {
     $cached = get_transient(self::CACHE_KEY);
     // Validate format: must be associative (hook => slug), not a flat list.
-    if (is_array($cached) && !array_is_list($cached)) {
+    if (is_array($cached) && !Arr::isList($cached)) {
       return $cached;
     }
 

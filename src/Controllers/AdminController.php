@@ -19,6 +19,10 @@ use FlowSystems\WebhookActions\Api\ActivityLogController;
 use FlowSystems\WebhookActions\Api\CredentialsController;
 use FlowSystems\WebhookActions\Api\AgentController;
 use FlowSystems\WebhookActions\Api\ExportController;
+use FlowSystems\WebhookActions\Api\RetrySettingsController;
+use FlowSystems\WebhookActions\Api\SnippetsController;
+use FlowSystems\WebhookActions\Api\PublishBuildController;
+use FlowSystems\WebhookActions\Services\ProCompatibility;
 
 class AdminController {
   public function __construct() {
@@ -204,6 +208,15 @@ class AdminController {
     (new CredentialsController())->registerRoutes();
     (new AgentController())->registerRoutes();
     (new ExportController())->registerRoutes();
+    (new RetrySettingsController())->registerRoutes();
+
+    // Code Glue and publishing moved here from the Pro plugin. A Pro older than
+    // 1.9.0 still registers the same routes; leaving ours out keeps exactly one
+    // owner rather than racing it for the registration.
+    if ((new ProCompatibility())->ownsMovedFeatures()) {
+      (new SnippetsController())->registerRoutes();
+      (new PublishBuildController())->registerRoutes();
+    }
   }
 
   /**

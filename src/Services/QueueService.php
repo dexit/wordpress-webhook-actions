@@ -30,13 +30,18 @@ class QueueService {
       $scheduledAt = new DateTime('now', new DateTimeZone('UTC'));
     }
 
+    // Per-webhook retry limit → site-wide setting → 5. Handed to the filter as
+    // its default so a third-party override still wins, which is the contract
+    // this filter has always had.
+    $resolvedAttempts = (new RetryPolicy())->maxAttempts($webhookId, 5);
+
     /**
      * Filter the maximum number of retry attempts for failed webhooks.
      *
-     * @param int $max_attempts Maximum retry attempts (default 5)
+     * @param int $max_attempts Maximum retry attempts (resolved from the webhook's own setting, the global setting, or 5)
      * @param int $webhookId    The webhook ID being enqueued
      */
-    $maxAttempts = $isTest ? 1 : (int) apply_filters('fswa_max_attempts', 5, $webhookId);
+    $maxAttempts = $isTest ? 1 : (int) apply_filters('fswa_max_attempts', $resolvedAttempts, $webhookId);
 
     $data = [
       'webhook_id'   => $webhookId,
@@ -139,14 +144,16 @@ class QueueService {
       return ['rescheduled' => false, 'scheduled_at' => null];
     }
 
-    // Calculate backoff delay: min(2^attempts * 30, 3600) seconds
+    // Default backoff: min(2^attempts * 30, 3600) seconds, then whatever
+    // strategy and delays the webhook or the site have configured.
     $delaySeconds = min(pow(2, $newAttempts) * 30, 3600);
     $webhookId    = (int) ($job['webhook_id'] ?? 0);
+    $delaySeconds = (new RetryPolicy())->backoffDelay($webhookId, $newAttempts, $delaySeconds);
 
     /**
      * Filter the backoff delay before rescheduling a failed webhook job.
      *
-     * @param int $delay_seconds  Calculated delay in seconds
+     * @param int $delay_seconds  Delay in seconds, resolved from the configured backoff strategy
      * @param int $attempt_number Attempt number after this failure (1-indexed)
      * @param int $webhook_id     The webhook ID
      */

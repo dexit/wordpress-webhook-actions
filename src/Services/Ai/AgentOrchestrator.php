@@ -148,6 +148,7 @@ TXT;
       // Reset per round-trip: each provider call may take up to the transport
       // timeout, so one shared budget would starve the later rounds.
       if (function_exists('set_time_limit')) {
+        // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- One agent turn makes several provider calls, each up to the transport timeout; without this the round trip dies mid-plan on hosts with a short default.
         @set_time_limit(180);
       }
 

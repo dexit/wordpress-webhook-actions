@@ -126,6 +126,16 @@ class HostedTrialTransport implements LlmTransportInterface {
       return new WP_Error('fswa_trial_out_of_credits', $message, ['status' => $code, 'buy_url' => $data['buy_url'] ?? null]);
     }
 
+    // The trial was claimed by a licence this site later bought: its pages and
+    // the credits they earned moved across, and the trial itself is closed.
+    // Mark it spent locally so the panel stops offering it and points at the
+    // licence instead of retrying a key that will never work again.
+    if ($error === 'trial_claimed' || $error === 'license_invalid') {
+      $this->trial->rememberCredits(0, true);
+
+      return new WP_Error('fswa_trial_closed', $message, ['status' => $code]);
+    }
+
     if ($error === 'trial_budget_exhausted') {
       return new WP_Error('fswa_trial_budget_exhausted', $message, ['status' => $code]);
     }

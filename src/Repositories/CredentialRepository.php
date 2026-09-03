@@ -30,8 +30,9 @@ class CredentialRepository {
   public function getAll(): array {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is $wpdb->prefix plus a literal and the column list is a class constant; every value is a placeholder.
     return $wpdb->get_results(
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The only non-literal here is PUBLIC_COLUMNS, a class constant listing column names.
       "SELECT " . self::PUBLIC_COLUMNS . " FROM {$this->table} ORDER BY created_at DESC",
       ARRAY_A
     ) ?: [];
@@ -43,9 +44,10 @@ class CredentialRepository {
   public function find(int $id): ?array {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is $wpdb->prefix plus a literal and the column list is a class constant; every value is a placeholder.
     $row = $wpdb->get_row(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The only non-literal here is PUBLIC_COLUMNS, a class constant listing column names.
         "SELECT " . self::PUBLIC_COLUMNS . " FROM {$this->table} WHERE id = %d",
         $id
       ),
@@ -62,9 +64,10 @@ class CredentialRepository {
   public function findWithSecret(int $id): ?array {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is $wpdb->prefix plus a literal and the column list is a class constant; every value is a placeholder.
     $row = $wpdb->get_row(
       $wpdb->prepare(
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
         "SELECT id, name, type, header_name, secret_ciphertext FROM {$this->table} WHERE id = %d",
         $id
       ),
@@ -130,7 +133,7 @@ class CredentialRepository {
   public function delete(int $id): bool {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $result = $wpdb->delete($this->table, ['id' => $id], ['%d']);
 
     return $result !== false && $result > 0;
@@ -142,8 +145,9 @@ class CredentialRepository {
   public function allWithSecrets(): array {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is $wpdb->prefix plus a literal and the column list is a class constant; every value is a placeholder.
     return $wpdb->get_results(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "SELECT id, secret_ciphertext FROM {$this->table}",
       ARRAY_A
     ) ?: [];
@@ -167,8 +171,9 @@ class CredentialRepository {
   public function countWebhooksUsing(int $id): int {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table name is $wpdb->prefix plus a literal and the column list is a class constant; every value is a placeholder.
     return (int) $wpdb->get_var($wpdb->prepare(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "SELECT COUNT(*) FROM {$this->webhooksTable} WHERE auth_credential_id = %d",
       $id
     ));
@@ -196,8 +201,9 @@ class CredentialRepository {
   public function nameExists(string $name, int $excludeId = 0): bool {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is $wpdb->prefix plus a literal and the column list is a class constant; every value is a placeholder.
     $id = $wpdb->get_var($wpdb->prepare(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "SELECT id FROM {$this->table} WHERE name = %s AND id != %d",
       $name,
       $excludeId

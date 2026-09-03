@@ -14,8 +14,8 @@ use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Services\QueueService;
 use FlowSystems\WebhookActions\Services\LogService;
 use FlowSystems\WebhookActions\Services\PayloadTransformer;
-use FlowSystems\WebhookActions\Services\DormantProFeatures;
 use FlowSystems\WebhookActions\Services\Dispatcher;
+use FlowSystems\WebhookActions\Services\RetryPolicy;
 use FlowSystems\WebhookActions\Services\WPHttpTransport;
 use FlowSystems\WebhookActions\Api\AuthHelper;
 use FlowSystems\WebhookActions\Services\ActivityLogService;
@@ -33,7 +33,6 @@ class WebhooksController extends WP_REST_Controller {
   private LogService $logService;
   private PayloadTransformer $payloadTransformer;
   private ActivityLogService $activityLog;
-  private DormantProFeatures $dormantPro;
 
   public function __construct() {
     $this->repository         = new WebhookRepository();
@@ -42,7 +41,6 @@ class WebhooksController extends WP_REST_Controller {
     $this->logService         = new LogService();
     $this->payloadTransformer = new PayloadTransformer();
     $this->activityLog        = new ActivityLogService();
-    $this->dormantPro         = new DormantProFeatures();
   }
 
   /**
@@ -170,10 +168,6 @@ class WebhooksController extends WP_REST_Controller {
       $webhook['auth_header'] = __('You don\'t have permissions to see it.', 'flowsystems-webhook-actions');
     }
 
-    // Flag Pro-only features (Code Glue, {{ }} URL templates) configured on this
-    // webhook that will NOT run because Pro is inactive — [] when Pro is loaded.
-    $webhook['dormant_pro_features'] = $this->dormantPro->forWebhook($webhook);
-
     /**
      * Filter webhook data before it is returned in a REST response.
      * Extensions can append or transform fields here.
@@ -232,6 +226,8 @@ class WebhooksController extends WP_REST_Controller {
       'url_params'      => $this->sanitizeKvArray($request->get_param('url_params') ?? []),
       'is_synchronous'  => (bool) $request->get_param('is_synchronous'),
     ];
+
+    $data += $this->retryFields($request);
 
     // Validate
     if (empty($data['name'])) {
@@ -402,6 +398,8 @@ class WebhooksController extends WP_REST_Controller {
     if ($request->has_param('is_synchronous')) {
       $data['is_synchronous'] = (bool) $request->get_param('is_synchronous');
     }
+
+    $data += $this->retryFields($request);
 
     // Capture old values for audit log before overwriting
     $oldValues = array_intersect_key($webhook, $data);
@@ -731,6 +729,33 @@ class WebhooksController extends WP_REST_Controller {
   }
 
   /**
+   * The webhook's retry and backoff overrides, clamped, for whichever of the
+   * four the request actually sent. A field left out is untouched; a field sent
+   * empty is stored as null, which makes the webhook inherit the site-wide
+   * setting again.
+   *
+   * @return array<string, int|string|null>
+   */
+  private function retryFields(WP_REST_Request $request): array {
+    $fields = [];
+
+    if ($request->has_param('retry_limit')) {
+      $fields['retry_limit'] = RetryPolicy::clampAttempts($request->get_param('retry_limit'));
+    }
+    if ($request->has_param('backoff_strategy')) {
+      $fields['backoff_strategy'] = RetryPolicy::normalizeStrategy($request->get_param('backoff_strategy'));
+    }
+    if ($request->has_param('backoff_base_delay')) {
+      $fields['backoff_base_delay'] = RetryPolicy::clampDelay($request->get_param('backoff_base_delay'));
+    }
+    if ($request->has_param('backoff_max_delay')) {
+      $fields['backoff_max_delay'] = RetryPolicy::clampDelay($request->get_param('backoff_max_delay'));
+    }
+
+    return $fields;
+  }
+
+  /**
    * Get item schema
    */
   public function getItemSchema(): array {
@@ -738,110 +763,7 @@ class WebhooksController extends WP_REST_Controller {
       return $this->add_additional_fields_schema($this->schema);
     }
 
-    $this->schema = [
-      '$schema' => 'http://json-schema.org/draft-04/schema#',
-      'title' => 'webhook',
-      'type' => 'object',
-      'properties' => [
-        'id' => [
-          'description' => __('Unique identifier for the webhook.', 'flowsystems-webhook-actions'),
-          'type' => 'integer',
-          'context' => ['view', 'edit'],
-          'readonly' => true,
-        ],
-        'name' => [
-          'description' => __('Name of the webhook.', 'flowsystems-webhook-actions'),
-          'type' => 'string',
-          'context' => ['view', 'edit'],
-          'required' => true,
-        ],
-        'description' => [
-          'description' => __('Optional markdown description documenting what this webhook does.', 'flowsystems-webhook-actions'),
-          'type' => 'string',
-          'context' => ['view', 'edit'],
-        ],
-        'endpoint_url' => [
-          'description' => __('URL to send the webhook to.', 'flowsystems-webhook-actions'),
-          'type' => 'string',
-          'format' => 'uri',
-          'context' => ['view', 'edit'],
-          'required' => true,
-        ],
-        'auth_header' => [
-          'description' => __('Authorization header value.', 'flowsystems-webhook-actions'),
-          'type' => 'string',
-          'context' => ['view', 'edit'],
-        ],
-        'auth_credential_id' => [
-          'description' => __('ID of a vault credential to use for authorization. Takes precedence over auth_header.', 'flowsystems-webhook-actions'),
-          'type' => ['integer', 'null'],
-          'context' => ['view', 'edit'],
-        ],
-        'http_method' => [
-          'description' => __('HTTP method used for delivery.', 'flowsystems-webhook-actions'),
-          'type'        => 'string',
-          'enum'        => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-          'default'     => 'POST',
-          'context'     => ['view', 'edit'],
-        ],
-        'custom_headers' => [
-          'description' => __('Extra request headers as key-value pairs.', 'flowsystems-webhook-actions'),
-          'type'        => 'array',
-          'context'     => ['view', 'edit'],
-          'items'       => [
-            'type'       => 'object',
-            'properties' => [
-              'key'   => ['type' => 'string'],
-              'value' => ['type' => 'string'],
-            ],
-          ],
-        ],
-        'url_params' => [
-          'description' => __('Query parameters appended to the URL.', 'flowsystems-webhook-actions'),
-          'type'        => 'array',
-          'context'     => ['view', 'edit'],
-          'items'       => [
-            'type'       => 'object',
-            'properties' => [
-              'key'   => ['type' => 'string'],
-              'value' => ['type' => 'string'],
-            ],
-          ],
-        ],
-        'is_enabled' => [
-          'description' => __('Whether the webhook is enabled.', 'flowsystems-webhook-actions'),
-          'type' => 'boolean',
-          'context' => ['view', 'edit'],
-          'default' => true,
-        ],
-        'is_synchronous' => [
-          'description' => __('Whether the webhook executes synchronously (blocking, bypasses queue).', 'flowsystems-webhook-actions'),
-          'type' => 'boolean',
-          'context' => ['view', 'edit'],
-          'default' => false,
-        ],
-        'triggers' => [
-          'description' => __('List of trigger actions.', 'flowsystems-webhook-actions'),
-          'type' => 'array',
-          'items' => ['type' => 'string'],
-          'context' => ['view', 'edit'],
-        ],
-        'created_at' => [
-          'description' => __('Creation date.', 'flowsystems-webhook-actions'),
-          'type' => 'string',
-          'format' => 'date-time',
-          'context' => ['view'],
-          'readonly' => true,
-        ],
-        'updated_at' => [
-          'description' => __('Last update date.', 'flowsystems-webhook-actions'),
-          'type' => 'string',
-          'format' => 'date-time',
-          'context' => ['view'],
-          'readonly' => true,
-        ],
-      ],
-    ];
+    $this->schema = WebhookSchema::definition();
 
     return $this->add_additional_fields_schema($this->schema);
   }

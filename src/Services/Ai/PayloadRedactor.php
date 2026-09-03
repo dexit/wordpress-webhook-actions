@@ -2,6 +2,8 @@
 
 namespace FlowSystems\WebhookActions\Services\Ai;
 
+use FlowSystems\WebhookActions\Support\Arr;
+
 defined('ABSPATH') || exit;
 
 /**
@@ -78,7 +80,7 @@ class PayloadRedactor {
    * @return array<mixed>
    */
   private static function shrink(array $data, int $listCap, int $stringCap): array {
-    $isList  = array_is_list($data);
+    $isList  = Arr::isList($data);
     $slice   = $isList && count($data) > $listCap;
     $entries = $slice ? array_slice($data, 0, $listCap) : $data;
 

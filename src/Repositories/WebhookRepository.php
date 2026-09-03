@@ -63,6 +63,7 @@ class WebhookRepository {
       $webhook['is_synchronous'] = (bool) $webhook['is_synchronous'];
       $webhook['custom_headers'] = !empty($webhook['custom_headers']) ? json_decode($webhook['custom_headers'], true) : [];
       $webhook['url_params']     = !empty($webhook['url_params'])     ? json_decode($webhook['url_params'], true)     : [];
+      $webhook                   = self::castRetryFields($webhook);
     }
 
     return $webhooks;
@@ -109,6 +110,7 @@ class WebhookRepository {
       : null;
     $webhook['custom_headers'] = !empty($webhook['custom_headers']) ? json_decode($webhook['custom_headers'], true) : [];
     $webhook['url_params']     = !empty($webhook['url_params'])     ? json_decode($webhook['url_params'], true)     : [];
+    $webhook                   = self::castRetryFields($webhook);
 
     return $webhook;
   }
@@ -229,9 +231,27 @@ class WebhookRepository {
       $webhook['is_synchronous'] = (bool) ($webhook['is_synchronous'] ?? false);
       $webhook['custom_headers'] = !empty($webhook['custom_headers']) ? json_decode($webhook['custom_headers'], true) : [];
       $webhook['url_params']     = !empty($webhook['url_params'])     ? json_decode($webhook['url_params'], true)     : [];
+      $webhook                   = self::castRetryFields($webhook);
     }
 
     return $webhooks;
+  }
+
+  /**
+   * Cast the retry / backoff columns, which are nullable and must stay null
+   * rather than becoming 0 or '' — null is what makes a webhook inherit the
+   * site-wide setting instead of overriding it.
+   *
+   * @param array<string, mixed> $webhook
+   * @return array<string, mixed>
+   */
+  private static function castRetryFields(array $webhook): array {
+    foreach (['retry_limit', 'backoff_base_delay', 'backoff_max_delay'] as $field) {
+      $webhook[$field] = isset($webhook[$field]) ? (int) $webhook[$field] : null;
+    }
+    $webhook['backoff_strategy'] = $webhook['backoff_strategy'] ?? null;
+
+    return $webhook;
   }
 
   /**
@@ -258,8 +278,13 @@ class WebhookRepository {
         'auth_credential_id' => !empty($data['auth_credential_id']) ? (int) $data['auth_credential_id'] : null,
         'is_enabled'     => isset($data['is_enabled']) ? (int) $data['is_enabled'] : 1,
         'is_synchronous' => isset($data['is_synchronous']) ? (int)(bool)$data['is_synchronous'] : 0,
+        // Null means "inherit": the site-wide retry setting, then the default.
+        'retry_limit'        => $data['retry_limit'] ?? null,
+        'backoff_strategy'   => $data['backoff_strategy'] ?? null,
+        'backoff_base_delay' => $data['backoff_base_delay'] ?? null,
+        'backoff_max_delay'  => $data['backoff_max_delay'] ?? null,
       ],
-      ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d']
+      ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%d', '%d']
     );
 
     if (!$result) {
@@ -339,6 +364,15 @@ class WebhookRepository {
       $format[] = '%d';
     }
 
+    // Retry / backoff overrides. array_key_exists, not isset: null is the
+    // meaningful value that clears an override back to inheriting.
+    foreach (['retry_limit' => '%d', 'backoff_strategy' => '%s', 'backoff_base_delay' => '%d', 'backoff_max_delay' => '%d'] as $field => $fieldFormat) {
+      if (array_key_exists($field, $data)) {
+        $updateData[$field] = $data[$field];
+        $format[]           = $fieldFormat;
+      }
+    }
+
     if (!empty($updateData)) {
       // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
       $result = $wpdb->update(
@@ -398,8 +432,9 @@ class WebhookRepository {
     // Delete existing non-synthetic triggers. Chain link triggers
     // (fswa_chain_link:*) are managed by ChainLinkRepository and must
     // survive a WP-hook trigger sync from WebhooksController.
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $wpdb->query($wpdb->prepare(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       "DELETE FROM {$this->triggersTable} WHERE webhook_id = %d AND trigger_name NOT LIKE %s",
       $webhookId,
       $wpdb->esc_like('fswa_chain_link:') . '%'

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
-import { Button, Input, Label, Switch, UpgradeBadge, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Tooltip, RadioGroup, RadioGroupItem, Dialog, Checkbox, Badge } from '@/components/ui';
+import { Button, Input, Label, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Tooltip, RadioGroup, RadioGroupItem, Dialog, Checkbox, Badge } from '@/components/ui';
 import { Info, Link2, Network, ShieldCheck } from 'lucide-vue-next';
 import { RouterLink } from 'vue-router';
 import TriggerSelect from '@/components/TriggerSelect.vue';
@@ -8,12 +8,10 @@ import ChainPicker from '@/components/ChainPicker.vue';
 import KeyValueEditor from '@/components/KeyValueEditor.vue';
 import MarkdownField from '@/components/MarkdownField.vue';
 import api from '@/lib/api';
-import { usePro } from '@/composables/usePro';
 import { useSyncWarning } from '@/composables/useSyncWarning';
 import { useChains, useWebhookChainInvolvement } from '@/composables/useChains';
 import { __, _n, sprintf } from '@/i18n';
 
-const { proActive } = usePro();
 const { dontShowAgain, isWarningDismissed, applyDismiss, resetDontShowAgain } = useSyncWarning();
 const { chains, fetchChains } = useChains();
 
@@ -517,7 +515,6 @@ const handleSubmit = () => {
         <p class="text-sm text-muted-foreground">
           <span v-html="sprintf(__('The URL where webhook payloads will be sent. Supports %1$s{{ field.path }}%2$s templates — resolved against the final payload, after code glue applied.'), '<code class=&quot;font-mono text-xs&quot;>', '</code>')"></span>
         </p>
-        <UpgradeBadge v-if="!proActive" class="shrink-0 mt-0.5" />
       </div>
       <template v-if="urlHasTemplates">
         <div class="rounded-md bg-muted px-3 py-2 font-mono text-xs break-all text-muted-foreground">
@@ -709,14 +706,13 @@ const handleSubmit = () => {
       <p v-if="errors.triggers" class="text-sm text-destructive">{{ errors.triggers }}</p>
     </div>
 
-    <!-- Max Attempts (Pro) -->
+    <!-- Max Attempts -->
     <div class="space-y-2 border-t pt-5">
       <div class="flex items-center gap-2">
         <Label for="retry_limit">{{ __('Max Attempts') }}</Label>
         <Tooltip :content="__('Total delivery attempts for this webhook, including the first try. Overrides the global setting. Once reached the job is permanently failed.')" side="right">
           <Info class="h-3.5 w-3.5 text-muted-foreground cursor-help shrink-0" />
         </Tooltip>
-        <UpgradeBadge v-if="!proActive" />
       </div>
       <Input
         id="retry_limit"
@@ -726,25 +722,23 @@ const handleSubmit = () => {
         max="100"
         :placeholder="__('Use global setting')"
         class="w-48"
-        :disabled="!proActive"
       />
       <p class="text-sm text-muted-foreground">
         {{ __('Override the global retry limit for this webhook. Leave empty to use the global setting.') }}
       </p>
     </div>
 
-    <!-- Backoff Strategy (Pro) -->
+    <!-- Backoff Strategy -->
     <div class="space-y-2 border-t pt-5">
       <div class="flex items-center gap-2">
         <Label>{{ __('Backoff Strategy') }}</Label>
         <Tooltip :content="__('How to calculate the wait between retries. Overrides the global setting.')" side="right">
           <Info class="h-3.5 w-3.5 text-muted-foreground cursor-help shrink-0" />
         </Tooltip>
-        <UpgradeBadge v-if="!proActive" />
       </div>
 
       <div class="space-y-2">
-      <Select v-model="form.backoff_strategy" :disabled="!proActive">
+      <Select v-model="form.backoff_strategy">
         <SelectTrigger class="w-56">
           <SelectValue :placeholder="__('Use global setting')" />
         </SelectTrigger>
@@ -777,7 +771,6 @@ const handleSubmit = () => {
             max="86400"
             :placeholder="form.backoff_strategy === 'exponential' ? '30' : '60'"
             class="w-32"
-            :disabled="!proActive"
           />
         </div>
         <div v-if="form.backoff_strategy === 'exponential'" class="space-y-1">
@@ -794,7 +787,6 @@ const handleSubmit = () => {
             max="86400"
             placeholder="3600"
             class="w-32"
-            :disabled="!proActive"
           />
         </div>
       </div>
@@ -869,7 +861,10 @@ const handleSubmit = () => {
     </Dialog>
 
     <!-- Synchronous Execution -->
-    <div class="space-y-2 border-t pt-5">
+    <!-- space-y-4, not 2: the only sibling gap here is the one between the
+         toggle row and the warning it reveals, and a callout crowding the
+         control it belongs to reads as a validation error. -->
+    <div class="space-y-4 border-t pt-5">
       <div class="flex items-center space-x-2">
         <Switch
           :model-value="form.is_synchronous"

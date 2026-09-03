@@ -21,8 +21,9 @@ use WP_Error;
  * The registry itself is a coordinator: the declarative definitions live in
  * AbilityCatalog, and the handler implementations in three collaborators —
  * ReadAbilities (side-effect-free GATHER reads), WriteAbilities (reviewed PLAN
- * steps incl. go-live/delete) and TestAbilities (live outbound probe/test
- * calls) — which the catalog binds callbacks to via reads()/writes()/tests().
+ * steps incl. go-live/delete), TestAbilities (live outbound probe/test calls)
+ * and GlueAbilities (Code Glue PHP snippets) — which the catalog binds
+ * callbacks to via reads()/writes()/tests()/glue().
  *
  * Safety model:
  *  - `scope` mirrors the API token scopes (read / full). The agent token has
@@ -41,6 +42,7 @@ class AbilityRegistry {
   private ?ReadAbilities  $reads  = null;
   private ?WriteAbilities $writes = null;
   private ?TestAbilities  $tests  = null;
+  private ?GlueAbilities  $glue   = null;
 
   /**
    * Return all ability definitions keyed by short name.
@@ -149,5 +151,9 @@ class AbilityRegistry {
 
   public function tests(): TestAbilities {
     return $this->tests ??= new TestAbilities();
+  }
+
+  public function glue(): GlueAbilities {
+    return $this->glue ??= new GlueAbilities();
   }
 }

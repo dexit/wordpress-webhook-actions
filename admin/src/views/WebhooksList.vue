@@ -45,30 +45,6 @@ const { exportBuild } = useBuildExport()
 
 const highlightKey = ref(null)
 
-// Enabled webhooks with Pro-only features (Code Glue, {{ }} URL templates) that
-// won't run because Pro is inactive. The REST layer only sets dormant_pro_features
-// when Pro is not loaded, so an empty list here means everything is fine.
-const dormantProWebhooks = computed(() => webhooks.value.filter((w) => w.dormant_pro_features?.length))
-
-// Kept in script (not inline in the template) because the copy contains literal
-// {{ }} braces, which Vue would otherwise parse as an interpolation.
-const dormantProDescription = __('Webhook Actions Pro is inactive, so assigned Code Glue snippets are skipped and {{ }} URL templates are sent literally. Field mapping and conditions still work. Reactivate Pro to restore these — no data is lost.')
-
-const activatingPro = ref(false)
-const activateProError = ref(null)
-const activatePro = async () => {
-  activatingPro.value = true
-  activateProError.value = null
-  try {
-    await api.pro.activatePlugin()
-    await loadWebhooks()
-  } catch (e) {
-    activateProError.value = e.message || __('Could not activate Pro. Activate it from the Plugins screen.')
-  } finally {
-    activatingPro.value = false
-  }
-}
-
 // Reload the list after import but keep the dialog open so its result panel can
 // offer jump/edit links to the freshly imported items.
 const onImported = async () => {
@@ -553,38 +529,6 @@ onMounted(loadWebhooks)
 
     <!-- List -->
     <div v-else class="space-y-5">
-      <!-- Pro-inactive warning: enabled webhooks whose Code Glue / URL templates won't run -->
-      <div
-        v-if="dormantProWebhooks.length"
-        class="rounded-md border border-yellow-300 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-300"
-      >
-        <div class="flex items-start gap-2">
-          <AlertTriangle class="h-4 w-4 shrink-0 mt-0.5" />
-          <div class="flex-1 min-w-0 space-y-1">
-            <p class="font-medium">
-              {{ sprintf(_n(
-                '%d webhook uses Webhook Actions Pro features that are not running',
-                '%d webhooks use Webhook Actions Pro features that are not running',
-                dormantProWebhooks.length,
-              ), dormantProWebhooks.length) }}
-            </p>
-            <p class="text-xs opacity-90">{{ dormantProDescription }}</p>
-            <p v-if="activateProError" class="text-xs text-destructive">{{ activateProError }}</p>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            class="shrink-0 gap-1.5 border-yellow-400 dark:border-yellow-700"
-            :disabled="activatingPro"
-            @click="activatePro"
-          >
-            <Loader2 v-if="activatingPro" class="h-3.5 w-3.5 animate-spin" />
-            <Zap v-else class="h-3.5 w-3.5" />
-            {{ activatingPro ? __('Activating…') : __('Activate Pro') }}
-          </Button>
-        </div>
-      </div>
-
       <!-- Chain groups -->
       <div
         v-for="group in chainGroups"

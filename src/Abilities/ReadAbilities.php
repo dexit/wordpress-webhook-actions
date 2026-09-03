@@ -147,11 +147,7 @@ class ReadAbilities {
         'captured_triggers' => $captured,
         'hint'              => sprintf(
           /* translators: 1: trigger name, 2: comma-separated list of triggers that have captures. */
-          __('No payload has ever been captured for "%1$s", so there is nothing to map or filter on. Reading other'
-            . ' triggers will not help: the ONLY triggers with a capture are: %2$s. Do NOT retry this with a different'
-            . ' hook name, and do NOT propose set_mapping or set_conditions with guessed field paths. Either pick a'
-            . ' trigger from that list, or stop and tell the user in plain words which event to fire (e.g. "publish a'
-            . ' test post") so the payload is captured — then read this again.', 'flowsystems-webhook-actions'),
+          __('No payload has ever been captured for "%1$s", so there is nothing to map or filter on. Reading other triggers will not help: the ONLY triggers with a capture are: %2$s. Do NOT retry this with a different hook name, and do NOT propose set_mapping or set_conditions with guessed field paths. Either pick a trigger from that list, or stop and tell the user in plain words which event to fire (e.g. "publish a test post") so the payload is captured — then read this again.', 'flowsystems-webhook-actions'),
           $trigger,
           $captured === [] ? __('(none yet on this site)', 'flowsystems-webhook-actions') : implode(', ', $captured)
         ),

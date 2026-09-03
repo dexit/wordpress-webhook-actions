@@ -13,10 +13,11 @@ import {
   Waypoints,
   Code2,
   Pencil,
+  Eye,
   Info,
   Share2,
 } from 'lucide-vue-next';
-import { Button, Card, Badge, Switch, Label, Alert, Tooltip, UpgradeBadge } from '@/components/ui';
+import { Button, Card, Badge, Switch, Label, Alert, Tooltip } from '@/components/ui';
 import { formatUtcDate } from '@/lib/dates';
 import MappingEditor from '@/components/MappingEditor.vue';
 import ConditionsEditor from '@/components/ConditionsEditor.vue';
@@ -24,6 +25,7 @@ import PayloadGlueDrawer from '@/components/PayloadGlueDrawer.vue';
 import { useSchemas, useUserTriggers } from '@/composables/useSchemas';
 import { usePro } from '@/composables/usePro';
 import { useTriggerSnippet } from '@/composables/useSnippets';
+import { useGlueStatus } from '@/composables/useGlueStatus';
 import { applyMappingTransform } from '@/utils/payloadTransform';
 import { formatJsonWithHighlight } from '@/utils/jsonHighlight';
 import { __, sprintf } from '@/i18n';
@@ -51,7 +53,6 @@ const {
   getSchemaForTrigger,
 } = useSchemas(props.webhookId);
 const { userTriggers, fetchUserTriggers, isUserTrigger } = useUserTriggers();
-const { proActive } = usePro();
 
 // Track expanded triggers
 const expandedTriggers = ref({});
@@ -92,6 +93,12 @@ const localConditionsEvaluateOn = ref({});
 
 // Code Glue state
 const glueDrawer = ref({ open: false, trigger: '', tab: 'pre' });
+// wp-config (DISALLOW_FILE_EDIT), the user's role, or a token without the
+// opt-in can all take snippet writing off the table. Assigned snippets keep
+// running at dispatch, so the sections stay — they just stop offering an
+// editor nobody here is allowed to save from.
+const { glue } = useGlueStatus();
+const glueWritable = computed(() => glue.value.can_write);
 const gluePreviewPayloads = ref({}); // trigger → preview result (virtual effective payload for mapping/conditions)
 watch(gluePreviewPayloads, (val) => emit('glue-preview-change', val), { deep: true });
 const gluePreviewSaved = ref({});    // trigger → bool: pre preview was saved (clears warning without clearing payload)
@@ -110,6 +117,9 @@ const openGlueDrawer = (trigger, tab = 'pre') => {
 // Marks result as saved so no warning is shown — same as if the user had run + saved manually.
 const autoApplyGluePreview = async (trigger, assignment) => {
   if (!assignment?.pre_enabled || !assignment?.pre_snippet?.code) return;
+  // A preview runs arbitrary PHP, so the server counts it as a write. Asking
+  // for one we already know will be refused just spends a request on a 403.
+  if (!glueWritable.value) return;
   const payload = getMappedPayload(trigger);
   if (!payload) return;
   try {
@@ -152,7 +162,7 @@ const triggerHasActiveGlue = (trigger) => {
 const onGlueDrawerClose = async () => {
   const trigger = glueDrawer.value.trigger;
   glueDrawer.value = { ...glueDrawer.value, open: false };
-  if (trigger && proActive.value) {
+  if (trigger) {
     try {
       const { api } = await import('@/lib/api');
       const a = await api.snippets.getTriggerSnippet(props.webhookId, trigger);
@@ -172,7 +182,7 @@ const toggleExpanded = async (trigger) => {
     [trigger]: !wasExpanded,
   };
   // Lazy-load trigger snippet assignment on first expand (pro only)
-  if (!wasExpanded && proActive.value && triggerSnippetAssignments.value[trigger] === undefined) {
+  if (!wasExpanded && triggerSnippetAssignments.value[trigger] === undefined) {
     try {
       const { api } = await import('@/lib/api');
       const a = await api.snippets.getTriggerSnippet(props.webhookId, trigger);
@@ -401,7 +411,7 @@ const isSaving = (trigger) => {
 };
 
 const preloadGlueAssignments = async () => {
-  if (!proActive.value || !props.triggers.length) return;
+  if (!props.triggers.length) return;
   const { api } = await import('@/lib/api');
   await Promise.all(
     props.triggers.map(async (trigger) => {
@@ -527,7 +537,7 @@ watch(
             </Badge>
 
             <Badge
-              v-if="proActive && triggerSnippetAssignments[trigger]?.pre_enabled && triggerSnippetAssignments[trigger]?.pre_snippet_id"
+              v-if="triggerSnippetAssignments[trigger]?.pre_enabled && triggerSnippetAssignments[trigger]?.pre_snippet_id"
               variant="default"
               class="text-xs"
             >
@@ -536,7 +546,7 @@ watch(
             </Badge>
 
             <Badge
-              v-if="proActive && triggerSnippetAssignments[trigger]?.post_enabled && triggerSnippetAssignments[trigger]?.post_snippet_id"
+              v-if="triggerSnippetAssignments[trigger]?.post_enabled && triggerSnippetAssignments[trigger]?.post_snippet_id"
               variant="default"
               class="text-xs"
             >
@@ -654,35 +664,46 @@ watch(
           <div class="border-t pt-2">
             <button
               class="w-full flex items-center gap-2 py-2 hover:text-foreground text-left transition-colors"
-              :disabled="!proActive"
-              @click.stop="proActive && toggleSection(trigger, 'pre-glue')"
+              @click.stop="toggleSection(trigger, 'pre-glue')"
             >
               <component :is="isSectionExpanded(trigger, 'pre-glue') ? ChevronDown : ChevronRight" class="h-4 w-4 text-muted-foreground shrink-0" />
               <Code2 class="h-5 w-5 shrink-0" />
               <span class="text-sm font-semibold">{{ __('Pre-dispatch Code Glue') }}</span>
-              <UpgradeBadge v-if="!proActive" class="ml-1" />
-              <Badge v-else-if="triggerSnippetAssignments[trigger]?.pre_snippet_id" variant="default" class="text-xs ml-1">
+              <Badge v-if="triggerSnippetAssignments[trigger]?.pre_snippet_id" variant="default" class="text-xs ml-1">
                 {{ __('Active') }}
               </Badge>
               <!-- Collapsed-state signal: the preview drives Transformed Conditions below,
                    so it must stay visible without expanding the section. -->
-              <span v-if="proActive && gluePreviewPayloads[trigger]" class="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+              <span v-if="gluePreviewPayloads[trigger]" class="ml-auto flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                 <Check class="h-3 w-3 shrink-0" />
                 {{ __('Preview active') }}
               </span>
             </button>
-            <div v-if="proActive && isSectionExpanded(trigger, 'pre-glue')" class="pt-2">
+            <div v-if="isSectionExpanded(trigger, 'pre-glue')" class="pt-2">
               <div class="flex items-center justify-between p-3 border rounded-md bg-background">
                 <div>
                   <p class="text-xs text-muted-foreground" v-html="sprintf(__('Runs after the mapping above, on the mapped payload — %1$s$args%2$s is empty unless %1$sargs%2$s was mapped through.'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>
                 </div>
                 <div class="flex items-center gap-2 ml-4">
-                  <Button size="sm" variant="outline" class="gap-1" @click.stop="openGlueDrawer(trigger, 'pre')">
-                    <Pencil class="h-3.5 w-3.5" />
-                    {{ triggerSnippetAssignments[trigger]?.pre_snippet_id ? __('Edit') : __('Add') }}
+                  <!-- Nothing to open when writing is off and no snippet is
+                       assigned: there would be only an empty read-only editor. -->
+                  <Button
+                    v-if="glueWritable || triggerSnippetAssignments[trigger]?.pre_snippet_id"
+                    size="sm"
+                    variant="outline"
+                    class="gap-1"
+                    @click.stop="openGlueDrawer(trigger, 'pre')"
+                  >
+                    <component :is="glueWritable ? Pencil : Eye" class="h-3.5 w-3.5" />
+                    {{ glueWritable ? (triggerSnippetAssignments[trigger]?.pre_snippet_id ? __('Edit') : __('Add')) : __('View') }}
                   </Button>
                 </div>
               </div>
+
+              <p v-if="!glueWritable" class="mt-2 text-xs text-muted-foreground">
+                <span class="font-medium">{{ glue.headline }}</span>
+                {{ __('Snippets already assigned keep running, but they cannot be edited or previewed here.') }}
+              </p>
 
               <!-- What the snippet actually produced. This is the payload that
                    goes on the wire, so it belongs next to the mapping preview
@@ -745,7 +766,6 @@ watch(
               <ConditionsEditor
                 :modelValue="getConditionsValue(trigger)"
                 :examplePayload="getConditionsPayload(trigger)"
-                :is-pro="proActive"
                 @update:modelValue="handleConditionsChange(trigger, $event)"
               />
             </div>
@@ -755,29 +775,38 @@ watch(
           <div class="border-t pt-2">
             <button
               class="w-full flex items-center gap-2 py-2 hover:text-foreground text-left transition-colors"
-              :disabled="!proActive"
-              @click.stop="proActive && toggleSection(trigger, 'post-glue')"
+              @click.stop="toggleSection(trigger, 'post-glue')"
             >
               <component :is="isSectionExpanded(trigger, 'post-glue') ? ChevronDown : ChevronRight" class="h-4 w-4 text-muted-foreground shrink-0" />
               <Code2 class="h-5 w-5 shrink-0" />
               <span class="text-sm font-semibold">{{ __('Post-dispatch Code Glue') }}</span>
-              <UpgradeBadge v-if="!proActive" class="ml-1" />
-              <Badge v-else-if="triggerSnippetAssignments[trigger]?.post_snippet_id" variant="default" class="text-xs ml-1">
+              <Badge v-if="triggerSnippetAssignments[trigger]?.post_snippet_id" variant="default" class="text-xs ml-1">
                 {{ __('Active') }}
               </Badge>
             </button>
-            <div v-if="proActive && isSectionExpanded(trigger, 'post-glue')" class="pt-2">
+            <div v-if="isSectionExpanded(trigger, 'post-glue')" class="pt-2">
               <div class="flex items-center justify-between p-3 border rounded-md bg-background">
                 <div>
                   <p class="text-xs text-muted-foreground" v-html="sprintf(__('PHP runs after successful dispatch; %1$s$responseBody%2$s and %1$s$originalPayload%2$s available'), '<code class=&quot;font-mono&quot;>', '</code>')"></p>
                 </div>
                 <div class="flex items-center gap-2 ml-4">
-                  <Button size="sm" variant="outline" class="gap-1" @click.stop="openGlueDrawer(trigger, 'post')">
-                    <Pencil class="h-3.5 w-3.5" />
-                    {{ triggerSnippetAssignments[trigger]?.post_snippet_id ? __('Edit') : __('Add') }}
+                  <Button
+                    v-if="glueWritable || triggerSnippetAssignments[trigger]?.post_snippet_id"
+                    size="sm"
+                    variant="outline"
+                    class="gap-1"
+                    @click.stop="openGlueDrawer(trigger, 'post')"
+                  >
+                    <component :is="glueWritable ? Pencil : Eye" class="h-3.5 w-3.5" />
+                    {{ glueWritable ? (triggerSnippetAssignments[trigger]?.post_snippet_id ? __('Edit') : __('Add')) : __('View') }}
                   </Button>
                 </div>
               </div>
+
+              <p v-if="!glueWritable" class="mt-2 text-xs text-muted-foreground">
+                <span class="font-medium">{{ glue.headline }}</span>
+                {{ __('Snippets already assigned keep running, but they cannot be edited or previewed here.') }}
+              </p>
             </div>
           </div>
 

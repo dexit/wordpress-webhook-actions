@@ -82,6 +82,7 @@ class AgentTraceLog {
     // leave the web user unable to append — fall back to a per-user sibling
     // instead of dropping traces silently for the rest of the day. recent()
     // globs *.jsonl, so fallback files show up in the panel alongside.
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- WP_Filesystem would need credentials (and may prompt) for a best-effort debug log; a plain permission probe is the right tool here.
     if (file_exists($file) && !is_writable($file)) {
       $uid  = function_exists('posix_geteuid') ? (string) posix_geteuid() : 'alt';
       $file = $dir . '/' . gmdate('Y-m-d') . '-u' . $uid . '.jsonl';
@@ -132,7 +133,9 @@ class AgentTraceLog {
     }
     $removed = 0;
     foreach (glob($dir . '/*.jsonl') ?: [] as $file) {
-      if (@unlink($file)) {
+      wp_delete_file($file);
+      // wp_delete_file() returns nothing, so ask the filesystem whether it worked.
+      if (!file_exists($file)) {
         $removed++;
       }
     }
@@ -156,7 +159,7 @@ class AgentTraceLog {
       if (preg_match('/(\d{4}-\d{2}-\d{2})/', basename($file), $m)) {
         $ts = strtotime($m[1]);
         if ($ts !== false && $ts < $cutoff) {
-          @unlink($file);
+          wp_delete_file($file);
         }
       }
     }
@@ -197,6 +200,7 @@ class AgentTraceLog {
     if ($size === false) {
       return [];
     }
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Deliberate: only the last TAIL_BYTES are read, and WP_Filesystem can only pull a whole file into memory.
     $handle = @fopen($file, 'rb');
     if (!$handle) {
       return [];
@@ -212,6 +216,7 @@ class AgentTraceLog {
         $lines[] = $line;
       }
     }
+    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Pairs with the fopen() above.
     fclose($handle);
     return $lines;
   }

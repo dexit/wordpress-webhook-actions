@@ -33,7 +33,9 @@ class AgentConversationRepository {
   public function getAll(string $status = 'active'): array {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // disable/enable rather than ignore: the table name sits on the second line
+    // of the SQL string, which a single-line ignore cannot reach.
+    // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $rows = $wpdb->get_results(
       $wpdb->prepare(
         "SELECT id, uuid, title, status, transport, model, created_at, updated_at
@@ -42,6 +44,7 @@ class AgentConversationRepository {
       ),
       ARRAY_A
     ) ?: [];
+    // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
     return $rows;
   }
@@ -54,6 +57,7 @@ class AgentConversationRepository {
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
     $row = $wpdb->get_row(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d", $id),
       ARRAY_A
     );
@@ -139,7 +143,7 @@ class AgentConversationRepository {
   public function delete(int $id): bool {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $result = $wpdb->delete($this->table, ['id' => $id], ['%d']);
 
     return $result !== false && $result > 0;

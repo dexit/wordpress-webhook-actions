@@ -4,11 +4,11 @@ Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.9.0
+Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
-Describe an integration in chat and the AI builds it — outgoing webhooks from any WordPress or WooCommerce action, queued, retried and logged.
+Describe an integration and the AI builds it — no API key needed. Outgoing webhooks from any WordPress or WooCommerce action, queued and retried.
 
 == Description ==
 
@@ -20,20 +20,22 @@ Describe an integration in chat and the AI builds it — outgoing webhooks from 
 
 **Sources — anything in WordPress that fires an action.** Webhook Actions turns any `do_action` into a trigger, so form submissions, WooCommerce orders, user registrations, post publishes and your own custom plugin events can all start an automation. That covers Elementor Forms, WPForms, Forminator, Fluent Forms, Gravity Forms, WooCommerce and your own code — there is no per-plugin add-on to hunt down. Contact Form 7 and IvyForms go one step further with built-in support: their submissions are normalized into clean JSON payloads automatically.
 
-**Destinations — any HTTP endpoint.** The plugin sends outgoing webhooks to anything that accepts a request: an n8n, Make, Zapier or Pabbly webhook node, a Slack or Discord incoming-webhook URL for order and form notifications, Airtable, Google Sheets, Mailchimp, HubSpot, Salesforce, Notion, your CRM, an internal microservice, or an AI agent API. There are no bundled per-service connectors and none are needed — point a webhook at a URL, map the fields, and send. Every delivery is queued, retried on failure and logged with full request and response history.
+**Destinations — any HTTP endpoint.** The plugin sends outgoing webhooks to anything that accepts a request: an n8n, Make (formerly Integromat), Zapier or Pabbly webhook node, a Slack or Discord incoming-webhook URL for order and form notifications, Airtable, Google Sheets, Mailchimp, HubSpot, Salesforce, Notion, your CRM, an internal microservice, or an AI agent API. There are no bundled per-service connectors and none are needed — point a webhook at a URL, map the fields, and send. Every delivery is queued, retried on failure and logged with full request and response history.
 
 That makes it a no-code way to sync WordPress data outward: describe what you want in chat and let the AI build it, or wire it up by hand in the admin UI. No PHP required either way.
 
-= Bring your own AI — free options included =
+= No API key needed to start =
 
-- **WordPress 7.0 AI Client** — if your site already has an AI provider connected (Settings → Connectors), the builder uses it directly; the plugin stores no keys
-- **Your own API key** — connect Anthropic, OpenAI, or Google in the builder; keys are encrypted in the Credentials Vault and never returned over the API
-- **Free to run** — a free Google AI Studio key gives you Gemini at no cost: [step-by-step tutorial](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/)
+- **55 free credits, no key and no signup** — claimed automatically on your first prompt. There is no button to press, no account to create and no card; the plugin sends nothing but your site address. That is about five agent turns, or roughly two complete automations built end to end
+- **Try it without installing anything** — the **Live Preview** button on this page boots a throwaway WordPress in your browser and runs the real agent on those credits
+- **WordPress connectors** — if your site already has an AI provider connected (Settings → Connectors), the builder uses it directly and the plugin stores no keys
+- **My own keys** — connect Anthropic, OpenAI or Google in the builder; keys are encrypted in the Credentials Vault and never returned over the API. A free Google AI Studio key gives you Gemini at no cost: [step-by-step tutorial](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/)
+- **Your own key always wins** — once a provider of yours is connected, the free credits are never spent
 - **Automatic fallback** — if a provider is rate-limited mid-build, the agent switches to another connected provider and keeps going
 
 = What the AI works from =
 
-The agent doesn't guess — it works from your site's real data. It maps fields against actually captured payloads, edits existing webhooks by name or id instead of duplicating them, validates endpoints with a guarded probe (SSRF-protected, secrets always redacted), and verifies the result with a real test delivery. Every operation is also published as a WordPress Ability, so external AI tools (Claude Code, Cursor) can drive the same toolset over MCP with scoped API tokens.
+The agent doesn't guess — it works from your site's real data. It maps fields against actually captured payloads, edits existing webhooks by name or id instead of duplicating them, validates endpoints with a guarded probe (SSRF-protected, secrets always redacted), and verifies the result with a real test delivery. Every operation is also published as a WordPress Ability, so external AI tools (Claude Code, Cursor) can drive the same toolset over the Model Context Protocol (MCP) with scoped API tokens.
 
 = The engine underneath (free) =
 
@@ -41,13 +43,15 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 - Persistent delivery queue with smart retry and exponential backoff — powered by WP-Cron, auto-upgrades to Action Scheduler or System Cron when available, **(Pro)** External Cron for guaranteed reliability
 - Per-event UUID and ISO 8601 timestamp — enable downstream deduplication
 - Delivery logs with full attempt history, request/response inspection, replay, and bulk retry
+- Code Glue — attach PHP snippets to any webhook+trigger to reshape the payload before dispatch or run side effects after the response, with a preview that runs your code against a real captured payload first
+- Per-webhook retry limit and backoff strategy (exponential, linear or fixed), each falling back to a site-wide default
 - Synchronous execution mode — fire inline without queue delay
 - Payload mapping — rename, restructure, exclude, and type-cast fields with dot-notation paths
-- Conditional dispatch — filter events by payload field values before dispatch, so a Slack notification or a CRM sync only fires when it should
+- Conditional dispatch — filter events by payload field values before dispatch, so a Slack notification or a CRM sync only fires when it should. Build as many rules as you need and group them with AND/OR matching
 - HTTP method, custom headers, and URL query parameters per webhook
-- Dynamic endpoint URLs — `{{ field.path }}` placeholders resolved at dispatch time (free via `fswa_webhook_url` filter)
+- Dynamic endpoint URLs — `{{ field.path }}` placeholders resolved against the payload at dispatch time, or the `fswa_webhook_url` filter if you would rather do it in PHP
 - Webhook Chains — wire 2xx completions to downstream webhooks with full observability
-- Import & Export — move webhooks and chains between sites as portable JSON (triggers, field mapping, and conditions included; Code Glue with Pro), with strict validation and a per-item result summary on import
+- Import & Export — move webhooks and chains between sites as portable JSON (triggers, field mapping, conditions and Code Glue snippets included), with strict validation and a per-item result summary on import
 - Markdown descriptions — document what each webhook and chain does inline, with a Write/Preview toggle while editing
 - Credentials Vault — store reusable auth secrets (Bearer, Basic, API key, custom) encrypted at rest; reference them from webhooks instead of pasting raw Authorization headers. Secrets are write-only over the API — never returned, only a masked hint
 - Activity History — persistent audit log of every admin and API-token action
@@ -62,11 +66,7 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 - AI credits included — Build with AI runs through the hosted WP Webhooks AI service on every Pro plan: no API keys to create, no provider accounts, a monthly credit allowance that renews automatically, and a live credits counter in the builder. Your own keys and WordPress connectors stay available any time
 - AI writes Code Glue for you — the agent drafts PHP snippets, test-runs them against your real captured payloads, and assigns them to webhooks (with your confirmation) for pre-dispatch payload enrichment or post-dispatch side effects
 - AI sets advanced conditions — with Pro the agent can propose multi-rule AND/OR condition groups instead of a single rule
-- Code Glue — attach PHP snippets to any webhook+trigger (pre-dispatch payload enrichment, post-dispatch side effects)
 - External Cron — replace unreliable visitor-triggered WP-Cron with a managed external pinger, provisioned automatically on license activation. Two modes: plugin queue endpoint (down to 20 s interval, configurable batch size) or WP-Cron endpoint (60 s, covers all WordPress background work). No server crontab or external dashboard — controlled entirely from wp-admin, with a live heartbeat chart and inline error alerts
-- Unlimited conditions per trigger with AND/OR groups
-- Per-webhook retry limit and backoff strategy overrides
-- Dynamic URL templates — `{{ }}` syntax with no custom PHP required
 
 [See pricing and upgrade →](https://wpwebhooks.org/pricing/)
 
@@ -89,7 +89,9 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 
 = Does the AI Builder need an API key? Is it free to use? =
 
-The AI Builder needs a model to talk to, and you have free options. If your WordPress 7.0 site already has an AI provider connected (Settings → Connectors), the builder uses it with no extra setup. Otherwise connect your own Anthropic, OpenAI, or Google key — a free Google AI Studio key gives you Gemini at no cost. [Here's how to get one in two minutes →](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/)
+No key, and nothing to sign up for. Your first prompt automatically claims **55 free credits** — no account, no card, and the only thing the plugin sends is your site address. That is about five agent turns, or roughly two complete automations built end to end, which is enough to find out whether this works for you before committing anything.
+
+When the credits run out you have three ways to carry on, and two of them are free. If your site has an AI provider connected in WordPress (Settings → Connectors), the builder uses it with no extra setup. Otherwise bring your own Anthropic, OpenAI or Google key — a free Google AI Studio key gives you Gemini at no cost. [Here's how to get one in two minutes →](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/) Or move to Pro, which includes a hosted credit pool and no keys at all. Whichever you pick, a site with its own key never spends the free credits.
 
 = Is my data safe with the AI Builder? =
 
@@ -97,11 +99,19 @@ Yes. Your provider API keys are encrypted in the Credentials Vault and never ret
 
 = Is this plugin free? =
 
-Yes. The core plugin is completely free and licensed under GPL. Webhook Actions Pro is an optional paid upgrade that adds included AI credits for Build with AI (hosted, no API keys needed), unlimited conditions, per-webhook retry and backoff settings, Code Glue snippets, External Cron (activated automatically on license activation), and more. [Learn more →](https://wpwebhooks.org/pricing/)
+Yes. The core plugin is completely free and licensed under GPL. Webhook Actions Pro is an optional paid upgrade that adds included AI credits for Build with AI (hosted, no API keys needed), an agent that writes and assigns Code Glue snippets and multi-rule condition groups for you, and External Cron (activated automatically on license activation). The delivery pipeline itself — Code Glue, unlimited AND/OR conditions, per-webhook retry and backoff, and dynamic URL templates — is free as of 3.0.0. [Learn more →](https://wpwebhooks.org/pricing/)
 
 = Does it work with WooCommerce, n8n, Make, Zapier, and AI agents? =
 
 Yes. Any WordPress or WooCommerce action can be a trigger. The plugin delivers to any HTTP endpoint — n8n, Make, Zapier webhook nodes, internal services, or AI agent APIs. Scoped API tokens let Claude Code, Cursor, or any automation tool read logs, retry deliveries, and toggle webhooks without WordPress credentials.
+
+= Is this a Zapier or Make alternative? =
+
+For the WordPress half of the job, yes — and it is worth being precise about which half. Zapier, Make and Pabbly are multi-app orchestrators with large connector catalogues and a visual canvas. If your workflow joins several SaaS products that have nothing to do with WordPress, that is what they are for, and this plugin is not an alternative to it.
+
+What it does replace is the metered hop out of WordPress. Rather than spending a task every time an order or a form entry leaves your site, your own server sends it — queued, retried with exponential backoff, and logged with full request and response history. Webhook Chains let one delivery trigger the next on a 2xx response, so a multi-step flow can stay on your own infrastructure. There is no connector catalogue here: you point a webhook at a URL and map the fields.
+
+Plenty of sites run both — this plugin as the unmetered, self-hosted exit from WordPress, with a Zapier or Make node on the far end when a workflow genuinely needs their catalogue.
 
 = Does it work with Elementor Forms, WPForms, Forminator, Fluent Forms or Gravity Forms? =
 
@@ -117,7 +127,7 @@ No. Both integrations are built in. When CF7 or IvyForms is active, submissions 
 
 = How does retry work? =
 
-5xx and 429 responses retry automatically with exponential backoff (delays of ~30s, 60s, 120s, 240s, 480s, capped at 1 hour). 4xx and 3xx responses are marked `permanently_failed` immediately — bad payloads are not worth retrying. Default maximum is 5 attempts; override with the `fswa_max_attempts` filter or **(Pro)** per-webhook settings.
+The dispatcher retries 5xx and 429 responses automatically with exponential backoff (delays of ~30s, 60s, 120s, 240s, 480s, capped at 1 hour). 4xx and 3xx responses are marked `permanently_failed` immediately — bad payloads are not worth retrying. Default maximum is 5 attempts; override it per webhook in the UI, or globally with the `fswa_max_attempts` filter. The backoff strategy (exponential, linear or fixed) is a per-webhook setting too, falling back to a site-wide default.
 
 = Can I access the REST API without a WordPress login? =
 
@@ -142,6 +152,16 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 == Changelog ==
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
+
+= 3.0.0 — 2026-09-02 =
+- Changed: Code Glue, dynamic URL templates, per-webhook retry limits and backoff strategies, unlimited AND/OR conditions and publishing a build are now part of the free plugin. They used to require Webhook Actions Pro. Nothing is lost on upgrade — existing snippets, assignments and retry settings keep working exactly as they were.
+- Added: Code Glue — PHP snippets that reshape the payload before a delivery or run side effects after the response — with a preview that runs your code against a real captured payload before you assign it.
+- Added: dynamic `{{ field.path }}` templates in the endpoint URL, resolved against the payload at dispatch time.
+- Added: per-webhook retry limit and backoff strategy (exponential, linear or fixed), each falling back to a site-wide default you can set in Settings.
+- Added: conditions are no longer limited to a single rule — build as many as you need, group them, and match on ANY or ALL.
+- Added: publish a build to wpwebhooks.org and earn AI credits, from any site, including one running only the free AI trial. Publishing is not offered from a WordPress Playground demo or from an address the internet cannot reach, and the library keeps one page per recipe — if a build like yours is already there, you are pointed at it rather than adding a near-identical second page.
+- Security: writing a Code Glue snippet now requires the same capability WordPress uses for editing plugin code (`edit_plugins`), and is refused entirely on sites that set DISALLOW_FILE_EDIT — that is a wp-config choice and nothing in the plugin can override it. Sites that only set DISALLOW_FILE_MODS (common on managed hosts, where it means "do not install plugins from the dashboard") are unaffected. API tokens — including connected AI tools over MCP — cannot write snippets unless you explicitly allow it in Settings. Reading snippets is unchanged, and snippets already assigned keep running in every case.
+- Note: Webhook Actions Pro 1.9.0 or later is required alongside this release. An older Pro keeps running its own copies of the moved features until you update it, so nothing breaks in the meantime.
 
 = 2.9.0 — 2026-08-30 =
 - Added: connect an external AI tool to your site over MCP. Everything Build with AI can do — reading your triggers, mapping fields, creating and testing webhooks — is now reachable from Claude Code, Cursor and Claude on the web, driving the same toolset against your real configuration. See the setup guides at https://wpwebhooks.org/docs/

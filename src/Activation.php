@@ -227,6 +227,10 @@ class Activation {
 
     // Drop tables (order matters for foreign key constraints)
     // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+    // Code Glue. Named fswa_pro_* from when it shipped in the Pro plugin; this
+    // plugin owns them now, so uninstalling it takes them with it.
+    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fswa_pro_trigger_snippets");
+    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fswa_pro_snippets");
     $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fswa_credentials");
     $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fswa_activity_logs");
     $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fswa_chain_links");
@@ -246,5 +250,6 @@ class Activation {
     delete_option('fswa_archive_logs');
     delete_option('fswa_archived_stats');
     delete_option('fswa_vault_key');
+    delete_option('fswa_glue_token_writes');
   }
 }

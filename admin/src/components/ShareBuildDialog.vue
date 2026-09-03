@@ -20,7 +20,6 @@ import MarkdownField from '@/components/MarkdownField.vue'
 import BuildPublishFields from '@/components/BuildPublishFields.vue'
 import BuildPublishProgress from '@/components/BuildPublishProgress.vue'
 import { useBuildExport } from '@/composables/useBuildExport'
-import { usePro } from '@/composables/usePro'
 import api from '@/lib/api'
 import { __, sprintf } from '@/i18n'
 
@@ -34,7 +33,6 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const { exportBuild } = useBuildExport()
-const { proActive } = usePro()
 
 const includeTranscript = ref(false)
 const anonymizeSiteUrl = ref(false)
@@ -44,6 +42,7 @@ const error = ref('')
 const rejectedCategories = ref([])
 const published = ref(null)     // API payload once the build is accepted
 const duplicate = ref(null)     // the page this build already has, if any
+const duplicateIsOthers = ref(false) // that page belongs to someone else's build
 
 const items = ref([])          // [{ kind, id, name, description }]
 const drafts = ref({})         // key -> edited description
@@ -113,6 +112,7 @@ watch(() => props.open, (open) => {
   rejectedCategories.value = []
   published.value = null
   duplicate.value = null
+  duplicateIsOthers.value = false
   items.value = []
   drafts.value = {}
   expanded.value = new Set()
@@ -152,7 +152,7 @@ const runExport = async () => {
     await exportBuild({
       options: {
         conversation_id: Number(props.conversationId),
-        include_ai_transcript: proActive.value && includeTranscript.value,
+        include_ai_transcript: includeTranscript.value,
         anonymize_site_url: anonymizeSiteUrl.value,
       },
     }, props.title)
@@ -172,6 +172,7 @@ const runPublish = async () => {
   error.value = ''
   rejectedCategories.value = []
   duplicate.value = null
+  duplicateIsOthers.value = false
   try {
     // Descriptions become the body of the published page, so they are saved to
     // the objects first — exactly as in export mode.
@@ -192,10 +193,12 @@ const runPublish = async () => {
   } catch (e) {
     error.value = e?.message || __('Publishing failed.')
     rejectedCategories.value = e?.data?.data?.categories || []
-    // Same build, second attempt: point at the page it already has instead of
-    // inviting a retry that will fail the same way.
-    if (e?.code === 'fswa_publish_duplicate') {
+    // Two ways this build already has a page: it is the author's own second
+    // attempt, or someone else already published the same recipe. Neither is a
+    // retryable failure, so both point at the existing page instead.
+    if (e?.code === 'fswa_publish_duplicate' || e?.code === 'fswa_publish_similar') {
       duplicate.value = e?.data?.data?.published || {}
+      duplicateIsOthers.value = e?.code === 'fswa_publish_similar'
     }
   } finally {
     exporting.value = false
@@ -273,7 +276,7 @@ const runPublish = async () => {
 
       <!-- Provenance + privacy -->
       <div class="space-y-4 border-t pt-4">
-        <div v-if="proActive" class="space-y-2">
+        <div class="space-y-2">
           <label class="flex items-start gap-2 cursor-pointer">
             <Checkbox class="mt-0.5" :model-value="includeTranscript" @update:model-value="includeTranscript = $event" />
             <span class="text-sm font-medium">{{ __('Include the AI conversation') }}</span>
@@ -282,10 +285,6 @@ const runPublish = async () => {
             {{ __('Adds your prompts and the assistant\'s replies so the recipient can see how this build was made. Read results are never included and obvious secrets are masked, but the conversation may still mention details about your site — review before sharing publicly.') }}
           </p>
         </div>
-        <p v-else class="text-xs text-muted-foreground">
-          {{ __('Sharing the AI conversation alongside a build is a Pro feature.') }}
-        </p>
-
         <div class="space-y-2">
           <label class="flex items-start gap-2 cursor-pointer">
             <Checkbox class="mt-0.5" :model-value="anonymizeSiteUrl" @update:model-value="anonymizeSiteUrl = $event" />
@@ -321,7 +320,10 @@ const runPublish = async () => {
         >
           {{ duplicate.url }} <ExternalLink class="w-3.5 h-3.5 shrink-0" />
         </a>
-        <p class="text-xs text-muted-foreground">
+        <p v-if="duplicateIsOthers" class="text-xs text-muted-foreground">
+          {{ __('Read that build first. If yours does something it does not — another destination, an extra step, different conditions — make that difference part of the build and publish again.') }}
+        </p>
+        <p v-else class="text-xs text-muted-foreground">
           {{ __('Change what this build contains — add or remove a webhook — to publish it as a separate page.') }}
         </p>
       </div>

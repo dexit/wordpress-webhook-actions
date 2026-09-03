@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { Button, Label, Switch, Badge, Select, SelectTrigger, SelectContent, SelectItem, Input, RadioGroup, RadioGroupItem, Tooltip, UpgradeBadge } from '@/components/ui'
+import { Button, Label, Switch, Badge, Select, SelectTrigger, SelectContent, SelectItem, Input, RadioGroup, RadioGroupItem, Tooltip } from '@/components/ui'
 import {
   Plus, X, Info,
   Equal, EqualNot, CircleCheckBig,
@@ -18,10 +18,6 @@ const props = defineProps({
     type: Object,
     default: () => ({ enabled: false, type: 'and', rules: [] }),
   },
-  isPro: {
-    type: Boolean,
-    default: false,
-  },
   examplePayload: {
     type: Object,
     default: null,
@@ -29,8 +25,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
-
-const FREE_RULE_LIMIT = 1
 
 // Conditions can arrive in foreign shapes (older exports, or rules written by
 // an AI/MCP caller before backend normalization existed) — a bare rule array,
@@ -68,10 +62,6 @@ const conditions = computed({
   get: () => normalizeModel(props.modelValue),
   set: (val) => emit('update:modelValue', val),
 })
-
-const atFreeLimit = computed(
-  () => !props.isPro && conditions.value.rules.length >= FREE_RULE_LIMIT
-)
 
 const OPERATORS = [
   { value: 'equals',       icon: Equal,          label: __('equals'),           short: __('equals') },
@@ -211,7 +201,6 @@ const toggleEnabled = (val) =>
   emit('update:modelValue', { ...conditions.value, enabled: val })
 
 const addRule = () => {
-  if (atFreeLimit.value) return
   const newIndex = conditions.value.rules.length
   if (globalTextMode.value) ruleTextModes.value = { ...ruleTextModes.value, [newIndex]: true }
   emit('update:modelValue', {
@@ -275,14 +264,12 @@ const handleGroupRuleCastChange = (gi, ri, cast) => {
 }
 
 const setType = (type) => {
-  if (!props.isPro) return
   emit('update:modelValue', { ...conditions.value, type })
 }
 
 // ── Group CRUD ────────────────────────────────────────────────────────────
 
 const addGroup = () => {
-  if (atFreeLimit.value || !props.isPro) return
   emit('update:modelValue', {
     ...conditions.value,
     rules: [
@@ -822,24 +809,20 @@ const overallResult = computed(() => {
           type="button"
           variant="outline"
           size="sm"
-          :disabled="atFreeLimit"
           @click="addRule"
         >
           <Plus class="h-4 w-4 mr-1" />
           {{ __('Add condition') }}
         </Button>
         <Button
-          v-if="isPro"
           type="button"
           variant="outline"
           size="sm"
-          :disabled="atFreeLimit"
           @click="addGroup"
         >
           <FolderPlus class="h-4 w-4 mr-1" />
           {{ __('Add group') }}
         </Button>
-        <UpgradeBadge v-if="atFreeLimit && !isPro" />
       </div>
 
       <!-- Match type -->
@@ -847,25 +830,17 @@ const overallResult = computed(() => {
         <span class="text-muted-foreground">{{ __('Match:') }}</span>
         <RadioGroup
           :model-value="conditions.type"
-          :disabled="!isPro"
           @update:model-value="setType($event)"
         >
-          <label
-            class="flex items-center gap-1.5"
-            :class="isPro ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'"
-          >
-            <RadioGroupItem value="and" :disabled="!isPro" />
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <RadioGroupItem value="and" />
             {{ __('ALL (AND)') }}
           </label>
-          <label
-            class="flex items-center gap-1.5"
-            :class="isPro ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'"
-          >
-            <RadioGroupItem value="or" :disabled="!isPro" />
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <RadioGroupItem value="or" />
             {{ __('ANY (OR)') }}
           </label>
         </RadioGroup>
-        <UpgradeBadge v-if="!isPro" />
       </div>
     </template>
 

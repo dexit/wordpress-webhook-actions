@@ -4,6 +4,7 @@ namespace FlowSystems\WebhookActions\Services\Export;
 
 defined('ABSPATH') || exit;
 
+use FlowSystems\WebhookActions\Support\Arr;
 use WP_Error;
 
 /**
@@ -417,12 +418,6 @@ class BuildSchemaValidator {
 
   /** A JSON array decodes to a PHP list (sequential integer keys from 0). */
   private function isList($v): bool {
-    if (!is_array($v)) return false;
-    if (function_exists('array_is_list')) return array_is_list($v);
-    $i = 0;
-    foreach ($v as $k => $_) {
-      if ($k !== $i++) return false;
-    }
-    return true;
+    return Arr::isList($v);
   }
 }

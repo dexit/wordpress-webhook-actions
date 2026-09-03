@@ -9,6 +9,7 @@ use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Repositories\CredentialRepository;
 use FlowSystems\WebhookActions\Repositories\ChainRepository;
 use FlowSystems\WebhookActions\Repositories\ChainLinkRepository;
+use FlowSystems\WebhookActions\Services\RetryPolicy;
 use FlowSystems\WebhookActions\Services\WpAppPasswordService;
 use WP_Error;
 
@@ -64,13 +65,40 @@ class WriteAbilities {
       'is_synchronous'     => isset($input['is_synchronous']) ? (int) (bool) $input['is_synchronous'] : 0,
       // Always created disabled — the agent must explicitly enable (with confirm).
       'is_enabled'         => 0,
-    ]);
+    ] + $this->retryFields($input));
 
     if (!$id) {
       return new WP_Error('fswa_create_failed', __('Failed to create webhook.', 'flowsystems-webhook-actions'), ['status' => 500]);
     }
 
     return ['webhook' => $repo->find((int) $id), 'created_disabled' => true];
+  }
+
+  /**
+   * The webhook's retry and backoff overrides, for whichever of the four the
+   * agent actually sent, clamped exactly as WebhooksController clamps them —
+   * a model asked for "retry forever" must not be able to store 99999.
+   *
+   * @param array<string, mixed> $input
+   * @return array<string, int|string|null>
+   */
+  private function retryFields(array $input): array {
+    $fields = [];
+
+    if (array_key_exists('retry_limit', $input)) {
+      $fields['retry_limit'] = RetryPolicy::clampAttempts($input['retry_limit']);
+    }
+    if (array_key_exists('backoff_strategy', $input)) {
+      $fields['backoff_strategy'] = RetryPolicy::normalizeStrategy($input['backoff_strategy']);
+    }
+    if (array_key_exists('backoff_base_delay', $input)) {
+      $fields['backoff_base_delay'] = RetryPolicy::clampDelay($input['backoff_base_delay']);
+    }
+    if (array_key_exists('backoff_max_delay', $input)) {
+      $fields['backoff_max_delay'] = RetryPolicy::clampDelay($input['backoff_max_delay']);
+    }
+
+    return $fields;
   }
 
   public function updateWebhook(array $input): array|WP_Error {
@@ -80,7 +108,7 @@ class WriteAbilities {
       return $this->notFound();
     }
 
-    $data = [];
+    $data = $this->retryFields($input);
     foreach (['name', 'endpoint_url', 'http_method', 'triggers', 'auth_credential_id', 'custom_headers', 'url_params', 'is_synchronous'] as $field) {
       if (array_key_exists($field, $input)) {
         $data[$field] = $input[$field];
@@ -128,22 +156,6 @@ class WriteAbilities {
     $conditions = $this->normalizeConditions($input['conditions']);
     if (is_wp_error($conditions)) {
       return $conditions;
-    }
-
-    // Mirror the REST endpoint's free-tier limits (SchemasController::updateSchema):
-    // groups and more than one rule are Pro; free is locked to 'and'.
-    $proActive = class_exists('FlowSystems\WebhookActions\Pro\License\LicenseManager')
-      && (new \FlowSystems\WebhookActions\Pro\License\LicenseManager())->isActive();
-    if (!$proActive && !empty($conditions['rules'])) {
-      foreach ($conditions['rules'] as $rule) {
-        if (($rule['type'] ?? '') === 'group') {
-          return new WP_Error('fswa_pro_required', __('Condition groups require a Pro license — propose a single simple rule instead.', 'flowsystems-webhook-actions'), ['status' => 403]);
-        }
-      }
-      if (count($conditions['rules']) > 1) {
-        return new WP_Error('fswa_pro_required', __('More than 1 condition requires a Pro license — propose a single simple rule instead.', 'flowsystems-webhook-actions'), ['status' => 403]);
-      }
-      $conditions['type'] = 'and';
     }
 
     $schemaId = (new SchemaRepository())->upsert($webhookId, $trigger, [

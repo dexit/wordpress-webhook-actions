@@ -72,14 +72,14 @@ class ActivityLogRepository {
       // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
       $countQuery = $wpdb->prepare($countQuery, ...$whereValues);
     }
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $total = (int) $wpdb->get_var($countQuery);
 
     $itemsQuery = "SELECT * FROM {$this->table} {$whereSql} ORDER BY created_at DESC LIMIT %d OFFSET %d";
     $itemValues = array_merge($whereValues, [$perPage, $offset]);
     // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
     $itemsQuery = $wpdb->prepare($itemsQuery, ...$itemValues);
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     $rows = $wpdb->get_results($itemsQuery, ARRAY_A);
 
     $items = array_map([$this, 'decodeRow'], $rows ?: []);
@@ -99,6 +99,7 @@ class ActivityLogRepository {
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $row = $wpdb->get_row(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d", $id),
       ARRAY_A
     );
@@ -139,6 +140,7 @@ class ActivityLogRepository {
 
     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     $wpdb->query(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
       $wpdb->prepare("DELETE FROM {$this->table} WHERE created_at < %s", $date)
     );
 
@@ -151,7 +153,7 @@ class ActivityLogRepository {
   public function count(): int {
     global $wpdb;
 
-    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The plugin's own table, named from $wpdb->prefix; clauses are literals and every value goes through $wpdb->prepare().
     return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table}");
   }
 

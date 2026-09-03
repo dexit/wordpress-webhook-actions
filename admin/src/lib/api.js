@@ -236,8 +236,10 @@ export const api = {
     resolve: (data) => post('export/resolve', data),
     analyze: (document) => post('import/analyze', { document }),
     import: (data) => post('import', data),
-    // Pro route: the license key never leaves the Pro plugin.
+    // Route keeps its pro/ prefix from when publishing was a Pro feature.
     publish: (data) => post('pro/publish', data),
+    // May this site publish at all? Playground sandboxes and dev boxes cannot.
+    publishEligibility: () => get('pro/publish/eligibility'),
     // Is the published page live yet? Probed server-side — the browser cannot
     // read a cross-origin 404.
     publishStatus: (url) => get('pro/publish/status', { url }),
