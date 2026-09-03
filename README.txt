@@ -8,7 +8,7 @@ Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
-Describe an integration in chat and the AI builds it — outgoing webhooks from any WordPress or WooCommerce action, queued, retried and logged.
+Describe an integration and the AI builds it — no API key needed. Outgoing webhooks from any WordPress or WooCommerce action, queued and retried.
 
 == Description ==
 
@@ -24,11 +24,13 @@ Describe an integration in chat and the AI builds it — outgoing webhooks from 
 
 That makes it a no-code way to sync WordPress data outward: describe what you want in chat and let the AI build it, or wire it up by hand in the admin UI. No PHP required either way.
 
-= Bring your own AI — free options included =
+= No API key needed to start =
 
-- **WordPress 7.0 AI Client** — if your site already has an AI provider connected (Settings → Connectors), the builder uses it directly; the plugin stores no keys
-- **Your own API key** — connect Anthropic, OpenAI, or Google in the builder; keys are encrypted in the Credentials Vault and never returned over the API
-- **Free to run** — a free Google AI Studio key gives you Gemini at no cost: [step-by-step tutorial](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/)
+- **55 free credits, no key and no signup** — claimed automatically on your first prompt. There is no button to press, no account to create and no card; the plugin sends nothing but your site address. That is about five agent turns, or roughly two complete automations built end to end
+- **Try it without installing anything** — the **Live Preview** button on this page boots a throwaway WordPress in your browser and runs the real agent on those credits
+- **WordPress connectors** — if your site already has an AI provider connected (Settings → Connectors), the builder uses it directly and the plugin stores no keys
+- **My own keys** — connect Anthropic, OpenAI or Google in the builder; keys are encrypted in the Credentials Vault and never returned over the API. A free Google AI Studio key gives you Gemini at no cost: [step-by-step tutorial](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/)
+- **Your own key always wins** — once a provider of yours is connected, the free credits are never spent
 - **Automatic fallback** — if a provider is rate-limited mid-build, the agent switches to another connected provider and keeps going
 
 = What the AI works from =
@@ -89,7 +91,9 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 
 = Does the AI Builder need an API key? Is it free to use? =
 
-The AI Builder needs a model to talk to, and you have free options. If your WordPress 7.0 site already has an AI provider connected (Settings → Connectors), the builder uses it with no extra setup. Otherwise connect your own Anthropic, OpenAI, or Google key — a free Google AI Studio key gives you Gemini at no cost. [Here's how to get one in two minutes →](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/)
+No key, and nothing to sign up for. Your first prompt automatically claims **55 free credits** — no account, no card, and the only thing the plugin sends is your site address. That is about five agent turns, or roughly two complete automations built end to end, which is enough to find out whether this works for you before committing anything.
+
+When the credits run out you have three ways to carry on, and two of them are free. If your site has an AI provider connected in WordPress (Settings → Connectors), the builder uses it with no extra setup. Otherwise bring your own Anthropic, OpenAI or Google key — a free Google AI Studio key gives you Gemini at no cost. [Here's how to get one in two minutes →](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/) Or move to Pro, which includes a hosted credit pool and no keys at all. Whichever you pick, a site with its own key never spends the free credits.
 
 = Is my data safe with the AI Builder? =
 
