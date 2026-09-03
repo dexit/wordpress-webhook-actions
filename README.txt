@@ -43,11 +43,11 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 - Persistent delivery queue with smart retry and exponential backoff — powered by WP-Cron, auto-upgrades to Action Scheduler or System Cron when available, **(Pro)** External Cron for guaranteed reliability
 - Per-event UUID and ISO 8601 timestamp — enable downstream deduplication
 - Delivery logs with full attempt history, request/response inspection, replay, and bulk retry
-- Code Glue — attach PHP snippets to any webhook+trigger to reshape the payload before dispatch or run side effects after the response, with a preview that runs your code against a real captured payload first
+- Code Glue — attach PHP snippets to any webhook+trigger to reshape the payload before dispatch or run side effects after the response, with a preview that runs your code against a real captured payload first. Build with AI can draft, test-run and assign them for you
 - Per-webhook retry limit and backoff strategy (exponential, linear or fixed), each falling back to a site-wide default
 - Synchronous execution mode — fire inline without queue delay
 - Payload mapping — rename, restructure, exclude, and type-cast fields with dot-notation paths
-- Conditional dispatch — filter events by payload field values before dispatch, so a Slack notification or a CRM sync only fires when it should. Build as many rules as you need and group them with AND/OR matching
+- Conditional dispatch — filter events by payload field values before dispatch, so a Slack notification or a CRM sync only fires when it should. Build as many rules as you need and group them with AND/OR matching, by hand or by describing them to Build with AI
 - HTTP method, custom headers, and URL query parameters per webhook
 - Dynamic endpoint URLs — `{{ field.path }}` placeholders resolved against the payload at dispatch time, or the `fswa_webhook_url` filter if you would rather do it in PHP
 - Webhook Chains — wire 2xx completions to downstream webhooks with full observability
@@ -64,8 +64,6 @@ The agent doesn't guess — it works from your site's real data. It maps fields 
 = Pro features =
 
 - AI credits included — Build with AI runs through the hosted WP Webhooks AI service on every Pro plan: no API keys to create, no provider accounts, a monthly credit allowance that renews automatically, and a live credits counter in the builder. Your own keys and WordPress connectors stay available any time
-- AI writes Code Glue for you — the agent drafts PHP snippets, test-runs them against your real captured payloads, and assigns them to webhooks (with your confirmation) for pre-dispatch payload enrichment or post-dispatch side effects
-- AI sets advanced conditions — with Pro the agent can propose multi-rule AND/OR condition groups instead of a single rule
 - External Cron — replace unreliable visitor-triggered WP-Cron with a managed external pinger, provisioned automatically on license activation. Two modes: plugin queue endpoint (down to 20 s interval, configurable batch size) or WP-Cron endpoint (60 s, covers all WordPress background work). No server crontab or external dashboard — controlled entirely from wp-admin, with a live heartbeat chart and inline error alerts
 
 [See pricing and upgrade →](https://wpwebhooks.org/pricing/)
@@ -99,7 +97,7 @@ Yes. Your provider API keys are encrypted in the Credentials Vault and never ret
 
 = Is this plugin free? =
 
-Yes. The core plugin is completely free and licensed under GPL. Webhook Actions Pro is an optional paid upgrade that adds included AI credits for Build with AI (hosted, no API keys needed), an agent that writes and assigns Code Glue snippets and multi-rule condition groups for you, and External Cron (activated automatically on license activation). The delivery pipeline itself — Code Glue, unlimited AND/OR conditions, per-webhook retry and backoff, and dynamic URL templates — is free as of 3.0.0. [Learn more →](https://wpwebhooks.org/pricing/)
+Yes. The core plugin is completely free and licensed under GPL. Webhook Actions Pro is an optional paid upgrade that adds two things, both of which run on our infrastructure rather than yours: included AI credits for Build with AI (hosted, no API keys needed) and External Cron (activated automatically on license activation). Everything the plugin does — Code Glue, unlimited AND/OR conditions, per-webhook retry and backoff, dynamic URL templates, and the AI agent that can build all of them for you — is free as of 3.0.0. [Learn more →](https://wpwebhooks.org/pricing/)
 
 = Does it work with WooCommerce, n8n, Make, Zapier, and AI agents? =
 
