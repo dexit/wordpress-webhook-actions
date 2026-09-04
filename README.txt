@@ -4,7 +4,7 @@ Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 3.0.0
+Stable tag: 3.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -150,6 +150,13 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 == Changelog ==
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
+
+= 3.0.1 — 2026-09-04 =
+- Fixed: the main admin navigation wrapped onto several cramped rows on phone-width screens; it now collapses into a single dropdown showing the current section.
+- Fixed: Build with AI's active-model bar (provider, credits, "Change model") could clip or overlap on narrow screens instead of wrapping onto its own lines.
+- Fixed: the Webhooks list header buttons and the retry backoff delay preview (Settings and the webhook editor) could overflow the screen on mobile.
+- Fixed: when a test delivery is rejected for missing authentication, Build with AI now offers the same pick-or-create credential control a failed connection check already used, instead of guessing through stored credentials on its own.
+- Added: press Tab on Build with AI's empty prompt box to accept the example sentence currently being typed, instead of tabbing away from it.
 
 = 3.0.0 — 2026-09-02 =
 - Changed: Code Glue, dynamic URL templates, per-webhook retry limits and backoff strategies, unlimited AND/OR conditions and publishing a build are now part of the free plugin. They used to require Webhook Actions Pro. Nothing is lost on upgrade — existing snippets, assignments and retry settings keep working exactly as they were.
