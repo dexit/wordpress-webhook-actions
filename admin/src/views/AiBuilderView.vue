@@ -290,6 +290,15 @@ onMounted(() => {
 });
 onBeforeUnmount(() => { if (typeTimer) clearTimeout(typeTimer); });
 
+// Tab, on an empty composer, accepts the example being typed/held — like a
+// shell or address-bar autocomplete — instead of just tabbing focus away.
+// Once there's real input, Tab goes back to behaving normally.
+function acceptTypedPlaceholder(event) {
+  if (messageInput.value) return;
+  event.preventDefault();
+  messageInput.value = PROMPT_EXAMPLES[typeState.example];
+}
+
 // ---- Hosted credits (Pro) -------------------------------------------------
 // Shown while the hosted transport is active; each turn response carries the
 // fresh balance (res.hosted), so the chip counts down as the agent works.
@@ -1173,7 +1182,7 @@ async function scrollDown() {
                 class="w-full resize-none px-2 pt-1 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground
                        !border-0 !bg-transparent !shadow-none focus:!outline-none focus:!ring-0 focus:!shadow-none"
                 @focus="composerFocused = true" @blur="composerFocused = false"
-                @keydown.enter.exact.prevent="send"></textarea>
+                @keydown.enter.exact.prevent="send" @keydown.tab="acceptTypedPlaceholder"></textarea>
 
               <div class="flex items-center justify-between gap-3 pt-2">
                 <span class="pl-2 text-xs text-muted-foreground" :title="!configured ? trialTooltip : ''">
