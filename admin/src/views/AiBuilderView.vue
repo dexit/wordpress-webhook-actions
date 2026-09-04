@@ -524,11 +524,23 @@ async function loadCredentials() {
 // Busy flag while a credential is being created inline (from a 401/403 probe fix).
 const creatingCred = ref(false);
 
+// Which fix event continues the run once a credential exists, for the two
+// blocked states that offer a "create inline" credential control (a
+// blocked_input credential field patches its own key instead — see below).
+function advanceWithCredential(credentialId, kind) {
+  return advance(
+    kind === 'dispatch'
+      ? { dispatch_fix: { auth_credential_id: credentialId } }
+      : { probe_fix: { auth_credential_id: credentialId } }
+  );
+}
+
 // Create a credential in the vault (from AiStepControls) and continue the step with
-// it — so the user never leaves the build to set up auth. Two entry points:
-//   • probe auth-fail (no inputKey): assign to the probed webhook and re-probe.
+// it — so the user never leaves the build to set up auth. Three entry points:
+//   • probe/dispatch auth-fail (no inputKey, `kind` says which): assign to the
+//     webhook and retry that step.
 //   • blocked_input credential field (inputKey): patch the new id into that field.
-async function onCreateCredential({ payload, inputKey } = {}) {
+async function onCreateCredential({ payload, inputKey, kind } = {}) {
   if (creatingCred.value || !payload) return;
   creatingCred.value = true;
   error.value = '';
@@ -539,7 +551,7 @@ async function onCreateCredential({ payload, inputKey } = {}) {
     if (inputKey) {
       advance({ patch: { [inputKey]: Number(created.id) } });
     } else {
-      advance({ probe_fix: { auth_credential_id: Number(created.id) } });
+      advanceWithCredential(Number(created.id), kind);
     }
   } catch (e) {
     error.value = e.message;
@@ -550,8 +562,8 @@ async function onCreateCredential({ payload, inputKey } = {}) {
 
 // Mint a WP Application Password for the current admin server-side, store it as a
 // basic vault credential, and continue the step with it — the secret never comes
-// back to the browser. Same two entry points as onCreateCredential.
-async function onProvisionAppPassword({ inputKey } = {}) {
+// back to the browser. Same entry points as onCreateCredential.
+async function onProvisionAppPassword({ inputKey, kind } = {}) {
   if (creatingCred.value) return;
   creatingCred.value = true;
   error.value = '';
@@ -562,7 +574,7 @@ async function onProvisionAppPassword({ inputKey } = {}) {
     if (inputKey) {
       advance({ patch: { [inputKey]: Number(created.id) } });
     } else {
-      advance({ probe_fix: { auth_credential_id: Number(created.id) } });
+      advanceWithCredential(Number(created.id), kind);
     }
   } catch (e) {
     error.value = e.message;
@@ -1302,6 +1314,7 @@ async function scrollDown() {
             @retry="retryStep"
             @skip="skipStep"
             @probe-fix="(fix) => advance({ probe_fix: fix })"
+            @dispatch-fix="(fix) => advance({ dispatch_fix: fix })"
             @fix-it="fixStep"
             @create-credential="onCreateCredential"
             @provision-app-password="onProvisionAppPassword"
