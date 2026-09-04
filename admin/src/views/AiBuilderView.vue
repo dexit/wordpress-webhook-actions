@@ -1077,8 +1077,8 @@ async function scrollDown() {
 
       <!-- Active model bar + expandable provider settings -->
       <div v-else class="rounded-lg border border-border bg-card">
-        <div class="flex items-center justify-between gap-3 px-4 py-3">
-          <div class="flex items-center gap-2 min-w-0">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div class="flex flex-wrap items-center gap-2 min-w-0">
             <ProviderLogo :provider="barProvider" :size="36" />
             <div class="min-w-0">
               <div class="text-sm font-medium text-foreground truncate">{{ barTitle }}</div>
@@ -1111,7 +1111,7 @@ async function scrollDown() {
               {{ resetCountdown }}
             </span>
           </div>
-          <div class="flex items-center gap-3 shrink-0">
+          <div class="flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
               <Switch :model-value="isReview" @update:model-value="(v) => setExecMode(v ? 'review' : 'auto')" />
               {{ __('Review plan before running') }}

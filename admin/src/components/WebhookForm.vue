@@ -803,7 +803,7 @@ const handleSubmit = () => {
           />
         </div>
         <div class="flex gap-1">
-          <div v-for="item in backoffPreview" :key="item.retryLabel" class="flex-1 text-center">
+          <div v-for="item in backoffPreview" :key="item.retryLabel" class="flex-1 min-w-0 text-center">
             <div class="text-xs font-medium truncate">{{ item.label }}</div>
             <div class="text-xs text-muted-foreground truncate">{{ item.retryLabel }}</div>
           </div>
