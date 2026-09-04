@@ -14,13 +14,15 @@ import {
   History,
   BrainCircuit,
   X,
+  ChevronDown,
 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useTheme } from './composables/useTheme';
 import { usePro } from './composables/usePro';
 import { useGlueStatus } from './composables/useGlueStatus';
 import { __ } from '@/i18n';
 import HealthStatusBar from './components/HealthStatusBar.vue';
+import { Popover } from '@/components/ui';
 
 const route = useRoute();
 const { theme, toggleTheme } = useTheme();
@@ -47,6 +49,17 @@ const navItems = [
 
 const isActive = (path) => {
   return route.path.startsWith(path);
+};
+
+// Mobile nav: the full tab strip doesn't fit ten items on a phone width, so
+// under `sm` it collapses into a single "current page" trigger that opens a
+// dropdown with the rest of the list.
+const mobileNavOpen = ref(false);
+const currentNavItem = computed(
+  () => navItems.find((item) => isActive(item.path)) || navItems[0]
+);
+const closeMobileNav = () => {
+  mobileNavOpen.value = false;
 };
 </script>
 
@@ -81,8 +94,9 @@ const isActive = (path) => {
     <!-- Health Status Bar -->
     <HealthStatusBar />
 
-    <!-- Navigation -->
-    <nav class="flex flex-wrap gap-1 mb-6 border-b border-border">
+    <!-- Navigation: full tab strip from `sm` up; a collapsed dropdown below it,
+         since ten tabs wrapping onto three lines eats most of a phone screen. -->
+    <nav class="hidden sm:flex flex-wrap gap-1 mb-6 border-b border-border">
       <RouterLink
         v-for="item in navItems"
         :key="item.path"
@@ -97,6 +111,40 @@ const isActive = (path) => {
         <component :is="item.icon" class="w-4 h-4" />
         {{ item.label }}
       </RouterLink>
+    </nav>
+
+    <nav class="sm:hidden mb-6">
+      <Popover :open="mobileNavOpen" content-class="p-1 w-[min(90vw,20rem)]" @update:open="mobileNavOpen = $event">
+        <template #trigger>
+          <button
+            type="button"
+            class="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2.5 text-sm font-medium text-foreground"
+          >
+            <span class="flex items-center gap-2 min-w-0">
+              <component :is="currentNavItem.icon" class="w-4 h-4 shrink-0 text-primary" />
+              <span class="truncate">{{ currentNavItem.label }}</span>
+            </span>
+            <ChevronDown :class="['w-4 h-4 shrink-0 text-muted-foreground transition-transform', mobileNavOpen && 'rotate-180']" />
+          </button>
+        </template>
+        <div class="flex flex-col">
+          <RouterLink
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            @click="closeMobileNav"
+            :class="[
+              'flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
+              isActive(item.path)
+                ? '!bg-primary/10 !text-primary'
+                : 'text-muted-foreground hover:!bg-muted hover:!text-foreground',
+            ]"
+          >
+            <component :is="item.icon" class="w-4 h-4 shrink-0" />
+            <span class="leading-none">{{ item.label }}</span>
+          </RouterLink>
+        </div>
+      </Popover>
     </nav>
 
     <!-- Code Glue unavailable: explain once rather than let the editor fail silently -->

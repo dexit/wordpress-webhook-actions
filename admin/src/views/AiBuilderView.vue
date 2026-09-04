@@ -290,6 +290,15 @@ onMounted(() => {
 });
 onBeforeUnmount(() => { if (typeTimer) clearTimeout(typeTimer); });
 
+// Tab, on an empty composer, accepts the example being typed/held — like a
+// shell or address-bar autocomplete — instead of just tabbing focus away.
+// Once there's real input, Tab goes back to behaving normally.
+function acceptTypedPlaceholder(event) {
+  if (messageInput.value) return;
+  event.preventDefault();
+  messageInput.value = PROMPT_EXAMPLES[typeState.example];
+}
+
 // ---- Hosted credits (Pro) -------------------------------------------------
 // Shown while the hosted transport is active; each turn response carries the
 // fresh balance (res.hosted), so the chip counts down as the agent works.
@@ -515,11 +524,23 @@ async function loadCredentials() {
 // Busy flag while a credential is being created inline (from a 401/403 probe fix).
 const creatingCred = ref(false);
 
+// Which fix event continues the run once a credential exists, for the two
+// blocked states that offer a "create inline" credential control (a
+// blocked_input credential field patches its own key instead — see below).
+function advanceWithCredential(credentialId, kind) {
+  return advance(
+    kind === 'dispatch'
+      ? { dispatch_fix: { auth_credential_id: credentialId } }
+      : { probe_fix: { auth_credential_id: credentialId } }
+  );
+}
+
 // Create a credential in the vault (from AiStepControls) and continue the step with
-// it — so the user never leaves the build to set up auth. Two entry points:
-//   • probe auth-fail (no inputKey): assign to the probed webhook and re-probe.
+// it — so the user never leaves the build to set up auth. Three entry points:
+//   • probe/dispatch auth-fail (no inputKey, `kind` says which): assign to the
+//     webhook and retry that step.
 //   • blocked_input credential field (inputKey): patch the new id into that field.
-async function onCreateCredential({ payload, inputKey } = {}) {
+async function onCreateCredential({ payload, inputKey, kind } = {}) {
   if (creatingCred.value || !payload) return;
   creatingCred.value = true;
   error.value = '';
@@ -530,7 +551,7 @@ async function onCreateCredential({ payload, inputKey } = {}) {
     if (inputKey) {
       advance({ patch: { [inputKey]: Number(created.id) } });
     } else {
-      advance({ probe_fix: { auth_credential_id: Number(created.id) } });
+      advanceWithCredential(Number(created.id), kind);
     }
   } catch (e) {
     error.value = e.message;
@@ -541,8 +562,8 @@ async function onCreateCredential({ payload, inputKey } = {}) {
 
 // Mint a WP Application Password for the current admin server-side, store it as a
 // basic vault credential, and continue the step with it — the secret never comes
-// back to the browser. Same two entry points as onCreateCredential.
-async function onProvisionAppPassword({ inputKey } = {}) {
+// back to the browser. Same entry points as onCreateCredential.
+async function onProvisionAppPassword({ inputKey, kind } = {}) {
   if (creatingCred.value) return;
   creatingCred.value = true;
   error.value = '';
@@ -553,7 +574,7 @@ async function onProvisionAppPassword({ inputKey } = {}) {
     if (inputKey) {
       advance({ patch: { [inputKey]: Number(created.id) } });
     } else {
-      advance({ probe_fix: { auth_credential_id: Number(created.id) } });
+      advanceWithCredential(Number(created.id), kind);
     }
   } catch (e) {
     error.value = e.message;
@@ -1077,8 +1098,8 @@ async function scrollDown() {
 
       <!-- Active model bar + expandable provider settings -->
       <div v-else class="rounded-lg border border-border bg-card">
-        <div class="flex items-center justify-between gap-3 px-4 py-3">
-          <div class="flex items-center gap-2 min-w-0">
+        <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <div class="flex flex-wrap items-center gap-2 min-w-0">
             <ProviderLogo :provider="barProvider" :size="36" />
             <div class="min-w-0">
               <div class="text-sm font-medium text-foreground truncate">{{ barTitle }}</div>
@@ -1111,7 +1132,7 @@ async function scrollDown() {
               {{ resetCountdown }}
             </span>
           </div>
-          <div class="flex items-center gap-3 shrink-0">
+          <div class="flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
               <Switch :model-value="isReview" @update:model-value="(v) => setExecMode(v ? 'review' : 'auto')" />
               {{ __('Review plan before running') }}
@@ -1173,7 +1194,7 @@ async function scrollDown() {
                 class="w-full resize-none px-2 pt-1 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground
                        !border-0 !bg-transparent !shadow-none focus:!outline-none focus:!ring-0 focus:!shadow-none"
                 @focus="composerFocused = true" @blur="composerFocused = false"
-                @keydown.enter.exact.prevent="send"></textarea>
+                @keydown.enter.exact.prevent="send" @keydown.tab="acceptTypedPlaceholder"></textarea>
 
               <div class="flex items-center justify-between gap-3 pt-2">
                 <span class="pl-2 text-xs text-muted-foreground" :title="!configured ? trialTooltip : ''">
@@ -1293,6 +1314,7 @@ async function scrollDown() {
             @retry="retryStep"
             @skip="skipStep"
             @probe-fix="(fix) => advance({ probe_fix: fix })"
+            @dispatch-fix="(fix) => advance({ dispatch_fix: fix })"
             @fix-it="fixStep"
             @create-credential="onCreateCredential"
             @provision-app-password="onProvisionAppPassword"

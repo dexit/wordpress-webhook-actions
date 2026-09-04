@@ -17,7 +17,7 @@ const props = defineProps({
   busy: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['continue', 'retry', 'skip', 'confirm', 'probe-fix', 'fix-it', 'create-credential', 'provision-app-password']);
+const emit = defineEmits(['continue', 'retry', 'skip', 'confirm', 'probe-fix', 'dispatch-fix', 'fix-it', 'create-credential', 'provision-app-password']);
 
 // ---- blocked_input -------------------------------------------------------
 const inputDraft = reactive({});
@@ -77,6 +77,13 @@ function fixProbeAuth() {
   if (!id) return;
   emit('probe-fix', { auth_credential_id: id });
 }
+// Same picker, but for a test_dispatch that came back 401/403 (blocked_dispatch)
+// rather than a probe (blocked_probe) — see the credential-picker markup below.
+function fixDispatchAuth() {
+  const id = Number(probeCredDraft.value);
+  if (!id) return;
+  emit('dispatch-fix', { auth_credential_id: id });
+}
 
 // ---- inline credential creation ------------------------------------------
 const showCreateCred = ref(false);
@@ -103,10 +110,14 @@ function buildNewCredPayload() {
   return payload;
 }
 
-// From a 401/403 probe: create the credential and assign it to the probed webhook.
+// From a 401/403 probe OR test_dispatch: create the credential and assign it to
+// the webhook. `kind` tells the parent which fix event to continue with once
+// the credential exists (probe_fix vs dispatch_fix) — the two blocked states
+// this control also renders for.
 function createAndAssignCred() {
   if (!newCredValid.value) return;
-  emit('create-credential', { payload: buildNewCredPayload() });
+  const kind = props.step.status === 'blocked_dispatch' ? 'dispatch' : 'probe';
+  emit('create-credential', { payload: buildNewCredPayload(), kind });
 }
 
 // From a blocked_input credential field: create the credential, then continue the
@@ -218,7 +229,7 @@ function createCredForInput() {
     <!-- 401/403: attach a vault credential to the webhook, then re-probe -->
     <template v-if="step.probe?.kind === 'auth'">
       <!-- One-click: mint a WP Application Password for this site's own REST API -->
-      <Button size="sm" variant="secondary" :disabled="busy" @click="emit('provision-app-password', {})">
+      <Button size="sm" variant="secondary" :disabled="busy" @click="emit('provision-app-password', { kind: 'probe' })">
         {{ __('Create a WP Application Password for me') }}
       </Button>
 
@@ -293,14 +304,68 @@ function createCredForInput() {
     <p class="text-amber-700 dark:text-amber-300">{{ step.dispatch?.message }}</p>
     <pre v-if="step.dispatch?.response"
       class="max-h-32 overflow-auto rounded bg-muted p-2 text-xs font-mono whitespace-pre-wrap break-all">{{ step.dispatch.response }}</pre>
-    <p class="text-xs text-muted-foreground">
-      {{ __('Ask the agent to fix the payload — it can see this response now — then retry. Skipping leaves the rest of the plan (including going live) to run on a delivery that failed.') }}
-    </p>
-    <div class="flex gap-2">
-      <Button size="sm" :disabled="busy" @click="emit('fix-it')">{{ __('Fix it') }}</Button>
-      <Button size="sm" variant="outline" :disabled="busy" @click="emit('retry')">{{ __('Retry') }}</Button>
-      <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
-    </div>
+
+    <!-- 401/403: same credential picker as a probe auth failure — the agent
+         cannot see what's actually in the vault, so let it guess-and-retry a
+         second stored token is exactly the loop this UI exists to short-circuit. -->
+    <template v-if="step.dispatch?.kind === 'auth'">
+      <Button size="sm" variant="secondary" :disabled="busy" @click="emit('provision-app-password', { kind: 'dispatch' })">
+        {{ __('Create a WP Application Password for me') }}
+      </Button>
+
+      <div v-if="credentials.length && !showCreateCred" class="space-y-2">
+        <Input v-if="credentials.length > 8" v-model="credSearch" type="text" :placeholder="__('Search credentials…')" />
+        <Select :model-value="String(probeCredDraft)" @update:model-value="(v) => (probeCredDraft = v)">
+          <SelectTrigger><SelectValue :placeholder="__('Choose a credential')" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="c in filteredCredentials" :key="c.id" :value="String(c.id)">{{ c.name }}</SelectItem>
+            <div v-if="!filteredCredentials.length" class="px-2 py-1.5 text-xs text-muted-foreground">{{ __('No matches') }}</div>
+          </SelectContent>
+        </Select>
+        <div class="flex flex-wrap gap-2">
+          <Button size="sm" :disabled="busy || !probeCredDraft" @click="fixDispatchAuth">{{ __('Add credential & retry') }}</Button>
+          <Button size="sm" variant="outline" :disabled="busy" @click="showCreateCred = true">{{ __('+ New credential') }}</Button>
+          <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
+        </div>
+      </div>
+
+      <div v-else class="space-y-2">
+        <p v-if="!credentials.length" class="text-xs text-muted-foreground">{{ __('No credentials in the vault yet — create one and it will be assigned to this webhook.') }}</p>
+        <Input v-model="newCred.name" type="text" :placeholder="__('Credential name (e.g. n8n auth)')" />
+        <Select :model-value="newCred.type" @update:model-value="(v) => (newCred.type = v)">
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bearer">{{ __('Bearer token') }}</SelectItem>
+            <SelectItem value="basic">{{ __('Basic auth') }}</SelectItem>
+            <SelectItem value="api_key">{{ __('API key (header)') }}</SelectItem>
+            <SelectItem value="custom">{{ __('Custom header') }}</SelectItem>
+          </SelectContent>
+        </Select>
+        <template v-if="newCred.type === 'basic'">
+          <Input v-model="newCred.username" type="text" :placeholder="__('Username')" />
+          <Input v-model="newCred.password" type="password" :placeholder="__('Password')" />
+        </template>
+        <Input v-else v-model="newCred.secret" type="password" :placeholder="newCred.type === 'bearer' ? __('Token') : __('Secret value')" />
+        <Input v-if="newCred.type === 'api_key' || newCred.type === 'custom'" v-model="newCred.header_name" type="text" :placeholder="__('Header name (e.g. X-API-Key)')" />
+        <div class="flex flex-wrap gap-2">
+          <Button size="sm" :disabled="busy || !newCredValid" @click="createAndAssignCred">{{ __('Create & assign') }}</Button>
+          <Button v-if="credentials.length" size="sm" variant="outline" :disabled="busy" @click="showCreateCred = false">{{ __('Use existing') }}</Button>
+          <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Anything else (400/422/5xx): a payload-shape problem, not auth — hand it to the agent -->
+    <template v-else>
+      <p class="text-xs text-muted-foreground">
+        {{ __('Ask the agent to fix the payload — it can see this response now — then retry. Skipping leaves the rest of the plan (including going live) to run on a delivery that failed.') }}
+      </p>
+      <div class="flex gap-2">
+        <Button size="sm" :disabled="busy" @click="emit('fix-it')">{{ __('Fix it') }}</Button>
+        <Button size="sm" variant="outline" :disabled="busy" @click="emit('retry')">{{ __('Retry') }}</Button>
+        <Button size="sm" variant="outline" :disabled="busy" @click="emit('skip')">{{ __('Skip') }}</Button>
+      </div>
+    </template>
   </div>
 
   <!-- needs_confirm -->

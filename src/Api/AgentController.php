@@ -482,11 +482,12 @@ class AgentController extends WP_REST_Controller {
 
   /**
    * POST /agent/conversations/{id}/step — advance the plan by one step.
-   * Body: { patch?: {key:value}, confirm?: bool, skip?: bool }
+   * Body: { patch?: {key:value}, confirm?: bool, skip?: bool, probe_fix?: {...}, dispatch_fix?: {auth_credential_id} }
    */
   public function step(WP_REST_Request $request): WP_REST_Response|WP_Error {
-    $patch     = $request->get_param('patch');
-    $probeFix  = $request->get_param('probe_fix');
+    $patch      = $request->get_param('patch');
+    $probeFix   = $request->get_param('probe_fix');
+    $dispatchFix = $request->get_param('dispatch_fix');
     $opts      = [
       'patch'   => is_array($patch) ? $patch : [],
       'confirm' => rest_sanitize_boolean($request->get_param('confirm')),
@@ -500,6 +501,12 @@ class AgentController extends WP_REST_Controller {
       if (isset($probeFix['auth_credential_id'])) {
         $opts['probe_fix']['auth_credential_id'] = (int) $probeFix['auth_credential_id'];
       }
+    }
+    // Same idea as probe_fix, but for a test_dispatch that came back 401/403: only
+    // the credential can be fixed inline (a payload/endpoint problem goes through
+    // "Fix it" instead), so this only ever carries auth_credential_id.
+    if (is_array($dispatchFix) && isset($dispatchFix['auth_credential_id'])) {
+      $opts['dispatch_fix'] = ['auth_credential_id' => (int) $dispatchFix['auth_credential_id']];
     }
     $result = $this->orchestrator->advanceStep((int) $request->get_param('id'), $opts);
     return is_wp_error($result) ? $result : rest_ensure_response($this->withCreditStatus($result));

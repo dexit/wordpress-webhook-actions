@@ -478,7 +478,7 @@ onMounted(loadWebhooks)
         <h2 class="text-xl font-semibold">{{ __('Webhooks') }}</h2>
         <p class="text-muted-foreground text-sm">{{ __('Trigger webhooks on WordPress events') }}</p>
       </div>
-      <div class="flex gap-2 self-start sm:self-auto">
+      <div class="flex flex-wrap gap-2 self-start sm:self-auto">
         <Button variant="outline" @click="showImportDialog = true">
           <Download class="mr-2 h-4 w-4" />
           {{ __('Import') }}

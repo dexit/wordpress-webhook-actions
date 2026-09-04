@@ -673,7 +673,7 @@ onMounted(loadData)
                   <div
                     v-for="item in backoffPreview"
                     :key="item.retry"
-                    class="flex-1 text-center"
+                    class="flex-1 min-w-0 text-center"
                   >
                     <div class="text-xs font-medium truncate">{{ item.label }}</div>
                     <div class="text-xs text-muted-foreground truncate">{{ item.retryLabel }}</div>

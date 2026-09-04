@@ -261,6 +261,20 @@ class PlanExecutor {
       $step['input'] = $input;
     }
 
+    // 0c) Inline dispatch fix: a test_dispatch that came back 401/403 (see
+    // DispatchInterpreter) is fixed the same way a probe's auth failure is —
+    // attach the chosen/created credential to the webhook, then let the normal
+    // flow below re-run the dispatch with it. test_dispatch always carries a
+    // real webhook_id (it's a required field), so there is no "unbound" branch
+    // to fall back to the way probe_fix needs one.
+    if (!empty($opts['dispatch_fix']) && is_array($opts['dispatch_fix']) && (string) $step['ability'] === 'test_dispatch') {
+      $webhookId = (int) ($input['webhook_id'] ?? 0);
+      $fix       = $opts['dispatch_fix'];
+      if ($webhookId > 0 && !empty($fix['auth_credential_id'])) {
+        $this->registry->execute('assign_credential', ['webhook_id' => $webhookId, 'credential_id' => (int) $fix['auth_credential_id']]);
+      }
+    }
+
     // 1) Required input still blank → pause for the user.
     $missing = $this->missingRequired($step);
     if ($missing !== []) {
