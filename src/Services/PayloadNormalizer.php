@@ -128,7 +128,27 @@ class PayloadNormalizer {
         $data = get_object_vars($value);
       }
 
-      $data = is_array($data) ? array_map([self::class, 'value'], $data) : ['value' => (string) $value];
+      // The extractor above can hand back something that is not an array, and
+      // the old `(string) $value` fallback then threw on any object without
+      // __toString — "Object of class X could not be converted to string",
+      // raised from inside dispatch(), which kills the request rather than
+      // dropping one field. WordPress fires http_api_debug with a
+      // WP_HTTP_Requests_Response that hits exactly this path, so a webhook on
+      // that trigger would have taken the site's request down with it.
+      //
+      // Degrade instead: keep a usable scalar, stringify only what can be
+      // stringified, and otherwise emit the bare __type — which callers already
+      // understand as "opaque object, nothing to map" (see
+      // ReadAbilities::captureIsOpaque()).
+      if (is_array($data)) {
+        $data = array_map([self::class, 'value'], $data);
+      } elseif (is_scalar($data) || $data === null) {
+        $data = ['value' => $data];
+      } elseif (method_exists($value, '__toString')) {
+        $data = ['value' => (string) $value];
+      } else {
+        $data = [];
+      }
 
       return array_merge(['__type' => get_class($value)], $data);
     }
