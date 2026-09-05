@@ -69,31 +69,11 @@ class Dispatcher {
     $eventUuid = wp_generate_uuid4();
     $eventTimestamp = gmdate('Y-m-d\TH:i:s\Z');
 
-    /**
-     * Filter the webhook payload before dispatching.
-     *
-     * @param array  $payload The default payload data
-     * @param string $trigger The trigger event name
-     * @param array  $args    Original arguments passed to the trigger
-     */
-    $payload = apply_filters(
-      'fswa_payload',
-      [
-        'event' => [
-          'id'        => $eventUuid,
-          'timestamp' => $eventTimestamp,
-          'version'   => '1.0',
-        ],
-        'hook'      => $trigger,
-        'args'      => $this->normalizeArgs($args),
-        'timestamp' => time(),
-        'site'      => [
-          'url' => home_url(),
-        ],
-      ],
-      $trigger,
-      $args
-    );
+    // Envelope + arg normalization live in PayloadNormalizer so the payload
+    // harvester that fills the hosted payload library produces the identical
+    // shape — the field paths we serve are only correct if they are the paths a
+    // real dispatch produces here. Includes the fswa_payload filter.
+    $payload = PayloadNormalizer::envelope($trigger, $args, $eventUuid, $eventTimestamp);
 
     if (empty($webhooks)) {
       // Capture example payloads for disabled webhooks so field mapping
@@ -807,68 +787,6 @@ class Dispatcher {
       $current = $current[$segment];
     }
     return $current;
-  }
-
-  /**
-   * Normalize arguments for payload serialization
-   *
-   * @param array<string, mixed> $args Arguments to normalize
-   * @return array<string, mixed> Normalized arguments
-   */
-  private function normalizeArgs(array $args): array {
-    return array_map([$this, 'normalizeValue'], $args);
-  }
-
-  /**
-   * Recursively normalize a single value for payload serialization
-   *
-   * @param mixed $value Value to normalize
-   * @return mixed Normalized value
-   */
-  private function normalizeValue(mixed $value): mixed {
-    if (is_scalar($value) || $value === null) {
-      return $value;
-    }
-
-    if (is_array($value)) {
-      return array_map([$this, 'normalizeValue'], $value);
-    }
-
-    if (is_object($value)) {
-      if ($value instanceof \Closure) {
-        return null;
-      }
-
-      if ($value instanceof \DateTimeInterface) {
-        return $value->format(\DateTime::ATOM);
-      }
-
-      if ($value instanceof \Traversable) {
-        return array_map([$this, 'normalizeValue'], iterator_to_array($value, false));
-      }
-
-      // Allow third-party code to provide custom extraction for any object type.
-      $custom = apply_filters('fswa_normalize_object', null, $value);
-      if (is_array($custom)) {
-        return array_merge(['__type' => get_class($value)], array_map([$this, 'normalizeValue'], $custom));
-      }
-
-      if (method_exists($value, 'get_data')) {
-        $data = $value->get_data();
-      } elseif ($value instanceof \JsonSerializable) {
-        $data = $value->jsonSerialize();
-      } elseif (method_exists($value, 'get_properties')) {
-        $data = $value->get_properties();
-      } else {
-        $data = get_object_vars($value);
-      }
-
-      $data = is_array($data) ? array_map([$this, 'normalizeValue'], $data) : ['value' => (string) $value];
-
-      return array_merge(['__type' => get_class($value)], $data);
-    }
-
-    return null;
   }
 
   /**
