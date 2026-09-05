@@ -208,7 +208,16 @@ class PayloadLibrary {
   private function context(string $hook): array {
     $context = ['wp_version' => get_bloginfo('version')];
 
-    $slug = (new HookDiscoveryService())->discoverWithRuntimeHooks()[$hook] ?? null;
+    // Read the discovery cache directly rather than calling
+    // discoverWithRuntimeHooks(), which rebuilds it by scanning every active
+    // plugin's PHP when the transient is cold. Measured on staging: the first
+    // lookup of a build took 3.0s against 0.3s for the next two, all of it that
+    // scan — paid on the agent's hottest read, to attach one optional version
+    // string. When the map is cold we simply omit source_version; the API then
+    // serves its newest capture and says which version it came from, which is a
+    // fair trade for three seconds.
+    $map  = get_transient(HookDiscoveryService::CACHE_KEY);
+    $slug = is_array($map) ? ($map[$hook] ?? null) : null;
 
     if (is_string($slug) && $slug !== '' && $slug !== 'wordpress') {
       $version = $this->pluginVersion($slug);
