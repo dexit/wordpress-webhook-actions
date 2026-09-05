@@ -13,8 +13,8 @@ defined('ABSPATH') || exit;
 class HookDiscoveryService {
 
   const CACHE_KEY = 'fswa_discovered_hooks_v3';
-  const FILTERS_CACHE_KEY = 'fswa_discovered_filters_v1';
-  const PREFIX_CACHE_KEY = 'fswa_discovered_hooks_prefix_map_v1';
+  const FILTERS_CACHE_KEY = 'fswa_discovered_filters_v2';
+  const PREFIX_CACHE_KEY = 'fswa_discovered_hooks_prefix_map_v2';
   const CACHE_TTL = DAY_IN_SECONDS;
 
   /**
@@ -80,10 +80,48 @@ class HookDiscoveryService {
       }
     }
 
+    // Our own directory is excluded from the scan above, so our do_action()
+    // hooks are never offered as triggers — which is right, they are internal.
+    // But that also meant our apply_filters() calls never reached the
+    // known-filters set, while the runtime $wp_filter pass in
+    // discoverAllTriggerable() still saw them the moment anything hooked one.
+    //
+    // The result was that fswa_payload, fswa_webhook_payload, fswa_webhook_url
+    // and fswa_normalize_object were offered as triggers. Choosing one is
+    // destructive, not merely useless: HooksHandler::registerTriggerHandler()
+    // returns void, and on a FILTER WordPress takes the callback's return value
+    // as the filtered value — so a webhook triggered on fswa_payload nulls the
+    // payload of every dispatch on the site.
+    //
+    // Filters only. Actions from here stay out of the catalogue as before.
+    foreach ($this->getOwnFiles() as $file) {
+      $content = @file_get_contents($file);
+      if ($content === false) {
+        continue;
+      }
+
+      foreach ($this->extractNames($content, 'apply_filters') as $hookName) {
+        $filters[$hookName] = true;
+      }
+    }
+
     ksort($actions);
 
     set_transient(self::CACHE_KEY, $actions, self::CACHE_TTL);
     set_transient(self::FILTERS_CACHE_KEY, $filters, self::CACHE_TTL);
+  }
+
+  /**
+   * Our own plugin's PHP files, scanned for apply_filters() only — see
+   * scanAndCache(). Kept separate from getFilesToScan() precisely because the
+   * two callers want different things from this directory.
+   *
+   * @return array<int, string>
+   */
+  private function getOwnFiles(): array {
+    $ownDir = defined('FSWA_FILE') ? realpath(dirname(FSWA_FILE)) : false;
+
+    return $ownDir ? $this->getPhpFiles($ownDir) : [];
   }
 
   /**
