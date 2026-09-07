@@ -4,7 +4,7 @@ Tags: webhooks, automation, zapier, n8n, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 3.0.1
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
@@ -150,6 +150,16 @@ Yes. Create a token from the API Tokens screen and pass it as `X-FSWA-Token: <to
 == Changelog ==
 
 For the full release history see [wpwebhooks.org/changelog/](https://wpwebhooks.org/changelog/)
+
+= 3.1.0 — 2026-09-07 =
+- Added: the WP Webhooks Payload Library. When a trigger has never fired on your site, Build with AI and the mapping editor now work from a reference payload captured on our own test sites — WordPress core, WooCommerce and the major form plugins, hundreds of hooks — instead of stopping to ask you to fire the event by hand. Available when Build with AI runs on WP Webhooks AI (Pro credits or the free trial); a lookup costs no credits, and the moment the event really fires on your site, your own capture takes over.
+- Added: a reference payload is always labelled as one. The webhook editor shows a "WP Webhooks Payload Library" badge on the trigger, with the plugin build the payload was captured on; Build with AI shows the same badge on every step built from it and on the test delivery that proves it.
+- Added: fields inside containers only your site defines — a form's fields, order meta, ACF — are never mapped from a reference payload. Build with AI pauses on that step, names the paths, and asks you to fire the event once so the mapping is built from your real fields; the webhook editor names those containers next to the payload.
+- Changed: a build made from a reference payload always ends with a test delivery, so the mapping is checked against your endpoint before the webhook can go live.
+- Fixed: the plugin's own filters (`fswa_payload`, `fswa_webhook_payload`, `fswa_webhook_url`, `fswa_normalize_object`) were offered as webhook triggers. Picking one silently nulled the payload of every delivery on the site; they are no longer listed.
+- Fixed: a trigger argument that is an object without a string form could throw inside dispatch and take the triggering request down with it. Such values are now reduced to a safe scalar and the delivery goes out.
+- Fixed: after a plugin update the browser could keep running the previous admin bundle from its cache; the bundle's cache-buster now changes with every build.
+- Changed: reading a trigger's schema no longer rescans every active plugin to name the owning plugin's version — a first lookup that took about three seconds now takes well under one.
 
 = 3.0.1 — 2026-09-04 =
 - Fixed: the main admin navigation wrapped onto several cramped rows on phone-width screens; it now collapses into a single dropdown showing the current section.
