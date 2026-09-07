@@ -16,6 +16,7 @@ import {
   Eye,
   Info,
   Share2,
+  Library,
 } from 'lucide-vue-next';
 import { Button, Card, Badge, Switch, Label, Alert, Tooltip } from '@/components/ui';
 import { formatUtcDate } from '@/lib/dates';
@@ -210,11 +211,31 @@ const getCaptureStatus = (trigger) => {
   if (!schema || !schema.example_payload) {
     return { status: 'waiting', date: null };
   }
+  // Our hosted reference payload, not this site's data. It has to be told
+  // apart from a real capture: the green "captured" badge on our fixture is a
+  // claim about the user's own site that is not true, and the keys under a
+  // site-defined container (a form's fields, meta_data, ACF) are OURS — mapping
+  // one ships a null that looks applied.
+  if (schema.example_source === 'library') {
+    return { status: 'library', date: null, library: schema.library || null };
+  }
   if (schema.example_source === 'shared') {
     return { status: 'shared', date: null, fromWebhookId: schema.example_from_webhook_id };
   }
   return { status: 'captured', date: schema.captured_at };
 };
+
+// "contact-form-7 6.1.7" — the plugin build our reference payload came off,
+// which is the one thing that tells a user whether it still matches what they
+// run.
+const libraryOrigin = (trigger) => {
+  const plugins = getCaptureStatus(trigger).library?.captured_from?.plugins || {};
+  const [slug, version] = Object.entries(plugins)[0] || [];
+  return slug ? `${slug} ${version}` : '';
+};
+
+const librarySiteDefined = (trigger) =>
+  getCaptureStatus(trigger).library?.site_defined_paths || [];
 
 // Whether this webhook may reuse an example captured for the same trigger on
 // another webhook (default on when the schema has no stored preference yet).
@@ -497,6 +518,14 @@ watch(
               {{ __('Payload Example Captured') }}
             </Badge>
             <Badge
+              v-else-if="getCaptureStatus(trigger).status === 'library'"
+              variant="warning"
+              class="text-xs"
+            >
+              <Library class="h-3 w-3 mr-1" />
+              {{ __('Reference Payload') }}
+            </Badge>
+            <Badge
               v-else-if="getCaptureStatus(trigger).status === 'shared'"
               variant="secondary"
               class="text-xs"
@@ -572,6 +601,15 @@ watch(
                   formatDate(getCaptureStatus(trigger).date)
                 }}</span>
               </template>
+              <template v-else-if="getCaptureStatus(trigger).status === 'library'">
+                <span class="text-foreground inline-flex items-center gap-1">
+                  <Library class="h-3.5 w-3.5 text-muted-foreground" />
+                  {{ __('Example from our hosted payload library — not captured on this site') }}
+                  <template v-if="libraryOrigin(trigger)">
+                    ({{ libraryOrigin(trigger) }})</template
+                  >
+                </span>
+              </template>
               <template v-else-if="getCaptureStatus(trigger).status === 'shared'">
                 <span class="text-foreground inline-flex items-center gap-1">
                   <Share2 class="h-3.5 w-3.5 text-muted-foreground" />
@@ -600,6 +638,33 @@ watch(
               />
               {{ __('Re-capture') }}
             </Button>
+          </div>
+
+          <!-- Where a reference payload comes from, and the one thing it cannot
+               tell you: the keys inside a container your site defines. Mapping
+               one of those ships a null that looks applied, so it is called out
+               here rather than left for the delivery log. -->
+          <div
+            v-if="getCaptureStatus(trigger).status === 'library'"
+            class="rounded-md border border-yellow-300 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/40 p-3 text-xs space-y-2"
+          >
+            <div class="flex items-start gap-2">
+              <Library class="h-4 w-4 shrink-0 text-yellow-700 dark:text-yellow-400" />
+              <div class="space-y-2 text-yellow-900 dark:text-yellow-200">
+                <p>
+                  {{ __('This payload came from our hosted library, captured on our own test site — the SHAPE is real, the VALUES are ours. Fire this event once on your site and your own capture replaces it automatically.') }}
+                </p>
+                <p v-if="librarySiteDefined(trigger).length">
+                  {{ __('These containers exist on your site too, but the keys inside them are yours and are not in our copy — do not map a field below one until you have your own capture:') }}
+                  <code
+                    v-for="path in librarySiteDefined(trigger)"
+                    :key="path"
+                    class="ml-1 font-mono bg-yellow-100 dark:bg-yellow-900/60 rounded px-1 py-0.5"
+                    >{{ path }}</code
+                  >
+                </p>
+              </div>
+            </div>
           </div>
 
           <!-- Reuse a shared example from another webhook for the same trigger -->
