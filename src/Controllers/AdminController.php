@@ -87,13 +87,32 @@ class AdminController {
       $mainEntry = $manifest['src/main.js'] ?? $manifest['index.html'] ?? null;
 
       if ($mainEntry) {
+        // The entry filename is deliberately unhashed (see admin/vite.config.js:
+        // wp_set_script_translations derives the JED filename from an md5 of the
+        // script PATH, so a content hash would break translations on every
+        // build). That leaves ?ver= as the only cache-buster — and App::VERSION
+        // alone does not move between releases, while nginx serves these with
+        // `max-age=315360000`. A rebuilt bundle at the same URL and the same
+        // ?ver= is therefore invisible for ten years: every staging deploy, and
+        // any release that ships admin JS without a version bump, kept serving
+        // the previous build.
+        //
+        // filemtime keeps the PATH stable (translations unaffected) and moves
+        // whenever the bundle is actually rebuilt or reinstalled.
+        $assetVersion = static function (string $file) use ($distPath): string {
+          $path = $distPath . '/' . $file;
+          $stamp = file_exists($path) ? filemtime($path) : false;
+
+          return $stamp === false ? App::VERSION : App::VERSION . '.' . $stamp;
+        };
+
         if (!empty($mainEntry['css'])) {
           foreach ($mainEntry['css'] as $index => $cssFile) {
             wp_enqueue_style(
               'fswa-admin-' . $index,
               $distUrl . '/' . $cssFile,
               [],
-              App::VERSION
+              $assetVersion($cssFile)
             );
           }
         } elseif (!empty($manifest['style.css']['file'])) {
@@ -101,7 +120,7 @@ class AdminController {
             'fswa-admin',
             $distUrl . '/' . $manifest['style.css']['file'],
             [],
-            App::VERSION
+            $assetVersion($manifest['style.css']['file'])
           );
         }
 
@@ -109,7 +128,7 @@ class AdminController {
           'fswa-admin',
           $distUrl . '/' . $mainEntry['file'],
           ['wp-i18n'],
-          App::VERSION,
+          $assetVersion($mainEntry['file']),
           true
         );
 
