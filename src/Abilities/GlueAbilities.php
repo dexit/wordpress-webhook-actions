@@ -7,8 +7,8 @@ defined('ABSPATH') || exit;
 use FlowSystems\WebhookActions\Api\AuthHelper;
 use FlowSystems\WebhookActions\Repositories\SnippetsRepository;
 use FlowSystems\WebhookActions\Repositories\TriggerSnippetsRepository;
+use FlowSystems\WebhookActions\Services\ExampleResolver;
 use FlowSystems\WebhookActions\Services\SnippetExecutor;
-use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Repositories\WebhookRepository;
 use FlowSystems\WebhookActions\Services\GluePermissions;
 use FlowSystems\WebhookActions\Services\PayloadTransformer;
@@ -281,11 +281,20 @@ class GlueAbilities {
     if ($payload === null && !empty($input['webhook_id']) && !empty($input['trigger'])) {
       $webhookId = (int) $input['webhook_id'];
       $trigger   = (string) $input['trigger'];
-      $resolved  = (new SchemaRepository())->resolveExample($webhookId, $trigger);
+      // Same three sources the mapping UI and the agent's own reads use: this
+      // webhook's capture, another webhook's capture of the same trigger, then
+      // our hosted reference payload. Reading the repository directly left the
+      // preview empty on exactly the builds the library exists to unblock —
+      // and an empty preview reports "your code matched nothing", which sends
+      // the agent off rewriting a snippet that was never the problem.
+      $resolved  = (new ExampleResolver())->resolve($webhookId, $trigger);
       if (!empty($resolved['example'])) {
         $payload    = $resolved['example'];
         $rawPayload = $payload;
         $source     = 'captured (' . ($resolved['source'] ?? 'own') . ')';
+        if (($resolved['source'] ?? null) === 'library') {
+          $source .= ' — our reference payload for this hook, not this site\'s data';
+        }
 
         // A snippet runs on the POST-mapping payload: the Dispatcher applies
         // PayloadTransformer::transform() before the fswa_webhook_payload filter.
