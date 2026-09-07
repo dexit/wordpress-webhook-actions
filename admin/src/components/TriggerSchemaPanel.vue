@@ -229,9 +229,11 @@ const getCaptureStatus = (trigger) => {
 // which is the one thing that tells a user whether it still matches what they
 // run.
 const libraryOrigin = (trigger) => {
-  const plugins = getCaptureStatus(trigger).library?.captured_from?.plugins || {};
-  const [slug, version] = Object.entries(plugins)[0] || [];
-  return slug ? `${slug} ${version}` : '';
+  const from = getCaptureStatus(trigger).library?.captured_from || {};
+  const [slug, version] = Object.entries(from.plugins || {})[0] || [];
+  if (slug) return `${slug} ${version}`;
+  // A core hook was captured off no plugin at all — name WordPress itself.
+  return from.wp ? `WordPress ${from.wp}` : '';
 };
 
 const librarySiteDefined = (trigger) =>
@@ -523,7 +525,7 @@ watch(
               class="text-xs"
             >
               <Library class="h-3 w-3 mr-1" />
-              {{ __('Reference Payload') }}
+              {{ __('WP Webhooks Payload Library') }}
             </Badge>
             <Badge
               v-else-if="getCaptureStatus(trigger).status === 'shared'"
@@ -604,7 +606,7 @@ watch(
               <template v-else-if="getCaptureStatus(trigger).status === 'library'">
                 <span class="text-foreground inline-flex items-center gap-1">
                   <Library class="h-3.5 w-3.5 text-muted-foreground" />
-                  {{ __('Example from our hosted payload library — not captured on this site') }}
+                  {{ __('Example from the WP Webhooks Payload Library — not captured on this site') }}
                   <template v-if="libraryOrigin(trigger)">
                     ({{ libraryOrigin(trigger) }})</template
                   >
@@ -652,7 +654,7 @@ watch(
               <Library class="h-4 w-4 shrink-0 text-yellow-700 dark:text-yellow-400" />
               <div class="space-y-2 text-yellow-900 dark:text-yellow-200">
                 <p>
-                  {{ __('This payload came from our hosted library, captured on our own test site — the SHAPE is real, the VALUES are ours. Fire this event once on your site and your own capture replaces it automatically.') }}
+                  {{ __('This example comes from the WP Webhooks Payload Library, captured on our own test sites — the SHAPE is real, the VALUES are ours. Fire this event once on your site and your own capture replaces it automatically.') }}
                 </p>
                 <p v-if="librarySiteDefined(trigger).length">
                   {{ __('These containers exist on your site too, but the keys inside them are yours and are not in our copy — do not map a field below one until you have your own capture:') }}
