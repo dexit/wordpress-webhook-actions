@@ -408,6 +408,19 @@ class SchemasController extends WP_REST_Controller {
     $schema = $this->schemaRepository->findByWebhookAndTrigger($webhookId, $trigger);
 
     if ($schema) {
+      // Through the resolver, like every other endpoint that hands the UI a
+      // schema. Clearing this webhook's own capture does not leave the trigger
+      // with NO example — another webhook's capture, or our hosted reference
+      // payload, may still answer for it. Returning the bare row said "no
+      // payload captured yet", and then a reload said the opposite; the panel
+      // flipped state on its own and neither message named where the payload
+      // that came back had come from.
+      $resolved = $this->exampleResolver()->resolve($webhookId, $trigger, $schema);
+      $schema['example_payload']         = $resolved['example'];
+      $schema['example_source']          = $resolved['source']; // own | shared | library | null
+      $schema['example_from_webhook_id'] = $resolved['from_webhook_id'];
+      $schema['library']                 = $this->libraryMeta($resolved);
+      $schema['use_shared_example']      = (int) ($schema['use_shared_example'] ?? 1);
       $schema['supports_user_enrichment'] = $this->payloadTransformer->supportsUserEnrichment($trigger);
     }
 
