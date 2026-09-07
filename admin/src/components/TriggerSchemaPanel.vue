@@ -229,9 +229,11 @@ const getCaptureStatus = (trigger) => {
 // which is the one thing that tells a user whether it still matches what they
 // run.
 const libraryOrigin = (trigger) => {
-  const plugins = getCaptureStatus(trigger).library?.captured_from?.plugins || {};
-  const [slug, version] = Object.entries(plugins)[0] || [];
-  return slug ? `${slug} ${version}` : '';
+  const from = getCaptureStatus(trigger).library?.captured_from || {};
+  const [slug, version] = Object.entries(from.plugins || {})[0] || [];
+  if (slug) return `${slug} ${version}`;
+  // A core hook was captured off no plugin at all — name WordPress itself.
+  return from.wp ? `WordPress ${from.wp}` : '';
 };
 
 const librarySiteDefined = (trigger) =>

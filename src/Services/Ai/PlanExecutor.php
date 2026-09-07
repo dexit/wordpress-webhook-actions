@@ -1032,11 +1032,16 @@ class PlanExecutor {
     }
 
     // "contact-form-7 6.1.7" — the build our payload came off, which is the one
-    // thing that tells a user whether it still matches what they run.
+    // thing that tells a user whether it still matches what they run. A core
+    // hook was captured off no plugin at all, so name WordPress itself.
+    $from   = (array) ($resolved['library']['captured_from'] ?? []);
     $origin = '';
-    foreach ((array) ($resolved['library']['captured_from']['plugins'] ?? []) as $slug => $version) {
+    foreach ((array) ($from['plugins'] ?? []) as $slug => $version) {
       $origin = trim($slug . ' ' . $version);
       break;
+    }
+    if ($origin === '' && !empty($from['wp'])) {
+      $origin = 'WordPress ' . $from['wp'];
     }
 
     return [
