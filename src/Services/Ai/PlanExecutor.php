@@ -1061,7 +1061,10 @@ class PlanExecutor {
 
     $paths = [];
 
-    foreach ((array) ($input['mapping'] ?? []) as $row) {
+    // set_mapping carries the mapping UI's own shape: field_mapping.mappings[],
+    // each row {source, target}. (It read a `mapping` key that no step ever
+    // sends, so this gate never fired for a mapping — only for conditions.)
+    foreach ((array) ($input['field_mapping']['mappings'] ?? []) as $row) {
       $source = is_array($row) ? (string) ($row['source'] ?? '') : '';
       if ($source !== '' && ExampleResolver::pathIsUnsafe($resolved, $source)) {
         $paths[$source] = true;
