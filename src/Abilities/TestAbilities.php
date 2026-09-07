@@ -5,8 +5,8 @@ namespace FlowSystems\WebhookActions\Abilities;
 defined('ABSPATH') || exit;
 
 use FlowSystems\WebhookActions\Repositories\WebhookRepository;
-use FlowSystems\WebhookActions\Repositories\SchemaRepository;
 use FlowSystems\WebhookActions\Repositories\CredentialRepository;
+use FlowSystems\WebhookActions\Services\ExampleResolver;
 use FlowSystems\WebhookActions\Services\PayloadTransformer;
 use FlowSystems\WebhookActions\Services\LogService;
 use FlowSystems\WebhookActions\Services\Dispatcher;
@@ -169,15 +169,30 @@ class TestAbilities {
 
     $mappingApplied  = false;
     $originalPayload = null;
+    $payloadSource   = 'provided';
+    $libraryNote     = null;
     if (isset($input['payload']) && is_array($input['payload'])) {
       $payload = $input['payload'];
     } else {
-      // Use this webhook's own captured example, or — when reuse is enabled — one
-      // captured for the same trigger on another webhook (trigger-global shape).
-      $example = (new SchemaRepository())->resolveExample($id, $trigger)['example'] ?? null;
+      // This webhook's own captured example, one captured for the same trigger
+      // on another webhook (the do_action shape is trigger-global), or — for
+      // hosted-AI installs — our hosted reference payload.
+      //
+      // Through ExampleResolver rather than SchemaRepository directly, because
+      // the rest of a library-backed build already assumes the library counts
+      // here: the prompt tells the agent to finish with test_dispatch (the only
+      // proof a reference payload survives contact with this site), and
+      // PlanExecutor::withCaptureStep() skips appending a "fire the event" step
+      // precisely because the resolver found an example. Reading the repository
+      // instead contradicted both, so every library-backed build dead-ended at
+      // its own verification step with nothing left to do but abandon it.
+      $resolved = (new ExampleResolver())->resolve($id, $trigger);
+      $example  = $resolved['example'] ?? null;
       if (empty($example)) {
         return new WP_Error('fswa_no_payload', __('No payload provided and no captured example exists yet for this trigger.', 'flowsystems-webhook-actions'), ['status' => 422]);
       }
+      $payloadSource = (string) ($resolved['source'] ?? 'own');
+      $libraryNote   = $payloadSource === 'library' ? $this->libraryNote($resolved) : null;
       $decoded = is_string($example) ? (json_decode($example, true) ?: []) : (array) $example;
       // Apply the stored field mapping so the test matches real deliveries.
       $mapped          = (new PayloadTransformer())->applyStoredMapping($id, $trigger, $decoded);
@@ -209,19 +224,58 @@ class TestAbilities {
     // response_body may come back json-decoded (array) from the repository.
     $body = $log['response_body'] ?? '';
 
-    return [
+    $result = [
       'log_id'          => $logId,
       'status'          => $log['status'] ?? null,
       'http_code'       => $log['http_code'] ?? null,
+      // Which payload actually went on the wire. The agent cannot infer it —
+      // "own" and "library" produce an identical 2xx — and the difference is
+      // what it has to tell the user afterwards.
+      'payload_source'  => $payloadSource,
       'mapping_applied' => $mappingApplied,
       'glue_applied'    => $glueApplied,
       'response'        => $this->truncate(is_string($body) ? $body : (string) wp_json_encode($body), self::PROBE_BODY_LIMIT),
     ];
+
+    if ($libraryNote !== null) {
+      $result['payload_note'] = $libraryNote;
+    }
+
+    return $result;
   }
 
   // ===================================================================
   // Helpers
   // ===================================================================
+
+  /**
+   * What the agent must pass on to the user after a test that ran on our
+   * fixture data rather than theirs.
+   *
+   * A 2xx here proves the endpoint accepts the SHAPE the mapping produces. It
+   * says nothing about the values, because the values were ours — and on a form
+   * trigger the field keys under a site-defined container are the user's own.
+   * Without this line an agent reports "verified" and means less than the user
+   * will hear.
+   *
+   * @param array<string, mixed> $resolved An ExampleResolver::resolve() result.
+   */
+  private function libraryNote(array $resolved): string {
+    $from    = (array) ($resolved['library']['captured_from']['plugins'] ?? []);
+    $version = '';
+    foreach ($from as $slug => $ver) {
+      $version = $slug . ' ' . $ver;
+      break;
+    }
+
+    return $version === ''
+      ? __('This test sent our reference payload, not data from this site: a 2xx proves the endpoint accepts the shape the mapping produces, not that the field VALUES are right. Tell the user, and ask them to fire the real event once if those values matter.', 'flowsystems-webhook-actions')
+      : sprintf(
+        /* translators: %s: plugin slug and version the reference payload was captured on, e.g. "contact-form-7 6.1.7". */
+        __('This test sent our reference payload, captured on %s, not data from this site: a 2xx proves the endpoint accepts the shape the mapping produces, not that the field VALUES are right. Tell the user, and ask them to fire the real event once if those values matter.', 'flowsystems-webhook-actions'),
+        $version
+      );
+  }
 
   /**
    * Resolve a vault credential into outgoing header(s) — internal only.
