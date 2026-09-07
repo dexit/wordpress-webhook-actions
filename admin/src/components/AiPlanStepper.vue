@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue';
-import { CheckCircle2, XCircle, AlertCircle, Circle, Loader2, ChevronDown, Undo2 } from 'lucide-vue-next';
+import { CheckCircle2, XCircle, AlertCircle, Circle, Loader2, ChevronDown, Undo2, Library } from 'lucide-vue-next';
 import { shortLabel } from '@/lib/aiLabels';
 import { __ } from '@/i18n';
 
@@ -88,6 +88,12 @@ watch(
           </span>
           <span v-if="step.reused" class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             {{ __('reused') }}
+          </span>
+          <!-- Built on / tested with the WP Webhooks Payload Library, not a capture from this site -->
+          <span v-if="step.payload_source?.kind === 'library' || (step.ability === 'test_dispatch' && step.result?.payload_source === 'library')"
+            class="shrink-0 inline-flex items-center gap-0.5 rounded bg-yellow-500/15 px-1.5 py-0.5 text-[10px] font-medium text-yellow-700 dark:text-yellow-400"
+            :title="__('WP Webhooks Payload Library')">
+            <Library class="w-3 h-3" /> {{ __('library') }}
           </span>
           <ChevronDown class="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform"
             :class="openIndex === i && 'rotate-180'" />

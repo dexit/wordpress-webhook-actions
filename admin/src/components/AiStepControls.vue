@@ -216,7 +216,7 @@ function createCredForInput() {
   <div v-else-if="step.status === 'blocked_prereq' && step.prereq?.kind === 'site_defined_paths'"
     class="rounded-md border border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20 p-4 text-sm">
     <p class="text-amber-700 dark:text-amber-300 mb-1">
-      {{ __('This step maps a field we cannot see from here. The example payload came from our reference library, and these paths sit inside a container whose contents are specific to your site:') }}
+      {{ __('This step maps a field we cannot see from here. The example payload came from the WP Webhooks Payload Library, and these paths sit inside a container whose contents are specific to your site:') }}
     </p>
     <ul class="mb-3 font-mono text-xs text-amber-700 dark:text-amber-300">
       <li v-for="p in step.prereq?.paths || []" :key="p">{{ p }}</li>

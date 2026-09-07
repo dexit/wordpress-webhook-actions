@@ -1,6 +1,7 @@
 <script setup>
-import { CheckCircle2, XCircle, AlertCircle, Circle, Loader2, ShieldAlert, Undo2, Play } from 'lucide-vue-next';
-import { Button } from '@/components/ui';
+import { computed } from 'vue';
+import { CheckCircle2, XCircle, AlertCircle, Circle, Loader2, ShieldAlert, Undo2, Play, Library } from 'lucide-vue-next';
+import { Button, Badge } from '@/components/ui';
 import AiStepControls from '@/components/AiStepControls.vue';
 import ChatMarkdown from '@/components/ChatMarkdown.vue';
 import BuiltWebhookActions from '@/components/BuiltWebhookActions.vue';
@@ -24,6 +25,21 @@ const props = defineProps({
   canContinue: { type: Boolean, default: false },
   finished: { type: Boolean, default: false },
   built: { type: Object, default: () => ({}) }, // BuiltWebhookActions prop bundle
+});
+
+// The example this step was built or tested against came from the WP Webhooks
+// Payload Library, not from a capture on this site. PlanExecutor stamps
+// `payload_source` on a set_mapping / set_conditions step; test_dispatch
+// reports it in its result. Either way the user should see it here, on the
+// step they are watching — the trigger panel's badge is a screen away.
+const libraryPayload = computed(() => {
+  if (props.step.payload_source?.kind === 'library') {
+    return { origin: props.step.payload_source.origin || '', tested: false };
+  }
+  if (props.step.ability === 'test_dispatch' && props.step.result?.payload_source === 'library') {
+    return { origin: '', tested: true };
+  }
+  return null;
 });
 
 const emit = defineEmits([
@@ -60,6 +76,22 @@ const emit = defineEmits([
           {{ __('Step') }} {{ stepNumber }} {{ __('of') }} {{ stepCount }} · {{ abilityTitle(abilities, step.ability) }}
         </p>
       </div>
+    </div>
+
+    <!-- Built on our reference payload, not this site's data -->
+    <div v-if="libraryPayload"
+      class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <Badge variant="warning" class="text-xs shrink-0">
+        <Library class="h-3 w-3 mr-1" />
+        {{ __('WP Webhooks Payload Library') }}
+      </Badge>
+      <span v-if="libraryPayload.tested">
+        {{ __('This test sent our reference payload, not data from this site — it proves the endpoint accepts the shape, not the values.') }}
+      </span>
+      <span v-else>
+        {{ __('Built from a reference payload — the shape is real, the values are ours. The test step checks it against your endpoint.') }}
+        <span v-if="libraryPayload.origin" class="font-mono">({{ libraryPayload.origin }})</span>
+      </span>
     </div>
 
     <!-- Snippet code: create_snippet / update_snippet / raw-code previews

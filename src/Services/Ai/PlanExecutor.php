@@ -295,13 +295,29 @@ class PlanExecutor {
     // this; weaker models still do it once their read budget runs out, so gate it
     // here where it cannot be talked around. Same pause the UI already offers for
     // a missing capture: fire the event, then retry.
-    $prereq = $this->missingCapture($step, $input);
+    $resolved = $this->exampleFor($step, $input);
+    $prereq   = $this->missingCapture($input, $resolved);
     if ($prereq !== null) {
       $step['status']     = 'blocked_prereq';
       $step['prereq']     = $prereq;
       $steps[$cursor]     = $step;
       $execution['steps'] = $steps;
       return $this->persistExecution($conversationId, $execution, $step, false, false);
+    }
+
+    // 1b) The gate passed, so the mapping is being built against SOME example.
+    // When that example is ours (the hosted payload library) rather than a
+    // capture from this site, say so on the step: the Build with AI screen is
+    // where the user watches the mapping get made, and a mapping built on a
+    // reference payload should look different from one built on their data —
+    // the same distinction the trigger panel already draws with its badge. The
+    // assistant is told to mention it in prose; this is the part that does not
+    // depend on the model remembering to.
+    $source = $this->payloadSource($resolved);
+    if ($source !== null) {
+      $step['payload_source'] = $source;
+    } else {
+      unset($step['payload_source']);
     }
 
     // 2) Confirmation gate (go-live / delete / edit-live / unsafe probe /
@@ -935,31 +951,20 @@ class PlanExecutor {
    * A `capture_payload` prereq when this step addresses a captured payload that
    * does not exist yet, or null when the step is fine to run.
    *
-   * Only set_mapping and set_conditions take dot-paths into the captured shape.
-   * set_conditions is exempt when it evaluates on "transformed": those paths are
-   * the mapping's own target names plus snippet-injected keys, which the plan
-   * defines itself and no capture can confirm.
+   * Which steps need an example at all is exampleFor()'s call: a null $resolved
+   * means this step takes no dot-paths into a payload and is fine to run.
    *
-   * @param array<string, mixed> $step
    * @param array<string, mixed> $input Ref-resolved input for this step.
-   * @return array{kind:string, webhook_id:int, trigger:string}|null
+   * @param array<string, mixed>|null $resolved exampleFor() for this step.
+   * @return array{kind:string, webhook_id:int, trigger:string, paths?:array<int, string>}|null
    */
-  private function missingCapture(array $step, array $input): ?array {
-    $ability = (string) ($step['ability'] ?? '');
-    if (!in_array($ability, ['set_mapping', 'set_conditions'], true)) {
-      return null;
-    }
-    if ($ability === 'set_conditions' && (string) ($input['conditions_evaluate_on'] ?? 'original') === 'transformed') {
+  private function missingCapture(array $input, ?array $resolved): ?array {
+    if ($resolved === null) {
       return null;
     }
 
-    $trigger = (string) ($input['trigger'] ?? '');
-    if ($trigger === '') {
-      return null;
-    }
-
+    $trigger   = (string) ($input['trigger'] ?? '');
     $webhookId = (int) ($input['webhook_id'] ?? 0);
-    $resolved  = (new ExampleResolver())->resolve($webhookId, $trigger);
 
     if ($resolved['example'] === null) {
       return ['kind' => 'capture_payload', 'webhook_id' => $webhookId, 'trigger' => $trigger];
@@ -984,6 +989,61 @@ class PlanExecutor {
     }
 
     return null;
+  }
+
+  /**
+   * The example a set_mapping / set_conditions step will be built against, or
+   * null when the step is not one that takes dot-paths into a payload (and so
+   * needs no example at all). Resolved once here so the capture gate and the
+   * step's payload_source annotation agree on what they looked at.
+   *
+   * @param array<string, mixed> $step
+   * @param array<string, mixed> $input Ref-resolved input for this step.
+   * @return array<string, mixed>|null An ExampleResolver::resolve() result.
+   */
+  private function exampleFor(array $step, array $input): ?array {
+    $ability = (string) ($step['ability'] ?? '');
+    if (!in_array($ability, ['set_mapping', 'set_conditions'], true)) {
+      return null;
+    }
+    if ($ability === 'set_conditions' && (string) ($input['conditions_evaluate_on'] ?? 'original') === 'transformed') {
+      return null;
+    }
+
+    $trigger = (string) ($input['trigger'] ?? '');
+    if ($trigger === '') {
+      return null;
+    }
+
+    return (new ExampleResolver())->resolve((int) ($input['webhook_id'] ?? 0), $trigger);
+  }
+
+  /**
+   * What the UI shows beside a step built on our reference payload rather than
+   * on a capture from this site. Null for own / shared examples — those are the
+   * site's data and need no caveat.
+   *
+   * @param array<string, mixed>|null $resolved An ExampleResolver::resolve() result.
+   * @return array{kind:string, origin:string, confidence:string}|null
+   */
+  private function payloadSource(?array $resolved): ?array {
+    if ($resolved === null || ($resolved['source'] ?? null) !== 'library') {
+      return null;
+    }
+
+    // "contact-form-7 6.1.7" — the build our payload came off, which is the one
+    // thing that tells a user whether it still matches what they run.
+    $origin = '';
+    foreach ((array) ($resolved['library']['captured_from']['plugins'] ?? []) as $slug => $version) {
+      $origin = trim($slug . ' ' . $version);
+      break;
+    }
+
+    return [
+      'kind'       => 'library',
+      'origin'     => $origin,
+      'confidence' => (string) ($resolved['library']['confidence'] ?? ''),
+    ];
   }
 
   /**
