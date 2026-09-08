@@ -15,6 +15,7 @@ Describe an integration and the AI builds it — no API key needed. Outgoing web
 **Describe the integration you want. The AI builds it.** Webhook Actions ships with **Build with AI** — an in-admin agent that turns a plain-language request like *"When a Contact Form 7 form is submitted, send it as JSON to my n8n webhook"* into a working, tested automation. The agent proposes a plan you can review and edit, then creates the webhook, captures a real example payload from your site, maps the fields, sets dispatch conditions, probes your endpoint, and sends a test delivery. Nothing goes live without your confirmation — new webhooks are always created disabled, and you can undo the last change with one click.
 
 📖 [Full documentation at wpwebhooks.org/docs/](https://wpwebhooks.org/docs/)
+▶️ [Try it in your browser — no install, no signup, no API key](https://playground.wordpress.net/?blueprint-url=https://wpwebhooks.org/blueprint.json)
 
 = What you can connect =
 
@@ -27,7 +28,7 @@ That makes it a no-code way to sync WordPress data outward: describe what you wa
 = No API key needed to start =
 
 - **55 free credits, no key and no signup** — claimed automatically on your first prompt. There is no button to press, no account to create and no card; the plugin sends nothing but your site address. That is about five agent turns, or roughly two complete automations built end to end
-- **Try it without installing anything** — the **Live Preview** button on this page boots a throwaway WordPress in your browser and runs the real agent on those credits
+- **Try it without installing anything** — [Live Preview](https://playground.wordpress.net/?blueprint-url=https://wpwebhooks.org/blueprint.json) (also the button at the top of this page) boots a throwaway WordPress in your browser and runs the real agent on those credits
 - **WordPress connectors** — if your site already has an AI provider connected (Settings → Connectors), the builder uses it directly and the plugin stores no keys
 - **My own keys** — connect Anthropic, OpenAI or Google in the builder; keys are encrypted in the Credentials Vault and never returned over the API. A free Google AI Studio key gives you Gemini at no cost: [step-by-step tutorial](https://wpwebhooks.org/docs/get-google-ai-studio-api-key/)
 - **Your own key always wins** — once a provider of yours is connected, the free credits are never spent
@@ -125,7 +126,7 @@ No. Both integrations are built in. When CF7 or IvyForms is active, submissions 
 
 = How does retry work? =
 
-The dispatcher retries 5xx and 429 responses automatically with exponential backoff (delays of ~30s, 60s, 120s, 240s, 480s, capped at 1 hour). 4xx and 3xx responses are marked `permanently_failed` immediately — bad payloads are not worth retrying. Default maximum is 5 attempts; override it per webhook in the UI, or globally with the `fswa_max_attempts` filter. The backoff strategy (exponential, linear or fixed) is a per-webhook setting too, falling back to a site-wide default.
+The dispatcher retries 5xx and 429 responses automatically with exponential backoff. The delay before attempt N is `base_delay × 2^N`, capped at the maximum delay — so on the defaults (exponential, 30s base, 1 hour cap, 5 attempts) a failing delivery is retried after 60s, 120s, 240s and 480s, and is marked `permanently_failed` roughly 15 minutes after the first attempt. The 1 hour cap only comes into play if you raise the attempt limit or the base delay. 4xx and 3xx responses are marked `permanently_failed` immediately — bad payloads are not worth retrying. Override the attempt limit per webhook in the UI, or globally with the `fswa_max_attempts` filter; the backoff strategy (exponential, linear or fixed) and its base and maximum delays are per-webhook settings too, each falling back to a site-wide default.
 
 = Can I access the REST API without a WordPress login? =
 
